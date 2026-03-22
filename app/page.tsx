@@ -144,7 +144,7 @@ export default function HomePage() {
           ))}
 
           {/* Placeholder phases */}
-          {['Operations & Security', 'Advanced'].map((title) => (
+          {['Advanced'].map((title) => (
             <div
               key={title}
               className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 opacity-40 cursor-not-allowed"
