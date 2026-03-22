@@ -1,9 +1,10 @@
 import phase0 from './phase0'
 import phase1 from './phase1'
 import phase2 from './phase2'
+import phase3 from './phase3'
 import type { Phase } from '@/lib/types'
 
-export const phases: Phase[] = [phase0, phase1, phase2]
+export const phases: Phase[] = [phase0, phase1, phase2, phase3]
 
 export function getPhase(slug: string): Phase | undefined {
   return phases.find((p) => p.slug === slug)
