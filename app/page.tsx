@@ -25,7 +25,7 @@ export default function HomePage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs px-3 py-1.5 rounded-full mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse inline-block" />
-            Kubernetes v1.33 · Updated March 2026
+            Kubernetes v1.35 · Updated March 2026
           </div>
 
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
@@ -158,7 +158,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800 py-6 text-center text-xs text-slate-600">
-        Sources: kubernetes.io · cncf.io · Kubernetes v1.33 (Octarine) · March 2026
+        Sources: kubernetes.io · cncf.io · Kubernetes v1.35 (Timbernetes) · March 2026
       </footer>
     </main>
   )

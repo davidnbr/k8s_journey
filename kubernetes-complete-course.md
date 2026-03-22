@@ -1,6 +1,6 @@
 # The Complete Kubernetes Course: Zero to Advanced (2026 Edition)
 > **Brain-Optimized Learning Path** · Validated sources · Interactive labs · Visual-first
-> Current Kubernetes version: **v1.33 (Octarine)** · Last verified: March 22, 2026
+> Current Kubernetes version: **v1.35 (Timbernetes)** · Last verified: March 22, 2026
 
 ---
 
@@ -2229,5 +2229,5 @@ Role ─────────────────────────
 
 ---
 
-> **Sources verified March 22, 2026** · Kubernetes v1.33 (Octarine) · CNCF Annual Survey 2025
+> **Sources verified March 22, 2026** · Kubernetes v1.35 (Timbernetes) · CNCF Annual Survey 2025
 > Build on: [kubernetes.io](https://kubernetes.io) · [cncf.io](https://cncf.io) · [killercoda.com](https://killercoda.com) · [iximiuz.com](https://labs.iximiuz.com)

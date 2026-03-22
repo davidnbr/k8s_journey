@@ -67,9 +67,9 @@ Think of Kubernetes like a **shipping company**:
           command: 'kubectl get nodes',
           output: [
             'NAME           STATUS   ROLES           AGE   VERSION',
-            'controlplane   Ready    control-plane   5d    v1.33.0',
-            'node-1         Ready    <none>          5d    v1.33.0',
-            'node-2         Ready    <none>          5d    v1.33.0',
+            'controlplane   Ready    control-plane   5d    v1.35.2',
+            'node-1         Ready    <none>          5d    v1.35.2',
+            'node-2         Ready    <none>          5d    v1.35.2',
           ],
           explanation: 'A cluster has one (or more) control plane nodes and multiple worker nodes. The STATUS "Ready" means kubelet is healthy and the node can accept Pods.',
           clusterState: {

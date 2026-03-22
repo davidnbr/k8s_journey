@@ -311,7 +311,7 @@ Step 5: [v2][v2][v2]       ← done ✓
           id: 'p1-m2-s3',
           title: 'Rolling update',
           instruction: 'Update the image to nginx:1.27. Watch the rolling update with zero downtime.',
-          command: 'kubectl set image deployment/web nginx=nginx:1.27',
+          command: 'kubectl set image deployment/web web=nginx:1.27',
           output: ['deployment.apps/web image updated'],
           explanation: 'Kubernetes creates a new ReplicaSet for v2 (nginx:1.27) and gradually shifts pods from the old RS to the new one, keeping 3 pods running at all times.',
           clusterState: {

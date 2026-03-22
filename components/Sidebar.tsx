@@ -147,7 +147,7 @@ export default function Sidebar() {
       {/* Footer */}
       <div className="p-3 border-t border-slate-800">
         <div className="text-[10px] text-slate-600 text-center">
-          Kubernetes v1.33 · March 2026
+          Kubernetes v1.35 · March 2026
         </div>
       </div>
     </aside>
