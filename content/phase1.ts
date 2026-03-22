@@ -589,7 +589,7 @@ Pod labels:   { app: api }               ✗ (not selected)
           question: 'A Pod in namespace "frontend" wants to reach a Service called "db" in namespace "backend". What DNS name should it use?',
           options: ['db', 'db.backend', 'db.backend.svc.cluster.local', 'backend/db'],
           answer: 2,
-          explanation: 'The full DNS format is <service>.<namespace>.svc.cluster.local. Short name "db" only works within the same namespace. "db.backend" also works as a short cross-namespace form.',
+          explanation: 'The full DNS format is <service>.<namespace>.svc.cluster.local. Short name "db" only works within the same namespace. Cross-namespace access requires the FQDN — "db.backend" is not a reliable short form because Pod search domains only include the Pod\'s own namespace, not others.',
         },
         {
           id: 'p1-m3-q4',
