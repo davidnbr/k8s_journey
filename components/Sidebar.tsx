@@ -124,24 +124,6 @@ export default function Sidebar() {
           )
         })}
 
-        {/* Coming soon */}
-        <div>
-          <div className="px-2 mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
-              More phases coming…
-            </span>
-          </div>
-          {['Advanced'].map((t) => (
-            <div
-              key={t}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-slate-700 cursor-not-allowed"
-            >
-              <span className="text-slate-800">○</span>
-              <span className="truncate">{t}</span>
-              <span className="text-[9px] bg-slate-800 text-slate-600 px-1 rounded ml-auto">soon</span>
-            </div>
-          ))}
-        </div>
       </nav>
 
       {/* Footer */}

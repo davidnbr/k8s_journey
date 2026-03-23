@@ -143,16 +143,6 @@ export default function HomePage() {
             </Link>
           ))}
 
-          {/* Placeholder phases */}
-          {['Advanced'].map((title) => (
-            <div
-              key={title}
-              className="bg-slate-900/50 border border-slate-800 rounded-xl p-5 opacity-40 cursor-not-allowed"
-            >
-              <div className="text-xs font-bold uppercase tracking-widest text-slate-600 mb-1">Coming soon</div>
-              <h3 className="text-slate-500 font-bold text-base">{title}</h3>
-            </div>
-          ))}
         </div>
       </section>
 
