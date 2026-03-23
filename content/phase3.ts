@@ -66,9 +66,10 @@ For production storage you need three objects working together:
 
 | Mode | Short | Meaning |
 |---|---|---|
-| \`ReadWriteOnce\` | RWO | Read/write by a single node |
-| \`ReadOnlyMany\` | ROX | Read-only by many nodes |
-| \`ReadWriteMany\` | RWX | Read/write by many nodes simultaneously |
+| \`ReadWriteOnce\` | RWO | mounted read-write by a single node |
+| \`ReadOnlyMany\` | ROX | mounted read-only by many nodes simultaneously |
+| \`ReadWriteMany\` | RWX | mounted read-write by many nodes simultaneously |
+| \`ReadWriteOncePod\` | RWOP | mounted read-write by a single Pod only — stricter than RWO (stable since Kubernetes v1.29) |
 
 Most cloud block storage (AWS EBS, GCE PD) only supports RWO. NFS or cloud file systems support RWX.
 
@@ -76,8 +77,8 @@ Most cloud block storage (AWS EBS, GCE PD) only supports RWO. NFS or cloud file 
 
 | Policy | Behaviour when PVC is deleted |
 |---|---|
-| \`Retain\` | PV and data are kept — manual cleanup required |
-| \`Delete\` | PV and the underlying storage resource are deleted automatically |
+| \`Retain\` | data is kept after the PVC is deleted — manual cleanup required |
+| \`Delete\` | the underlying storage volume is deleted automatically when the PVC is deleted (cloud provider dependent) |
 
 ### The Binding Lifecycle
 

@@ -164,7 +164,7 @@ A Kubernetes cluster is split into two logical sections:
 
 **Worker Nodes** — run your actual workloads. Each node has:
 - **kubelet** — the node agent; ensures containers run as instructed
-- **kube-proxy** — manages network rules for Service routing
+- **kube-proxy** — manages iptables/nftables/IPVS rules for Service routing *(optional — omitted when using eBPF-based CNIs like Cilium)*
 - **container runtime** — actually runs containers (containerd)
 
 ## The Reconciliation Loop

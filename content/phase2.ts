@@ -705,6 +705,8 @@ For actual encryption at rest, you need **EncryptionConfiguration** on the kube-
 | \`kubernetes.io/dockerconfigjson\` | Registry pull credentials |
 | \`kubernetes.io/service-account-token\` | Service account JWTs (auto-managed) |
 
+*(These are the three most commonly used types. Kubernetes defines 8 built-in Secret types in total — others include \`kubernetes.io/service-account-token\`, \`kubernetes.io/basic-auth\`, \`kubernetes.io/ssh-auth\`, \`kubernetes.io/dockercfg\`, and \`bootstrap.kubernetes.io/token\`.)*
+
 ## Best Practices
 
 1. **Never commit Secret YAML to git** — even base64-encoded values are easily decoded
@@ -914,11 +916,10 @@ While the startup probe is running (and has not yet succeeded), **liveness and r
 
 ## Probe Mechanisms
 
-| Mechanism | How it works |
-|---|---|
-| \`httpGet\` | HTTP GET request; success = 200–399 |
-| \`tcpSocket\` | TCP connection attempt; success = connection accepted |
-| \`exec\` | Runs a command inside the container; success = exit code 0 |
+- **httpGet**: sends an HTTP GET request — suitable for web services
+- **tcpSocket**: checks if a TCP port accepts connections — suitable for databases, message queues
+- **exec**: runs a command inside the container — most flexible, any exit 0 = success
+- **grpc**: checks a gRPC health endpoint (standard \`grpc.health.v1.Health\`) — added in Kubernetes 1.24
 
 ## Key Parameters
 
@@ -931,6 +932,7 @@ livenessProbe:
   periodSeconds: 10          # probe every N seconds
   failureThreshold: 3        # fail N times before action
   successThreshold: 1        # pass N times to be considered healthy
+  timeoutSeconds: 1          # how long to wait for a probe response before counting it as a failure
 \`\`\`
 
 ## Classic Mistake
@@ -1225,6 +1227,8 @@ Every container can (and should) declare two resource settings:
 - Exceeding CPU limit → container is **throttled** (slowed down, not killed)
 - Exceeding memory limit → container is **OOMKilled** (killed immediately)
 
+Note: memory enforcement is **reactive** — the kernel only invokes the OOM killer when it detects memory pressure. A container may briefly exceed its limit before being killed, unlike CPU which is proactively throttled.
+
 \`\`\`yaml
 resources:
   requests:
@@ -1241,9 +1245,12 @@ Kubernetes assigns a Quality of Service class to each pod based on its resource 
 
 | QoS Class | Condition | Eviction priority |
 |---|---|---|
-| \`Guaranteed\` | requests == limits for ALL containers | Last to be evicted |
-| \`Burstable\` | requests < limits (or only requests set) | Middle |
+| \`Guaranteed\` | EVERY container has requests == limits for BOTH cpu AND memory | Last to be evicted |
+| \`Burstable\` | Pod does not qualify as Guaranteed AND at least one container has a CPU or memory request or limit set | Middle |
 | \`BestEffort\` | No requests or limits set | First to be evicted |
+
+- **Guaranteed**: EVERY container in the pod has requests == limits for BOTH cpu AND memory. This is the highest-priority QoS class and the last to be evicted.
+- **Burstable**: the Pod does not qualify as Guaranteed, AND at least one container has a CPU or memory request or limit set. Includes pods where some containers have limits without requests, or requests without limits.
 
 When a node runs out of memory, Kubernetes evicts BestEffort pods first, then Burstable, and only evicts Guaranteed as a last resort.
 

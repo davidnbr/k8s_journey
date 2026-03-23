@@ -61,6 +61,10 @@ rules:
 
 Available verbs: \`get\`, \`list\`, \`watch\`, \`create\`, \`update\`, \`patch\`, \`delete\`, \`deletecollection\`.
 
+- \`get\` — fetch a specific named resource (\`kubectl get pod my-pod\`)
+- \`list\` — list all resources of a type (\`kubectl get pods\`)
+- \`watch\` — watch for real-time changes
+
 ## RoleBindings and ClusterRoleBindings
 
 A **RoleBinding** attaches a Role (or ClusterRole) to a **subject** — a User, Group, or ServiceAccount — within one namespace.
@@ -579,7 +583,7 @@ metrics-server ──── HPA controller ──── Deployment spec.replicas
 
 ## Requirements
 
-- **metrics-server must be installed** — it aggregates CPU and memory usage from kubelets every 60 seconds
+- **HPA requires a metrics source.** For **CPU and memory** scaling, this is typically **metrics-server** (which provides the \`metrics.k8s.io\` API). For custom metrics (e.g., requests per second from Prometheus), the **Prometheus Adapter** provides the \`custom.metrics.k8s.io\` API. For external metrics (e.g., SQS queue depth), a separate adapter is needed. Most clusters start with metrics-server for basic CPU/memory autoscaling.
 - **Resource requests must be set** on Pods — HPA CPU target is a percentage of \`requests.cpu\`, not the node's total CPU
 
 ## Key Fields
@@ -849,8 +853,10 @@ tolerations:
 
 To **remove** a taint, append a \`-\` to the taint key:
 \`\`\`bash
-kubectl taint nodes node-2 dedicated=gpu:NoSchedule-
+kubectl taint nodes node-2 dedicated:NoSchedule-
 \`\`\`
+
+The trailing \`-\` removes the taint. You only need to specify the key and effect — the value is not required for taint removal.
 
 ## nodeSelector
 
@@ -1016,9 +1022,9 @@ spec:
           id: 'p4-m4-s5',
           title: 'Remove the taint',
           instruction: 'Remove the GPU taint from node-2 using the trailing dash syntax.',
-          command: 'kubectl taint nodes node-2 dedicated=gpu:NoSchedule-',
+          command: 'kubectl taint nodes node-2 dedicated:NoSchedule-',
           output: ['node/node-2 untainted'],
-          explanation: 'Appending "-" to the taint specification removes it. After this, node-2 is schedulable by all Pods again — no toleration required. Existing Pods on node-2 (like gpu-pod) are not affected because NoSchedule only prevents new scheduling; it does not evict existing Pods (that would be NoExecute).',
+          explanation: 'The trailing `-` removes the taint. You only need to specify the key and effect — the value is not required for taint removal. After this, node-2 is schedulable by all Pods again — no toleration required. Existing Pods on node-2 (like gpu-pod) are not affected because NoSchedule only prevents new scheduling; it does not evict existing Pods (that would be NoExecute).',
           clusterState: {
             pods: [
               { id: 'ssd-pod-xyz', name: 'ssd-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
@@ -1132,12 +1138,12 @@ spec:
           question: 'How do you REMOVE a taint from a node?',
           options: [
             'kubectl delete taint nodes node-2 dedicated=gpu:NoSchedule',
-            'kubectl taint nodes node-2 dedicated=gpu:NoSchedule-  (trailing dash)',
+            'kubectl taint nodes node-2 dedicated:NoSchedule-  (trailing dash)',
             'kubectl label nodes node-2 dedicated-',
             'kubectl patch node node-2 -p \'{"spec":{"taints":[]}}\'',
           ],
           answer: 1,
-          explanation: 'Appending a "-" to the taint specification in kubectl taint removes it. The full syntax is kubectl taint nodes <node-name> <key>=<value>:<effect>-. The trailing dash is the removal signal. kubectl label uses the same trailing-dash pattern for removing labels, but taints are a separate spec field managed via kubectl taint.',
+          explanation: 'Appending a "-" to the taint specification in kubectl taint removes it. The minimal syntax is kubectl taint nodes <node-name> <key>:<effect>- — the value is not required for taint removal. The trailing dash is the removal signal. kubectl label uses the same trailing-dash pattern for removing labels, but taints are a separate spec field managed via kubectl taint.',
         },
       ],
     },
