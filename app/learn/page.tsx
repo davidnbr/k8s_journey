@@ -90,13 +90,6 @@ export default function LearnOverviewPage() {
           </div>
         ))}
 
-        {/* Locked phases */}
-        <div className="opacity-40">
-          <div className="border border-slate-800 rounded-xl p-4 mb-3">
-            <div className="text-xs font-bold uppercase tracking-widest text-slate-600 mb-1">Coming Soon</div>
-            <h2 className="text-slate-500 font-bold text-lg">Phase 2–6: Config, Networking, Ops, Advanced, Certs</h2>
-          </div>
-        </div>
       </div>
     </div>
   )
