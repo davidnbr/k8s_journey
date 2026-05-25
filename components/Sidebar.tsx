@@ -21,6 +21,7 @@ function StatusIcon({ status }: { status: ModuleStatus }) {
 export default function Sidebar() {
   const pathname = usePathname()
   const [statuses, setStatuses] = useState<Record<string, ModuleStatus>>({})
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const refreshStatuses = () => {
     const s: Record<string, ModuleStatus> = {}
@@ -38,8 +39,22 @@ export default function Sidebar() {
     return () => window.removeEventListener('k8s-progress-change', refreshStatuses)
   }, [])
 
-  return (
-    <aside className="w-64 flex-shrink-0 bg-slate-900 border-r border-slate-800 h-full overflow-y-auto flex flex-col">
+  // Close mobile sidebar on navigation
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  // Close sidebar on Escape key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileOpen(false)
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [])
+
+  const sidebarContent = (
+    <>
       {/* Logo */}
       <div className="p-4 border-b border-slate-800">
         <Link href="/" className="flex items-center gap-2 group">
@@ -53,7 +68,7 @@ export default function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
+      <nav className="flex-1 p-3 space-y-4 overflow-y-auto" aria-label="Course navigation">
         <Link
           href="/learn"
           className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${
@@ -90,6 +105,11 @@ export default function Sidebar() {
                   <div
                     className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
                     style={{ width: `${pct}%` }}
+                    role="progressbar"
+                    aria-valuenow={pct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${phase.shortTitle} progress`}
                   />
                 </div>
               </div>
@@ -112,10 +132,14 @@ export default function Sidebar() {
                           ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                           : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
                       }`}
+                      aria-current={isActive ? 'page' : undefined}
                     >
                       <StatusIcon status={status} />
                       <span className="flex-1 truncate">{mod.title}</span>
-                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${DIFFICULTY_DOT[mod.difficulty]}`} />
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${DIFFICULTY_DOT[mod.difficulty]}`}
+                        title={mod.difficulty}
+                      />
                     </Link>
                   )
                 })}
@@ -132,6 +156,58 @@ export default function Sidebar() {
           Kubernetes v1.35 · March 2026
         </div>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="lg:hidden fixed top-3 left-3 z-50 bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+        aria-label="Open navigation menu"
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 5h14M3 10h14M3 15h14" />
+        </svg>
+      </button>
+
+      {/* Desktop sidebar — hidden on mobile */}
+      <aside
+        className="hidden lg:flex w-64 flex-shrink-0 bg-slate-900 border-r border-slate-800 h-full overflow-y-auto flex-col"
+        aria-label="Course sidebar"
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile overlay + sidebar */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden="true"
+          />
+          {/* Slide-in sidebar */}
+          <aside
+            className="relative w-72 max-w-[85vw] bg-slate-900 border-r border-slate-800 h-full overflow-y-auto flex flex-col animate-slide-in-left"
+            aria-label="Course sidebar"
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="absolute top-3 right-3 text-slate-400 hover:text-slate-200 transition-colors p-1"
+              aria-label="Close navigation menu"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 4l10 10M14 4L4 14" />
+              </svg>
+            </button>
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+    </>
   )
 }
