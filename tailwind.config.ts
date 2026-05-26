@@ -15,11 +15,12 @@ const config: Config = {
         },
       },
       fontFamily: {
-        mono: ['JetBrains Mono', 'Fira Code', 'Cascadia Code', 'monospace'],
+        mono: ['var(--font-jetbrains)', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'monospace'],
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-in-out',
         'slide-up': 'slideUp 0.3s ease-out',
+        'slide-in-left': 'slideInLeft 0.25s ease-out',
         'pulse-dot': 'pulseDot 1.2s ease-in-out infinite',
         blink: 'blink 1s step-end infinite',
       },
@@ -31,6 +32,10 @@ const config: Config = {
         slideUp: {
           '0%': { opacity: '0', transform: 'translateY(8px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideInLeft: {
+          '0%': { opacity: '0', transform: 'translateX(-100%)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
         },
         pulseDot: {
           '0%, 100%': { opacity: '1' },

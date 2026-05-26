@@ -30,7 +30,12 @@ const COMPONENT_HIGHLIGHT: Record<string, string> = {
   proxy: 'ring-2 ring-pink-400 ring-offset-1 ring-offset-slate-900',
 }
 
-function PodCard({ pod, isNew }: { pod: PodState; isNew: boolean }) {
+function isPodMatched(pod: PodState, svc: ServiceState): boolean {
+  if (!svc.selector || Object.keys(svc.selector).length === 0) return false
+  return Object.entries(svc.selector).every(([k, v]) => pod.labels?.[k] === v)
+}
+
+function PodCard({ pod, isNew, isTargeted }: { pod: PodState; isNew: boolean; isTargeted: boolean }) {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -45,7 +50,9 @@ function PodCard({ pod, isNew }: { pod: PodState; isNew: boolean }) {
     <div
       className={`
         border rounded px-2 py-1.5 text-xs font-mono transition-all duration-300
-        ${STATUS_COLORS[pod.status] ?? STATUS_COLORS.Pending}
+        ${isTargeted
+          ? 'bg-blue-500/20 border-blue-400 text-blue-200 ring-2 ring-blue-500/50 shadow-[0_0_8px_rgba(59,130,246,0.3)] scale-[1.03] z-10'
+          : (STATUS_COLORS[pod.status] ?? STATUS_COLORS.Pending)}
         ${isNew ? 'animate-fade-in' : ''}
         ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}
       `}
@@ -59,18 +66,47 @@ function PodCard({ pod, isNew }: { pod: PodState; isNew: boolean }) {
   )
 }
 
-function ServiceBadge({ svc }: { svc: ServiceState }) {
+function ServiceBadge({
+  svc,
+  matchedPods,
+  onHover,
+  isHovered
+}: {
+  svc: ServiceState
+  matchedPods: PodState[]
+  onHover: (id: string | null) => void
+  isHovered: boolean
+}) {
   const typeColors: Record<string, string> = {
     ClusterIP: 'bg-blue-500/15 border-blue-500/50 text-blue-300',
     NodePort: 'bg-orange-500/15 border-orange-500/50 text-orange-300',
     LoadBalancer: 'bg-purple-500/15 border-purple-500/50 text-purple-300',
   }
 
+  const hoverRing = isHovered ? 'ring-2 ring-blue-400 ring-offset-1 ring-offset-slate-900 scale-[1.02]' : ''
+
   return (
-    <div className={`border rounded px-2 py-1 text-xs font-mono animate-slide-up ${typeColors[svc.type]}`}>
-      <div className="font-bold">{svc.name}</div>
+    <div
+      onMouseEnter={() => onHover(svc.id)}
+      onMouseLeave={() => onHover(null)}
+      className={`border rounded px-2 py-1.5 text-xs font-mono animate-slide-up transition-all duration-200 cursor-pointer ${typeColors[svc.type]} ${hoverRing}`}
+    >
+      <div className="font-bold flex items-center justify-between gap-4">
+        <span>{svc.name}</span>
+        <span className="text-[9px] opacity-75 font-normal">({matchedPods.length} endpoints)</span>
+      </div>
       <div className="text-[10px] opacity-70">{svc.type} · :{svc.port}</div>
       <div className="text-[10px] opacity-60">{svc.clusterIP}</div>
+      {matchedPods.length > 0 && (
+        <div className="mt-1.5 pt-1.5 border-t border-slate-700/40 text-[9px] opacity-80 flex flex-wrap gap-1">
+          <span className="opacity-50">endpoints:</span>
+          {matchedPods.map((p) => (
+            <span key={p.id} className="bg-slate-950/40 px-1 rounded border border-slate-700/20 text-slate-300 font-mono">
+              {p.name.length > 10 ? p.name.slice(0, 8) + '…' : p.name}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -101,6 +137,7 @@ function ControlPlaneComponent({
 export default function ClusterDiagram({ state }: Props) {
   const [prevPodIds, setPrevPodIds] = useState<Set<string>>(new Set())
   const [newPodIds, setNewPodIds] = useState<Set<string>>(new Set())
+  const [hoveredServiceId, setHoveredServiceId] = useState<string | null>(null)
 
   useEffect(() => {
     const currentIds = new Set(state.pods.map((p) => p.id))
@@ -120,6 +157,13 @@ export default function ClusterDiagram({ state }: Props) {
   const node1Pods = state.pods.filter((p) => p.node === 'node-1')
   const node2Pods = state.pods.filter((p) => p.node === 'node-2')
 
+  const hoveredService = state.services.find((s) => s.id === hoveredServiceId)
+
+  const isPodTargeted = (pod: PodState) => {
+    if (!hoveredService) return false
+    return isPodMatched(pod, hoveredService)
+  }
+
   return (
     <div className="bg-slate-950 border border-slate-700 rounded-xl p-4 h-full flex flex-col gap-3 font-mono text-xs select-none">
       {/* Header */}
@@ -127,7 +171,7 @@ export default function ClusterDiagram({ state }: Props) {
         <span className="text-slate-400 font-semibold text-[11px] uppercase tracking-widest">Live Cluster</span>
         <span className="text-emerald-400 text-[10px] flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-dot inline-block" />
-          v1.33
+          v1.35
         </span>
       </div>
 
@@ -163,7 +207,12 @@ export default function ClusterDiagram({ state }: Props) {
               <div className="text-slate-700 text-[10px] italic text-center py-2">empty</div>
             )}
             {node1Pods.map((pod) => (
-              <PodCard key={pod.id} pod={pod} isNew={newPodIds.has(pod.id)} />
+              <PodCard
+                key={pod.id}
+                pod={pod}
+                isNew={newPodIds.has(pod.id)}
+                isTargeted={isPodTargeted(pod)}
+              />
             ))}
           </div>
         </div>
@@ -182,22 +231,68 @@ export default function ClusterDiagram({ state }: Props) {
               <div className="text-slate-700 text-[10px] italic text-center py-2">empty</div>
             )}
             {node2Pods.map((pod) => (
-              <PodCard key={pod.id} pod={pod} isNew={newPodIds.has(pod.id)} />
+              <PodCard
+                key={pod.id}
+                pod={pod}
+                isNew={newPodIds.has(pod.id)}
+                isTargeted={isPodTargeted(pod)}
+              />
             ))}
           </div>
         </div>
       </div>
 
+      {/* Deployments */}
+      {state.deployments.length > 0 && (
+        <div className="border border-slate-700/50 rounded-lg p-2 bg-slate-900/20 animate-fade-in">
+          <div className="text-slate-500 text-[10px] uppercase tracking-widest mb-1.5">
+            🚀 Deployments
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {state.deployments.map((dep) => {
+              const ready = dep.availableReplicas === dep.replicas
+              return (
+                <div
+                  key={dep.id}
+                  className={`border rounded px-2 py-1 text-xs font-mono animate-slide-up ${
+                    ready
+                      ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
+                      : 'bg-yellow-500/10 border-yellow-500/40 text-yellow-300'
+                  }`}
+                >
+                  <div className="font-bold flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${ready ? 'bg-emerald-400' : 'bg-yellow-400 animate-pulse-dot'}`} />
+                    {dep.name}
+                  </div>
+                  <div className="text-[10px] opacity-70">
+                    {dep.availableReplicas}/{dep.replicas} ready · {dep.image.split(':')[0].split('/').pop()}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Services */}
       {state.services.length > 0 && (
-        <div className="border border-slate-700/50 rounded-lg p-2 bg-slate-900/20">
+        <div className="border border-slate-700/50 rounded-lg p-2 bg-slate-900/20 animate-fade-in">
           <div className="text-slate-500 text-[10px] uppercase tracking-widest mb-1.5">
             🔌 Services
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {state.services.map((svc) => (
-              <ServiceBadge key={svc.id} svc={svc} />
-            ))}
+          <div className="flex flex-col gap-1.5">
+            {state.services.map((svc) => {
+              const matched = state.pods.filter((p) => isPodMatched(p, svc))
+              return (
+                <ServiceBadge
+                  key={svc.id}
+                  svc={svc}
+                  matchedPods={matched}
+                  onHover={setHoveredServiceId}
+                  isHovered={hoveredServiceId === svc.id}
+                />
+              )
+            })}
           </div>
         </div>
       )}
