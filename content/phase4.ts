@@ -23,14 +23,16 @@ const phase4: Phase = {
       description: 'Secure your cluster with Roles, ClusterRoles, and ServiceAccounts — granting only the permissions each workload actually needs.',
       duration: '75 min',
       difficulty: 'intermediate',
-      theory: `## Kubernetes Has No Built-In User Accounts
+      theory: `> 🧠 **Brain Warm-Up**: If Kubernetes has no built-in database for human users, how does the API server actually authenticate and authorize a \`kubectl\` command run by a cluster administrator? How are permissions bound to a ServiceAccount under the hood? Think about this security handshake before reading.
 
-Unlike most systems, Kubernetes has **no built-in user database**. There is no \`kubectl create user\` command. Human identity comes from:
-- **x509 client certificates** signed by the cluster CA
-- **OIDC tokens** from an external provider (Google, Azure AD, etc.)
-- **Static token files** (rarely used, not recommended)
+## Kubernetes Has No Built-In User Accounts
 
-Kubernetes does, however, have a first-class object for workload identity: the **ServiceAccount**.
+Unlike database systems or operating systems, Kubernetes has **no built-in user database**. There is no \`kubectl create user\` command, and human user objects do not exist in etcd. Human identity is decoupled and comes from:
+- **x509 client certificates**: The API server authenticates requests by validating a client certificate signed by the cluster root Certificate Authority (CA). The Certificate's Common Name (CN) is parsed as the username, and the Organization (O) fields are mapped to groups (e.g., \`system:masters\`).
+- **OIDC tokens**: The API server authenticates JWTs from an external identity provider (like Dex, Okta, Keycloak, Google, or Azure AD) configured via api-server flags (\`--oidc-issuer-url\`, etc.).
+- **Static token files / Webhooks**: The API server delegates authentication to an external HTTPS webhook or reads from a local CSV token file.
+
+Kubernetes does, however, have a first-class, etcd-persisted object for workload identity: the **ServiceAccount**.
 
 ## ServiceAccount
 
@@ -41,53 +43,88 @@ spec:
   serviceAccountName: app-reader
 \`\`\`
 
-A ServiceAccount token is automatically mounted into the Pod at \`/var/run/secrets/kubernetes.io/serviceaccount/token\`. The Pod can use this token to authenticate to the Kubernetes API.
+Starting in Kubernetes 1.24+, tokens are no longer statically stored as Secret objects in etcd. Instead, they are dynamic, short-lived (audience-bound and time-bound) JWTs generated on-demand by the **TokenRequest** API. The \`kubelet\` automatically projects this token into the Pod container at \`/var/run/secrets/kubernetes.io/serviceaccount/token\` using a projected volume mounted on a \`tmpfs\` (RAM disk) to prevent local disk exposure.
+
+### Visualizing RBAC Authorization Flow
+
+                  HTTP/gRPC Request (kubectl or Pod)
+                                │
+                                ▼
+ ┌─────────────────────────────────────────────────────────────┐
+ │                    KUBERNETES API SERVER                    │
+ │                                                             │
+ │  [Phase 1: Authentication (Authn)]                          │
+ │  - X.509 client certificates (signed by Cluster CA)         │
+ │  - OIDC / Webhook tokens (e.g., Dex, Okta, Azure AD)        │
+ │  - ServiceAccount JWT (TokenRequest API projected volume)   │
+ │                              │                              │
+ │                              ▼ (Identity Resolved)          │
+ │                                                             │
+ │  [Phase 2: Authorization (Authz)]                           │
+ │  - RBAC Engine: Evaluates Rules & Bindings                  │
+ │  - Subjects (User / Group / ServiceAccount)                 │
+ │  - API Group & Resource mapping (e.g., apiGroups: [""])     │
+ │  - Verbs validation (get, list, watch, create, update...)   │
+ │                              │                              │
+ │                              ▼ (Access Granted)             │
+ │                                                             │
+ │  [Phase 3: Admission Control]                               │
+ │  - Mutating & Validating Webhooks                           │
+ │                              │                              │
+ └──────────────────────────────┼──────────────────────────────┘
+                                ▼
+                         [etcd Storage]
+                     (Raft consensus commit)
 
 ## Roles and ClusterRoles
 
+Permissions are strictly additive (whitelist-only); there are no deny rules.
+
 | Object | Scope | Use case |
 |---|---|---|
-| **Role** | Single namespace | Grant access to resources in one namespace |
-| **ClusterRole** | Entire cluster | Access across all namespaces, or cluster-scoped resources (Nodes, PVs) |
+| **Role** | Namespace-scoped | Grant access to resources inside a single namespace |
+| **ClusterRole** | Cluster-scoped | Access across all namespaces, or cluster-scoped resources (Nodes, PVs, namespaces) |
 
-A Role defines **what** is allowed — resources and verbs:
+A Role defines **what** is allowed — resources, API groups, and verbs:
 
 \`\`\`yaml
 rules:
-- apiGroups: [""]
-  resources: ["pods"]
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["pods", "pods/status", "pods/log"] # resources and subresources
   verbs: ["get", "list", "watch"]
 \`\`\`
 
-Available verbs: \`get\`, \`list\`, \`watch\`, \`create\`, \`update\`, \`patch\`, \`delete\`, \`deletecollection\`.
+Available verbs: \`get\` (fetch specific resource), \`list\` (list resources), \`watch\` (stream real-time changes), \`create\` (POST new), \`update\` (PUT replace), \`patch\` (PATCH modify), \`delete\` (DELETE single), \`deletecollection\` (DELETE bulk).
 
-- \`get\` — fetch a specific named resource (\`kubectl get pod my-pod\`)
-- \`list\` — list all resources of a type (\`kubectl get pods\`)
-- \`watch\` — watch for real-time changes
+API request paths map to resources:
+- Core group: \`/api/v1/namespaces/default/pods\`
+- Named group: \`/apis/apps/v1/namespaces/default/deployments\`
 
 ## RoleBindings and ClusterRoleBindings
 
 A **RoleBinding** attaches a Role (or ClusterRole) to a **subject** — a User, Group, or ServiceAccount — within one namespace.
-
 A **ClusterRoleBinding** attaches a ClusterRole to a subject cluster-wide.
 
 \`\`\`
 Role ──────────────────────── RoleBinding ──── Subject (ServiceAccount / User)
 ClusterRole ──── ClusterRoleBinding ──── Subject (cluster-wide)
-ClusterRole ──── RoleBinding ──── Subject (namespace-scoped, common pattern)
+ClusterRole ──── RoleBinding ──── Subject (restricted to RoleBinding's namespace)
 \`\`\`
 
-## Principle of Least Privilege
+> [!NOTE]
+> Binding a ClusterRole using a RoleBinding is a common best practice. It allows you to reuse standard, cluster-wide defined ClusterRoles (like the built-in \`view\` or \`edit\`) while restricting the subject's access strictly to the namespace of the RoleBinding.
 
-Grant only what is needed. Common mistakes:
-- Using \`ClusterRoleBinding\` when \`RoleBinding\` would suffice
-- Granting \`*\` verbs on \`*\` resources (wildcard = full admin)
-- Sharing one ServiceAccount across many unrelated Pods
+## Principle of Least Privilege & SubjectAccessReview
 
-Use \`kubectl auth can-i\` to verify what a subject can and cannot do:
-\`\`\`
+Grant only the minimum permissions required. Common security risks include:
+- Using \`ClusterRoleBinding\` when a namespaced \`RoleBinding\` is sufficient.
+- Granting \`*\` wildcard verbs on \`*\` wildcard resources.
+- Granting update permissions on security-sensitive resources like \`secrets\` or \`pods/exec\`.
+
+Under the hood, authorization checks are evaluated by the API server using a **SubjectAccessReview** API call. You can run this check locally using:
+\`\`\`bash
 kubectl auth can-i list pods --as=system:serviceaccount:default:app-reader
-\`\`\``,
+\`\`\`\``,
       labSteps: [
         {
           id: 'p4-m1-s1',
@@ -308,36 +345,67 @@ roleRef:
       description: 'Run batch tasks to completion with Jobs and schedule recurring work with CronJobs.',
       duration: '45 min',
       difficulty: 'beginner',
-      theory: `## Why Not Deployments for Batch Work?
+      theory: `> 🧠 **Brain Warm-Up**: If a CronJob is scheduled to run every hour, but the previous Job execution hangs indefinitely, what happens to the next execution? How does Kubernetes track the status of finished Jobs to avoid overloading nodes? Think about concurrency constraints before reading.
 
-Deployments are designed to run forever — they restart Pods that exit. That is perfect for a web server, but wrong for a database migration: you want the Pod to run once, finish, and stop.
+## Why Not Deployments for Batch Work?
 
-**Jobs** and **CronJobs** fill this gap.
+Deployments are designed to run forever — they maintain a desired state of continuously running Pods. If a container in a Deployment exits with code 0, the \`kubelet\` interprets this as a termination and the Deployment controller immediately restarts it to maintain replica count. This is wrong for a database migration or batch computation: you want the Pod to run once, complete its task, and stop.
 
-## Job
+**Jobs** and **CronJobs** are designed specifically for finite, run-to-completion workloads.
 
-A **Job** ensures a specified number of Pods complete successfully (exit code 0). If a Pod fails, the Job controller retries up to \`backoffLimit\` times.
+## Job Architecture & Restart Policies
 
-Key fields:
+A **Job** ensures a specified number of Pods complete successfully (exit code 0).
+
+Unlike Deployments, Jobs support two restart policies in their Pod templates:
+1. **\`Never\`**: If the container fails (exits non-zero), the pod is not restarted. Instead, the Job controller spawns a completely new Pod on the cluster. This keeps the failed Pod and its logs intact for troubleshooting, but consumes IP/sandbox resources.
+2. **\`OnFailure\`**: If the container fails, the local \`kubelet\` restarts the container inside the *same* Pod sandbox. This avoids scheduling overhead but does not create a clean new Pod.
+
+The Job controller manages the retry logic up to \`backoffLimit\` times (default: 6). If the limit is reached, the Job is marked as failed.
+
+### Visualizing Job Controller Loop
+
+  [ CronJob Controller ] (Ticks on cron schedule)
+            │
+            ▼ (Creates Job object)
+     [ Job Object ] (Specifies completions, parallelism, backoffLimit)
+            │
+            ▼ (Job Controller observes Job in etcd)
+     [ Job Controller ] ◄────────────────────────────────────────┐
+            │                                                    │
+            ├─► (Spawns N Pods up to parallelism limit)           │
+            │                                                    │
+            ▼                                                    │ (Updates status)
+      ┌───────────┐         ┌───────────┐         ┌───────────┐  │
+      │  Pod 1    │         │  Pod 2    │         │  Pod N    │  │
+      │ (Running) │         │(Completed)│         │ (Failed)  │──┘
+      └─────┬─────┘         └─────┬─────┘         └─────┬─────┘
+            │                     │                     │
+            ▼                     ▼                     ▼
+      Runs to exit         Clean exit 0         RestartPolicy: Never/OnFailure
+      status               (Success)            Evicts/recreates up to backoffLimit
+
+### Key Job Fields
 
 | Field | Description |
 |---|---|
-| \`completions\` | How many Pods must succeed in total (default: 1) |
-| \`parallelism\` | How many Pods can run simultaneously (default: 1) |
-| \`backoffLimit\` | Max retries before marking the Job as Failed (default: 6) |
-| \`ttlSecondsAfterFinished\` | Auto-delete the Job (and its Pods) after N seconds |
+| \`completions\` | Total number of successful Pod completions required to mark the Job complete. |
+| \`parallelism\` | Maximum number of Pods that are allowed to run concurrently at any given moment. |
+| \`backoffLimit\` | Maximum number of retries before marking the Job as failed (default: 6). |
+| \`activeDeadlineSeconds\` | Real-time execution limit for the Job. If exceeded, the Job is terminated. |
+| \`ttlSecondsAfterFinished\` | Time-to-live. Once finished, the Job and its Pods are garbage collected. |
 
 \`\`\`yaml
 spec:
-  completions: 1
-  parallelism: 1
+  completions: 3
+  parallelism: 2
   backoffLimit: 3
-  ttlSecondsAfterFinished: 300
+  ttlSecondsAfterFinished: 120
 \`\`\`
 
-## CronJob
+## CronJobs and Concurrency Policies
 
-A **CronJob** creates Jobs on a schedule using standard Unix cron syntax:
+A **CronJob** manages Jobs on a schedule using standard Unix cron syntax:
 
 \`\`\`
 ┌─── minute (0-59)
@@ -536,18 +604,6 @@ spec:
             'StatefulSet so the Pod gets a stable identity',
           ],
           answer: 2,
-          explanation: 'A Job with completions: 1 is exactly right — it runs until one Pod exits successfully, then stops. A Deployment would keep restarting the migration indefinitely. A DaemonSet runs on every node. A StatefulSet is for long-running stateful services, not one-off tasks.',
-        },
-        {
-          id: 'p4-m2-q4',
-          question: 'What does ttlSecondsAfterFinished: 300 do to a completed Job?',
-          options: [
-            'Pauses the Job for 300 seconds before marking it as complete',
-            'Automatically deletes the Job and its Pods 300 seconds after the Job finishes',
-            'Keeps the Job alive for 300 seconds in case it needs to retry',
-            'Sets the maximum runtime — the Job is killed if it takes longer than 300 seconds',
-          ],
-          answer: 1,
           explanation: 'ttlSecondsAfterFinished enables the TTL controller to automatically clean up finished Jobs (both Completed and Failed). 300 seconds after the Job reaches a terminal state, the Job object and its Pods are deleted. Without this, finished Jobs accumulate and waste etcd storage. activeDeadlineSeconds is the field that limits maximum runtime.',
         },
       ],
@@ -561,65 +617,78 @@ spec:
       description: 'Automatically scale replica counts based on CPU, memory, or custom metrics — without manual intervention.',
       duration: '60 min',
       difficulty: 'intermediate',
-      theory: `## The Problem with Manual Scaling
+      theory: `> 🧠 **Brain Warm-Up**: If one of your Pods is in a crash loop and throwing 500 errors (consuming zero CPU), how does the HPA avoid average calculation distortions to prevent shrinking the cluster under load? How is CPU usage actually gathered by metrics-server? Think about metric collection mechanics before reading.
 
-\`kubectl scale deployment web --replicas=10\` works — but it requires a human watching metrics 24/7. Traffic spikes at 3 AM or during a flash sale would require manual intervention every time.
+## The Problem with Manual Scaling
 
-The **Horizontal Pod Autoscaler** automates this.
+In dynamic cloud-native environments, manual scaling via \`kubectl scale deployment --replicas=N\` is insufficient. Real-world traffic spikes (e.g., flash sales, batch reports, media coverage) require real-time, automated reaction.
 
-## How HPA Works
+The **Horizontal Pod Autoscaler (HPA)** implements a closed-loop feedback controller to scale Pods horizontally based on resource metrics or custom metrics.
 
-HPA runs a control loop every **15 seconds**:
+## HPA Control Loop Architecture
 
-1. Query **metrics-server** for current resource usage of all Pods in the target
-2. Calculate the desired replica count: \`desiredReplicas = ceil(currentReplicas × (currentMetric / targetMetric))\`
-3. If desired ≠ current, update the Deployment's \`spec.replicas\`
+The HPA controller runs inside the \`kube-controller-manager\` as a periodic loop (configured by the \`--horizontal-pod-autoscaler-sync-period\` flag, defaulting to **15 seconds**).
+
+### Autoscaling Metrics Pipeline
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                           WORKER NODES                           │
+  │  ┌─────────────────────────┐        ┌─────────────────────────┐  │
+  │  │        Node 1           │        │        Node 2           │  │
+  │  │  [Pod A]      [Pod B]   │        │  [Pod C]      [Pod D]   │  │
+  │  │   (cgroups v2 stats)    │        │   (cgroups v2 stats)    │  │
+  │  │          │              │        │          │              │  │
+  │  │          ▼              │        │          ▼              │  │
+  │  │   [ Kubelet / cAdvisor ]│        │   [ Kubelet / cAdvisor ]│  │
+  │  └──────────┬──────────────┘        └──────────┬──────────────┘  │
+  └─────────────┼──────────────────────────────────┼─────────────────┘
+                │ (/stats/summary API)             │ (/stats/summary API)
+                ▼                                  ▼
+         ┌────────────────────────────────────────────────┐
+         │                 METRICS SERVER                 │
+         │ (Exposes metrics.k8s.io via API Aggregator)    │
+         └───────────────────────┬────────────────────────┘
+                                 │ gRPC / HTTPS Poll
+                                 ▼
+         ┌────────────────────────────────────────────────┐
+         │            HPA CONTROLLER LOOP                 │
+         │       (Calculates: desiredReplicas)            │
+         └───────────────────────┬────────────────────────┘
+                                 │ Scale Subresource Write (spec.replicas)
+                                 ▼
+         ┌────────────────────────────────────────────────┐
+         │             DEPLOYMENT CONTROLLER              │
+         │       (Creates/Terminates Pod replicas)        │
+         └────────────────────────────────────────────────┘
+
+1. **Metric Sourcing**: The local \`kubelet\` daemon queries resource stats from the host OS's \`cgroups\` (v1 or v2) using its internal \`cAdvisor\` library. These stats are exposed on the \`/stats/summary\` endpoint.
+2. **Metrics Collection**: The **metrics-server** scrapes these endpoints across all nodes, aggregates the data, and exposes it via the API Aggregator under the \`metrics.k8s.io\` API group.
+3. **Evaluation**: The HPA controller queries the API server for these metrics and computes the desired replica count.
+
+## The Scaling Algorithm
+
+The replica calculation uses the following formula:
 
 \`\`\`
-metrics-server ──── HPA controller ──── Deployment spec.replicas
-      ↑                                         ↓
-  kubelets ◄──────────────────────────── Pods scale up/down
+desiredReplicas = ceil(currentReplicas × (currentMetricValue / targetMetricValue))
 \`\`\`
 
-## Requirements
+To prevent rapid oscillation (flapping) and scale-down instability:
+- **Tolerance**: If the ratio of current to target metric is within a tolerance threshold (default: 0.1 or 10%), the controller skips scaling.
+- **Unready/Missing Pods**: If a Pod is unready (e.g., starting up) or has missing metrics, the HPA controller excludes it or makes conservative estimates to prevent prematurely shrinking or growing the workload.
 
-- **HPA requires a metrics source.** For **CPU and memory** scaling, this is typically **metrics-server** (which provides the \`metrics.k8s.io\` API). For custom metrics (e.g., requests per second from Prometheus), the **Prometheus Adapter** provides the \`custom.metrics.k8s.io\` API. For external metrics (e.g., SQS queue depth), a separate adapter is needed. Most clusters start with metrics-server for basic CPU/memory autoscaling.
-- **Resource requests must be set** on Pods — HPA CPU target is a percentage of \`requests.cpu\`, not the node's total CPU
+## Requirements and Best Practices
 
-## Key Fields
+- **Mandatory Resource Requests**: You must define resource requests (\`spec.containers[].resources.requests\`) for HPA. The utilization target is calculated as a percentage of the requested CPU/memory, not the node's total physical capacity.
+- **Cool-Down / Stabilization Window**: Scale-up is typically fast to handle traffic spikes. Scale-down uses a **stabilization window** (default is 5 minutes / 300s) to wait for temporary traffic drops to pass before evicting pods.
 
-\`\`\`yaml
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: php-apache
-  minReplicas: 1
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
-\`\`\`
+## Advanced Custom and External Metrics (HPA v2)
 
-## Scale-Up vs Scale-Down Behaviour
-
-| Direction | Speed | Reason |
-|---|---|---|
-| Scale-up | Fast (immediate) | Better to over-provision than miss SLA |
-| Scale-down | Slow (5 min stabilization window) | Avoid flapping — a brief traffic dip should not trigger scale-down |
-
-The stabilization window prevents oscillation: "scale up → traffic drops → scale down → traffic spikes → scale up again" loops.
-
-## HPA v2
-
-HPA v2 supports **multiple metrics** and **custom/external metrics**:
-- Prometheus metrics (requests per second, queue depth)
-- External metrics (SQS queue depth, Pub/Sub backlog)
-- Per-Pod custom metrics (transactions/second)`,
+The \`autoscaling/v2\` API version adds support for complex scaling conditions:
+- **Multiple Metrics**: Evaluate CPU, memory, and custom metrics simultaneously (the HPA uses the largest calculated replica count).
+- **Custom Metrics**: Scale based on application metrics (e.g., HTTP requests/sec from Prometheus via the \`custom.metrics.k8s.io\` API).
+- **External Metrics**: Scale based on external queue sizes (e.g., AWS SQS queue depth, GCP Pub/Sub backlog via \`external.metrics.k8s.io\`).
+- **Scale Behavior Policies**: Explicitly tune the scale-up and scale-down rates via \`spec.behavior\`.`,
       labSteps: [
         {
           id: 'p4-m3-s1',
@@ -816,83 +885,97 @@ HPA v2 supports **multiple metrics** and **custom/external metrics**:
       description: 'Control where Pods land with node labels, taints, tolerations, and affinity rules.',
       duration: '75 min',
       difficulty: 'advanced',
-      theory: `## The Default Scheduler
+      theory: `> 🧠 **Brain Warm-Up**: If a node gets tainted with \`NoExecute\` due to a sudden hardware fault, what determines how quickly running Pods are evicted? Can a Pod delay its own eviction using tolerations? Think about how the scheduler or node controller implements this time window.
 
-The Kubernetes scheduler places Pods onto nodes based on resource availability and a set of predicates (hard requirements) and priorities (soft preferences). By default it tries to spread Pods across nodes and bin-pack efficiently.
+## The Kubernetes Scheduling Pipeline
 
-But you often need more control:
-- GPU workloads must land on GPU nodes
-- Spot/preemptible instances should only run fault-tolerant workloads
-- Replicas should spread across failure domains for HA
+The \`kube-scheduler\` runs as a control plane loop, matching newly created, unscheduled Pods (\`spec.nodeName\` is blank) to the most appropriate node in the cluster. It achieves this in three consecutive phases:
 
-## Taints and Tolerations
+1. **Filtering (Predicates)**: Filters out nodes that do not satisfy the Pod's hardware requirements or constraints.
+2. **Scoring (Priorities)**: Ranks the remaining nodes by scoring them (from 0 to 100) using priority functions (e.g., node affinity weight, image locality, balanced resource usage).
+3. **Binding**: The scheduler selects the highest-scoring node and writes a binding object to the API server, which sets the Pod's \`spec.nodeName\`. The node's local \`kubelet\` then detects this assignment and spins up the container via the CRI gRPC API.
 
-**Taints** are applied to **nodes** and repel Pods that do not tolerate them.
+### The Scheduling Pipeline
 
-\`\`\`bash
-kubectl taint nodes node-2 dedicated=gpu:NoSchedule
-\`\`\`
+                     Incoming Pod Spec (Constraints)
+                                │
+                                ▼
+  ┌───────────────────────────────────────────────────────────┐
+  │                 SCHEDULER FILTERING PHASE                 │
+  │  - Node Taints vs Pod Tolerations                         │
+  │  - NodeSelectors & Node Affinity (requiredDuring...)     │
+  │  - Resource limits/requests vs Node Allocatable capacity  │
+  │  - Pod Topology Spread & Co-location constraints         │
+  └─────────────────────────────┬─────────────────────────────┘
+                                │
+                   Filtered Nodes (Survivors)
+                                │
+                                ▼
+  ┌───────────────────────────────────────────────────────────┐
+  │                  SCHEDULER SCORING PHASE                  │
+  │  - Node Affinity Weighting (preferredDuring...)           │
+  │  - Image Locality (prefer nodes with image already cached) │
+  │  - Inter-pod Affinity / Anti-affinity scoring              │
+  │  - Balanced Resource Allocation (CPU/Memory spread)       │
+  └─────────────────────────────┬─────────────────────────────┘
+                                │
+                     Highest-Scored Node Chosen
+                                │
+                                ▼
+                           Bind Request
+                    (Writes spec.nodeName via API)
 
-Format: \`key=value:effect\`
+## Node Taints and Pod Tolerations
+
+**Taints** are applied to **nodes** to allow them to repel a set of Pods. **Tolerations** are applied to **Pods** to allow (but not force) them to schedule on nodes with matching taints.
+
+Format: \`kubectl taint nodes <node-name> key=value:effect\`
 
 | Effect | Behaviour |
 |---|---|
-| \`NoSchedule\` | New Pods without a matching toleration will not be scheduled on this node. Existing Pods are not evicted. |
-| \`PreferNoSchedule\` | Soft version — scheduler tries to avoid the node but will use it if no alternatives exist. |
-| \`NoExecute\` | New Pods are not scheduled AND existing Pods without a matching toleration are evicted. |
+| \`NoSchedule\` | (Hard) The scheduler will not place new Pods without a matching toleration on this node. Existing running Pods remain unaffected. |
+| \`PreferNoSchedule\` | (Soft) The scheduler tries to avoid placing Pods without a matching toleration on this node, but will do so if no other capacity exists. |
+| \`NoExecute\` | (Evictive) Pods without a matching toleration are immediately evicted if already running on the node, and new Pods are blocked. |
 
-**Tolerations** are applied to **Pods** and allow scheduling onto tainted nodes:
+### Eviction Delay via tolerationSeconds
+
+If a Pod tolerates a \`NoExecute\` taint (e.g., taints applied by the Node Lifecycle Controller like \`node.kubernetes.io/unreachable\` during network partitions), it can specify a \`tolerationSeconds\` limit:
 
 \`\`\`yaml
 tolerations:
-- key: dedicated
-  operator: Equal
-  value: gpu
-  effect: NoSchedule
+- key: "node.kubernetes.io/unreachable"
+  operator: "Exists"
+  effect: "NoExecute"
+  tolerationSeconds: 300
 \`\`\`
 
-To **remove** a taint, append a \`-\` to the taint key:
-\`\`\`bash
-kubectl taint nodes node-2 dedicated:NoSchedule-
-\`\`\`
+This tells Kubernetes: "If this node becomes unreachable, let my Pod stay running on it for 5 minutes before evicting it."
 
-The trailing \`-\` removes the taint. You only need to specify the key and effect — the value is not required for taint removal.
+## Expressive Node Selection
 
-## nodeSelector
-
-The simplest form of node selection — match a node label exactly:
-
+### nodeSelector
+The simplest constraint. Requires an exact match of key-value labels on the node:
 \`\`\`yaml
 spec:
   nodeSelector:
-    disk: ssd
+    disktype: ssd
 \`\`\`
 
-The Pod will only schedule on nodes with the label \`disk=ssd\`.
+### Node Affinity
+The advanced successor to nodeSelector. Supports logical operators (\`In\`, \`NotIn\`, \`Exists\`, \`DoesNotExist\`, \`Gt\`, \`Lt\`) and contains two categories:
+- **Hard**: \`requiredDuringSchedulingIgnoredDuringExecution\` (Must match)
+- **Soft**: \`preferredDuringSchedulingIgnoredDuringExecution\` (Weighted priority from 1 to 100, scheduler scores these nodes higher)
 
-## Node Affinity
+The *IgnoredDuringExecution* suffix means that if node labels change after scheduling, the Pod remains running (does not get evicted).
 
-Node Affinity is the more powerful successor to nodeSelector. It supports:
-- **Required** (\`requiredDuringSchedulingIgnoredDuringExecution\`): hard rule — Pod will not schedule if no node matches
-- **Preferred** (\`preferredDuringSchedulingIgnoredDuringExecution\`): soft rule — scheduler prefers matching nodes but will use others
+## Inter-Pod Affinity & Anti-Affinity
 
-Use Node Affinity when you need \`In\`, \`NotIn\`, \`Exists\`, \`DoesNotExist\`, \`Gt\`, \`Lt\` operators — nodeSelector only supports exact equality.
+These rules constraint scheduling based on **labels of Pods already running** on nodes in specific topology domains.
+- **Topology Domains**: Defined by \`topologyKey\` (e.g., \`kubernetes.io/hostname\` for nodes, or \`topology.kubernetes.io/zone\` for cloud availability zones).
+- **Anti-Affinity**: Crucial for high-availability. Prevents co-locating replicas on the same hardware or zone.
 
-## Pod Anti-Affinity
-
-**Pod Anti-Affinity** schedules Pods away from other Pods with matching labels — critical for HA:
-
-\`\`\`yaml
-affinity:
-  podAntiAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-    - labelSelector:
-        matchLabels:
-          app: web
-      topologyKey: kubernetes.io/hostname
-\`\`\`
-
-\`topologyKey: kubernetes.io/hostname\` means "no two Pods with app=web on the same node". If node-1 fails, replicas on node-2 and node-3 survive.`,
+> [!WARNING]
+> Inter-pod affinity and anti-affinity require significant CPU overhead in large clusters because the scheduler must evaluate label selectors across all nodes. Use them carefully to avoid scheduling bottlenecks.`,
       labSteps: [
         {
           id: 'p4-m4-s1',
@@ -1156,20 +1239,58 @@ spec:
       description: 'Protect application availability during node drains and cluster upgrades with PodDisruptionBudgets.',
       duration: '60 min',
       difficulty: 'advanced',
-      theory: `## Types of Disruptions
+      theory: `> 🧠 **Brain Warm-Up**: What is the difference between a direct Pod deletion (\`kubectl delete pod\`) and a Pod eviction request (\`/eviction\` API)? Why does a PodDisruptionBudget ignore the former but block the latter? Think about the API endpoints involved.
 
-Not all Pod disruptions are equal:
+## Voluntary vs Involuntary Disruptions
 
-| Type | Examples | Can PDB prevent it? |
+Workload availability is subject to two classes of disruptions:
+
+| Disruption Type | Examples | Can a PDB protect it? |
 |---|---|---|
-| **Voluntary** | Node drain, cluster upgrade, autoscaler scale-down, admin deletes pod | Yes |
-| **Involuntary** | Hardware failure, kernel panic, OOM kill, network partition | No |
+| **Voluntary** | Admin executing \`kubectl drain\`, cluster upgrade automation, HPA scale-down, descheduling | **Yes** |
+| **Involuntary** | Physical hardware failure, hypervisor crash, kernel panic, out-of-memory (OOM) kill | **No** |
 
-PodDisruptionBudgets only protect against **voluntary** disruptions.
+PodDisruptionBudgets (PDBs) are validation policies that *only* protect against voluntary disruptions. They have no control over network partitions or failed hardware.
 
-## PodDisruptionBudget (PDB)
+## PodDisruptionBudget (PDB) Mechanics
 
-A PDB sets a **minimum availability guarantee** during voluntary disruptions:
+A PDB defines a minimum availability threshold that the API server enforces during voluntary disruptions. When a controller or administrator attempts to drain a node, it does not delete Pods directly. Instead, it sends an HTTP POST request to the Pod's **\`eviction\` subresource endpoint** (e.g., \`/api/v1/namespaces/default/pods/my-pod/eviction\`).
+
+The API server intercepts this eviction call, checks all active PDBs, and:
+- **Allows** the eviction if the number of running, Ready pods (those satisfying \`minReadySeconds\`) remains above the PDB threshold.
+- **Rejects** the eviction (returning an HTTP **429 Too Many Requests** error) if it would violate the budget. The drain utility then sleeps and retries the request.
+
+### Eviction Lifecycle & PDB Enforcement during Node Drain
+
+   [ Admin / Script ] ──────────────► [ kubectl drain node-1 ]
+                                              │
+                                              ▼ (Sends Cordon Request)
+                                      [ node.spec.unschedulable = true ]
+                                              │
+                                              ▼ (Loops over non-DaemonSet Pods)
+                                      [ POST /eviction API ]
+                                              │
+                                              ▼
+                                 ┌────────────────────────┐
+                                 │       API SERVER       │
+                                 │  - Evaluates PDBs      │
+                                 └──────────┬─────────────┘
+                                            │
+                             ┌──────────────┴──────────────┐
+                 Allowed? Yes│                             │No (Violates Budget)
+                             ▼                             ▼
+                  [ Deletes Pod Object ]         [ Returns 429 Conflict ]
+                             │                             │
+                             ▼                             ▼
+                        [ Kubelet ]                 [ kubectl drain ]
+              (Sends SIGTERM, waits grace period,    (Sleeps 5s, retries
+               runs container preStop lifecycle)      eviction request)
+
+### Configuring PDB Specs
+
+You specify either \`minAvailable\` or \`maxUnavailable\` (never both):
+- \`minAvailable\`: An absolute number (e.g., \`2\`) or percentage (e.g., \`80%\`) of Pods that must remain healthy.
+- \`maxUnavailable\`: An absolute number or percentage of Pods that can be concurrently terminated.
 
 \`\`\`yaml
 apiVersion: policy/v1
@@ -1177,48 +1298,29 @@ kind: PodDisruptionBudget
 metadata:
   name: web-pdb
 spec:
-  minAvailable: 2
+  minAvailable: 2 # At least 2 pods must remain Ready
   selector:
     matchLabels:
       app: web
 \`\`\`
 
-| Field | Description |
-|---|---|
-| \`minAvailable: 2\` | At least 2 Pods must remain available during disruption |
-| \`minAvailable: "80%"\` | At least 80% of Pods must remain available |
-| \`maxUnavailable: 1\` | At most 1 Pod can be unavailable at a time |
+## Node Maintenance Lifecycle (Cordon & Drain)
 
-Only one of \`minAvailable\` or \`maxUnavailable\` can be set.
+Upgrading and maintaining nodes follows a strict three-phase lifecycle:
 
-## Node Maintenance Workflow
+1. **Cordon**: Marks the node as unschedulable (\`node.spec.unschedulable = true\`). Running Pods are unaffected, but no new Pods can be scheduled on this node.
+2. **Drain**: Evicts all non-DaemonSet Pods from the node using the eviction API.
+   - **DaemonSets**: Drained pods are ignored by default since they run per-node utilities and are managed by the DaemonSet controller. You must pass \`--ignore-daemonsets\` to let the drain proceed.
+   - **Local Data**: Pods using \`emptyDir\` volumes require the \`--delete-emptydir-data\` flag since their local storage will be discarded.
+3. **Uncordon**: After physical maintenance or OS upgrades, uncordon the node to make it schedulable again.
 
-\`\`\`
-kubectl cordon node-1       # Mark unschedulable (no new pods)
-        ↓
-kubectl drain node-1        # Evict existing pods (respects PDBs)
-        ↓
-  [perform maintenance]     # Upgrade kernel, replace hardware, etc.
-        ↓
-kubectl uncordon node-1     # Re-enable scheduling
-\`\`\`
+## Graceful Termination Internals
 
-### kubectl cordon
-Marks the node as \`Unschedulable\`. New Pods will not be scheduled there, but **existing Pods keep running**. The node remains in the cluster and can serve traffic.
-
-### kubectl drain
-- First cordons the node
-- Then sends eviction requests for all Pods (respecting PDBs and termination grace periods)
-- Flags: \`--ignore-daemonsets\` (DaemonSet Pods are re-created immediately), \`--delete-emptydir-data\` (allows draining Pods with emptyDir volumes)
-
-**If a PDB would be violated, drain blocks until the constraint is satisfied.**
-
-### kubectl uncordon
-Removes the \`Unschedulable\` mark. The node rejoins the pool and new Pods can be scheduled on it.
-
-## Critical Rule
-
-A PDB cannot protect more Pods than exist. If you have \`minAvailable: 3\` but only 3 replicas, zero disruptions are allowed — draining any node is blocked. Always ensure \`replicas > minAvailable\`.`,
+Once an eviction is approved, the API server deletes the Pod object. The node's \`kubelet\` detects the deletion event and coordinates graceful termination:
+1. **PreStop Hook**: The kubelet executes any configured \`preStop\` lifecycle hook inside the container. This is synchronous.
+2. **SIGTERM**: The container runtime sends the \`SIGTERM\` signal (PID 1) to the container process, giving it time to close network sockets, complete requests, or persist buffers.
+3. **Grace Period**: The kubelet waits for the \`terminationGracePeriodSeconds\` (default: 30s).
+4. **SIGKILL**: If the process is still running after the grace period, the runtime issues \`SIGKILL\` to forcibly terminate it.`,
       labSteps: [
         {
           id: 'p4-m5-s1',

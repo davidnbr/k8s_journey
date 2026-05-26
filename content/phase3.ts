@@ -23,18 +23,18 @@ const phase3: Phase = {
       description: 'Understand ephemeral vs persistent storage and provision durable disks with PVCs and StorageClasses.',
       duration: '75 min',
       difficulty: 'intermediate',
-      theory: `## Why Volumes?
+      theory: `> 🧠 **Brain Warm-Up**: If a Pod request for a PVC fails with a "Pending" status because there are no matching PersistentVolumes, how does the Kubernetes control plane determine which volume storage class and provisioner to invoke, and what happens at the Node-level OS filesystem when the volume is eventually attached?
 
-A container's filesystem is **ephemeral** — when a container restarts or a Pod is deleted, every file written to the container's root filesystem is gone. For many apps (databases, file uploads, log aggregators) that is unacceptable.
+## Ephemeral vs Persistent Storage: The Filesystem Boundary
 
-Kubernetes **Volumes** solve this by providing storage that outlives an individual container, attached to the Pod's lifecycle instead.
+A container's root filesystem is **ephemeral**, managed via an overlay filesystem (e.g., overlay2) where writes are recorded in a temporary container-specific write layer. When the container process exits and is re-created, this write layer is discarded. To preserve state, Kubernetes uses decoupled storage primitives.
 
-## Basic Volume Types
+### Basic Volume Types
 
-### emptyDir
-A scratch directory that lives for the lifetime of the Pod. If a container inside the Pod crashes and restarts, the data in \`emptyDir\` survives. When the Pod itself is deleted, the data is gone.
-
-**Best for**: sharing files between two containers in the same Pod (e.g., a sidecar log shipper reading logs written by the main app).
+#### emptyDir
+An ephemeral scratch directory provisioned directly on the host node's storage media (typically backed by the node's primary disk under \`/var/lib/kubelet/pods/<pod-uid>/volumes/kubernetes.io~empty-dir/\` or memory if \`medium: Memory\` is specified to create a \`tmpfs\` RAM disk).
+* **Scope**: Tied directly to the Pod's lifecycle. It survives container crashes and restarts, but is destroyed when the Pod is terminated or rescheduled.
+* **Use Case**: Shared memory/disk workspace for multi-container pods (e.g., a sidecar pattern where an app writes logs and a Fluent Bit container reads them).
 
 \`\`\`yaml
 volumes:
@@ -46,11 +46,10 @@ containers:
       mountPath: /scratch
 \`\`\`
 
-### hostPath
-Mounts a directory directly from the **node's filesystem** into the Pod. The data persists across Pod restarts on the same node, but:
-- **NOT portable**: if the Pod moves to a different node, the data is not there
-- **Security risk**: grants access to the host filesystem
-- Avoid in production workloads.
+#### hostPath
+Mounts a specific directory or file from the host node's filesystem directly into the container's mount namespace.
+* **Scope**: Node-specific. It is not portable; if the Pod is rescheduled to another node, it has no access to the previous node's data.
+* **Security Risks**: Bypasses container namespace boundaries. If a container runs as root or has write permissions, a compromised Pod can read/write raw system configurations, docker socket files, or SSH keys on the host. It should be disabled via PodSecurityStandards/Admission controllers in production.
 
 ## Persistent Storage: PV, PVC, StorageClass
 
@@ -86,7 +85,71 @@ Most cloud block storage (AWS EBS, GCE PD) only supports RWO. NFS or cloud file 
 2. The **StorageClass** provisioner creates a matching **PV** (dynamic provisioning).
 3. The PVC moves to **Bound** state — the PV is exclusively reserved for this PVC.
 4. You reference the PVC in a Pod spec via \`persistentVolumeClaim.claimName\`.
-5. kubelet mounts the volume on the node before starting the container.`,
+5. kubelet mounts the volume on the node before starting the container.
+
+---
+
+### PV/PVC Binding & CSI Architecture
+
+\`\`\`
+  +-----------------------+              +------------------------+
+  |    PersistentVolume   |              | PersistentVolumeClaim  |
+  |  (Cluster-wide Disk)  | <=========>  | (Namespace-scoped Req) |
+  +-----------+-----------+   (Binding)  +-----------+------------+
+              ^                                      ^
+   Dynamic    |                                      | Referenced
+   Provision  |                                      | by Pod
+              |                                      v
+  +-----------+-----------+              +-----------+------------+
+  |     StorageClass      |              |          Pod           |
+  |  (Provisioner Config) |              |  (cgroups & Namespaces)|
+  +-----------+-----------+              +-----------+------------+
+              |                                      |
+              | CSI gRPC API                         | Kubelet Node
+              v                                      v Sync
+  +-----------+-----------+              +-----------+------------+
+  |  CSI Controller Plugin|              |   Kubelet Volume Mgr   |
+  |  - CreateVolume       |              |   - NodeStageVolume    |
+  |  - ControllerPublish  |              |   - NodePublishVolume  |
+  +-----------------------+              +-----------+------------+
+                                                     |
+                                                     v
+                                         +-----------+------------+
+                                         | Linux Host Node        |
+                                         | - /dev/sdX (Block Dev) |
+                                         | - /var/lib/kubelet/... |
+                                         +------------------------+
+\`\`\`
+
+---
+
+## Under the Hood: The CSI Specification & Mount Lifecycle
+
+When a Pod requesting persistent storage is scheduled, the control plane and node agent orchestrate volume provisioning and mounting via the **Container Storage Interface (CSI)** gRPC API:
+
+### 1. PV-PVC Matching and Binding
+The \`pv-controller\` loop in the \`kube-controller-manager\` matches a newly created PVC to a PV. It compares:
+* **StorageClassName**: Must match exactly (or default).
+* **AccessModes**: PV must support all modes requested in PVC.
+* **Capacity**: PV capacity must be greater than or equal to PVC request.
+* **Selectors**: PV labels must match the PVC's \`matchLabels\` or \`matchExpressions\`.
+
+If no matching PV is found, and the StorageClass has a dynamic provisioner, the controller calls the CSI plugin's **\`CreateVolume\`** gRPC endpoint to provision the block storage in the cloud/infra.
+
+### 2. Controller Attachment (Attach)
+Once bound, the external-attacher controller calls the CSI controller's **\`ControllerPublishVolume\`** gRPC endpoint. This instructs the cloud/storage provider to attach the raw block device (e.g., \`/dev/xvdf\`) to the Linux host node where the Pod has been scheduled.
+
+### 3. Node Staging (Format & Mount)
+Inside the target node, the Kubelet's **Volume Manager** takes over. It executes the CSI node plugin's **\`NodeStageVolume\`** gRPC call, which:
+* Checks if the device has a filesystem (e.g., ext4, xfs). If not, it formats the block device.
+* Mounts the formatted device to a global staging directory on the node:
+  \`/var/lib/kubelet/plugins/kubernetes.io/csi/<driver-name>/<volume-id>/globalmount\`
+
+### 4. Node Publishing (Bind Mount)
+Finally, Kubelet executes **\`NodePublishVolume\`**. This performs a Linux **bind mount** from the global staging directory to the Pod's specific mount directory:
+  \`/var/lib/kubelet/pods/<pod-uid>/volumes/kubernetes.io~csi/<volume-name>/mount\`
+
+Kubelet then configures the container runtime (CRI gRPC API) to launch the container, passing this path as a mount point. The container runtime uses Linux mount namespaces (\`CLONE_NEWNS\`) and cgroups to expose this directory as a directory inside the container's isolated filesystem structure.`,
       labSteps: [
         {
           id: 'p3-m1-s1',
@@ -314,7 +377,9 @@ spec:
       description: 'Run databases and clustered apps that need stable identities, ordered startup, and per-Pod persistent storage.',
       duration: '75 min',
       difficulty: 'intermediate',
-      theory: `## Why Not Deployments for Stateful Apps?
+      theory: `> 🧠 **Brain Warm-Up**: When a StatefulSet Pod (e.g., \`mysql-1\`) crashes or its host node becomes unreachable, how does Kubernetes guarantee that a replacement Pod doesn't start on another node and access the same raw block storage volume concurrently, potentially causing data corruption?
+
+## Why Not Deployments for Stateful Apps?
 
 Deployments are designed for **stateless** workloads. Every Pod in a Deployment is interchangeable — they get random names (\`web-7d4f9b-xk2p\`) and random IPs. If a Pod dies, a replacement with a completely different name and IP is created.
 
@@ -353,7 +418,49 @@ If \`web-1\` is deleted and recreated, it rebinds to \`data-web-1\` — its own 
 
 **Use StatefulSets for**: MySQL, PostgreSQL, Cassandra, Redis Cluster, Kafka, ZooKeeper, Elasticsearch.
 
-**Use Deployments for**: stateless apps — web servers, APIs, workers. StatefulSets add complexity you do not need for stateless workloads.`,
+**Use Deployments for**: stateless apps — web servers, APIs, workers. StatefulSets add complexity you do not need for stateless workloads.
+
+---
+
+### StatefulSet Cluster Architecture & DNS Resolution
+
+\`\`\`
+        +-------------------------------------------------+
+        |              Headless Service                   |
+        |              (clusterIP: None)                  |
+        +-----------------------+-------------------------+
+                                |
+          +---------------------+---------------------+
+          | (DNS Lookup: web.default.svc.cluster.local) |
+          v                                           v
+  +------------------+                       +------------------+
+  |  Pod: web-0      |                       |  Pod: web-1      |
+  |  IP: 10.244.1.5  |                       |  IP: 10.244.2.9  |
+  +--------+---------+                       +--------+---------+
+           |                                          |
+  Matches  | (Deterministic                           | (Deterministic
+  Ordinal  |  Binding)                       Matches  |  Binding)
+           v                                 Ordinal  v
+  +--------+---------+                       +--------+---------+
+  | PVC: data-web-0  |                       | PVC: data-web-1  |
+  | (Bound to PV-0)  |                       | (Bound to PV-1)  |
+  +------------------+                       +------------------+
+\`\`\`
+
+---
+
+## Under the Hood: StatefulSet Controller & Safety Guarantees
+
+### 1. The Controller Sync Loop
+The StatefulSet controller operates using a deterministic state sync loop. It uses the Ordinal Index to map Pods to PVCs. The stable hostname format is:
+\`<pod-name>.<headless-service-name>.<namespace>.svc.cluster.local\`
+CoreDNS dynamically manages these hostnames via Endpoint/EndpointSlice controllers, enabling direct member-to-member clustering communication.
+
+### 2. The "At-Most-One-Pod" Safety Guarantee & Partitions
+If a node hosting a StatefulSet Pod (e.g., \`web-1\`) loses connection to the API server, it enters \`Unknown\` state.
+* Unlike a Deployment, the StatefulSet controller will **never** automatically force-delete or reschedule the Pod onto a new node.
+* Since the underlying physical volume (e.g., cloud block storage like AWS EBS) is mapped to \`ReadWriteOnce\`, attaching the volume to a replacement Pod on another node while the partitioned node might still be running and writing to it could cause severe data corruption.
+* The controller waits for the node to return or for manual administrative intervention via \`kubectl delete pod web-1 --force --grace-period=0\`.`,
       labSteps: [
         {
           id: 'p3-m2-s1',
@@ -579,7 +686,9 @@ spec:
       description: 'Run exactly one Pod on every node for cluster-wide infrastructure like log collectors and monitoring agents.',
       duration: '45 min',
       difficulty: 'intermediate',
-      theory: `## What Is a DaemonSet?
+      theory: `> 🧠 **Brain Warm-Up**: How does a DaemonSet bypass a node's \`NoSchedule\` taints to run system-critical pods (like network plugins or log agents) on master or cordoned nodes, and why does the default scheduler handle DaemonSet pods differently than normal application pods?
+
+## What Is a DaemonSet?
 
 A **DaemonSet** ensures that exactly **one copy** of a Pod runs on every node in the cluster (or a subset of nodes, if you use a nodeSelector or tolerations). It is the answer to the question: *"How do I run something on every machine in my cluster?"*
 
@@ -610,7 +719,50 @@ When you add a new node to the cluster, the DaemonSet controller automatically s
 | \`RollingUpdate\` (default) | Updates one node at a time; the old Pod is deleted before the new one starts |
 | \`OnDelete\` | New Pod version is only applied when you manually delete the old Pod — gives full control over timing |
 
-\`RollingUpdate\` is safe for most workloads. Use \`OnDelete\` when you need to coordinate the rollout with node maintenance windows.`,
+\`RollingUpdate\` is safe for most workloads. Use \`OnDelete\` when you need to coordinate the rollout with node maintenance windows.
+
+---
+
+### DaemonSet Controller and Scheduling Engine
+
+\`\`\`
+  +-------------------------------------------------------------+
+  |                     DaemonSet Controller                    |
+  +------------------------------+------------------------------+
+                                 | Watches Nodes & Pods
+                                 v
+        +-----------------------------------------------+
+        | Injects NodeAffinity & Critical Tolerations    |
+        +------------------------+----------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  |                        kube-scheduler                       |
+  | (Bypasses cordons/taints using injected tolerations)         |
+  +----+-------------------------+-------------------------+----+
+       |                         |                         |
+       v Node A                  v Node B                  v Master Node (Tainted)
+  +----+------------+       +----+------------+       +----+------------+
+  |  log-collector  |       |  log-collector  |       |  log-collector  |
+  |  Pod (Ready)    |       |  Pod (Ready)    |       |  Pod (Ready)    |
+  +-----------------+       +-----------------+       +-----------------+
+\`\`\`
+
+---
+
+## Under the Hood: DaemonSet Scheduling & Node Taints
+
+### 1. Modern Scheduler Integration
+Historically, the DaemonSet controller set the Pod's \`spec.nodeName\` directly. In modern versions (since v1.12), the controller delegates scheduling to the default \`kube-scheduler\`. The controller automatically appends a \`NodeAffinity\` corresponding to the target node's labels, ensuring the scheduler processes the Pod correctly.
+
+### 2. Bypassing Master and Cordoned Node Taints
+To make sure system-level daemons run everywhere, the DaemonSet controller automatically injects critical tolerations to bypass taints:
+* \`node.kubernetes.io/unschedulable\` (allows running on cordoned/drained nodes)
+* \`node.kubernetes.io/not-ready\` / \`node.kubernetes.io/unreachable\` (allows scheduling during transient network/host outages)
+* \`node.kubernetes.io/memory-pressure\` / \`node.kubernetes.io/disk-pressure\` / \`node.kubernetes.io/pid-pressure\` (allows scheduling during resource crunch)
+
+### 3. Resource Allocation and Quality of Service (QoS)
+System daemons should always be defined with **Guaranteed QoS** (requests = limits) and given system PriorityClasses (\`system-node-critical\` or \`system-cluster-critical\`). Kubelet adjusts their \`oom_score_adj\` value (typically to \`-997\`), preventing them from being killed by the OOM Killer or evicted during node-level resource starvation.`,
       labSteps: [
         {
           id: 'p3-m3-s1',
@@ -787,7 +939,9 @@ spec:
       description: 'Route external HTTP/HTTPS traffic to multiple services with a single entry point and path-based rules.',
       duration: '75 min',
       difficulty: 'intermediate',
-      theory: `## The Problem with NodePort and LoadBalancer
+      theory: `> 🧠 **Brain Warm-Up**: When a client sends an HTTP request to \`myapp.local/api\` via Ingress, does the Ingress Controller forward the packet to the Service's ClusterIP, or does it bypass the Kubernetes service mesh routing? How does this impact load-balancing algorithms and connection keep-alives?
+
+## The Problem with NodePort and LoadBalancer
 
 **NodePort**: exposes a high-numbered port (30000–32767) on every node. Not suitable for production — users should not type \`myapp.com:31234\`.
 
@@ -848,7 +1002,50 @@ metadata:
     nginx.ingress.kubernetes.io/limit-rps: "10"
 \`\`\`
 
-These are read by the IngressController — not by Kubernetes itself.`,
+These are read by the IngressController — not by Kubernetes itself.
+
+---
+
+### L7 Routing & TLS Termination Flow
+
+\`\`\`
+         [ Client HTTPS Request ]
+             (Host: myapp.local)
+                     |
+                     v
+  +------------------+-------------------+
+  | Cloud Load Balancer (TCP Pass-Through)|
+  +------------------+-------------------+
+                     | (TLS Encrypted, Port 443)
+                     v
+  +------------------+-------------------+
+  |      Ingress-Nginx Controller        |
+  |  - TLS Handshake (SNI Match via SNI) |
+  |  - Decrypts and injects headers      |
+  |  - Fetches Pod IPs from EndpointSlice| (Bypasses Service IP!)
+  +-------+---------------------+--------+
+          |                     |
+          v (Plain HTTP / L7)   v (Plain HTTP / L7)
+  +-------+------------+   +----+---------------+
+  |  Pod: Web-0        |   |  Pod: Web-1        |
+  |  (10.244.1.5:80)   |   |  (10.244.2.9:80)   |
+  +--------------------+   +--------------------+
+\`\`\`
+
+---
+
+## Under the Hood: L7 Ingress Routing Internals
+
+### 1. ClusterIP Bypass & Direct Endpoint Routing
+Rather than proxying requests to the virtual IP (ClusterIP) of the backend Service, most Ingress Controllers bypass kube-proxy entirely. The Ingress Controller queries the API server for \`Endpoints\` or \`EndpointSlices\` associated with the target Service. It maintains a direct list of backend Pod IPs and forwards connections straight to them. This enables:
+* Advanced L7 load-balancing algorithms (e.g., cookie-based session affinity, least-connections, hashing).
+* Optimal TCP connection pooling and keep-alive management, avoiding the extra packet translation overhead of NAT routing.
+
+### 2. SNI Match & TLS Handshake
+For HTTPS ingress, client handshakes terminate directly at the Ingress Controller. Using **Server Name Indication (SNI)**, the controller extracts the requested hostname from the \`ClientHello\` handshake packet. It loads the corresponding \`kubernetes.io/tls\` certificate, decrypts the request, injects standard proxy headers (\`X-Forwarded-For\`, \`X-Forwarded-Proto\`, and \`X-Real-IP\`), and streams the decrypted payload to the backend Pod endpoint.
+
+### 3. Dynamic Reloading
+Modern ingress controllers (like Ingress-Nginx) avoid restarting the web server process during endpoint updates. They use a Go sidecar or embedded Lua engines (OpenResty) to dynamically refresh backend Pod IPs in shared memory tables without dropping active TCP connections.`,
       labSteps: [
         {
           id: 'p3-m4-s1',
@@ -1143,7 +1340,9 @@ spec:
       description: 'Implement namespace-level firewall rules to control which Pods can communicate with each other.',
       duration: '60 min',
       difficulty: 'advanced',
-      theory: `## Default Network Behaviour
+      theory: `> 🧠 **Brain Warm-Up**: When you apply a NetworkPolicy blocking all ingress traffic, why does the Pod still receive packets, and at what layers of the Linux kernel or networking stack (e.g., eBPF, iptables chains, IPVS tables) is the traffic actually rejected or dropped?
+
+## Default Network Behaviour
 
 By default, Kubernetes uses a **flat network**: every Pod can reach every other Pod in any namespace, on any port. There are no firewalls between them. This is convenient for getting started but dangerous for production — a compromised Pod can freely reach your database.
 
@@ -1198,7 +1397,50 @@ You can combine \`podSelector\` and \`namespaceSelector\` to mean "Pods with lab
 kubectl label namespace monitoring env=monitoring
 \`\`\`
 
-Then \`namespaceSelector: {matchLabels: {env: monitoring}}\` will work.`,
+Then \`namespaceSelector: {matchLabels: {env: monitoring}}\` will work.
+
+---
+
+### NetworkPolicy Kernel-Level Filtering Flow
+
+\`\`\`
+    [ Incoming Packet ] (Source: Attacker Pod IP)
+            |
+            v
+  +------------------+-------------------+
+  |  Linux Host Network Namespace       |
+  +------------------+-------------------+
+            |
+            v (Enters veth interface for Target Pod)
+  +------------------+-------------------+
+  |  CNI Enforcement Hook (Kernel Space)|
+  |                                     |
+  |  - Option A: eBPF Socket Filter     |  ==> Match found? No => [ DROP Packet ]
+  |  - Option B: iptables & ipset checks|
+  +------------------+-------------------+
+                     | (Permitted by Allowlist)
+                     v
+  +------------------+-------------------+
+  |  Target Pod Network Namespace       |
+  |  - Container Processes (Port 80)    |
+  +-------------------------------------+
+\`\`\`
+
+---
+
+## Under the Hood: NetworkPolicy Enforcement & CNI Engines
+
+### 1. The Role of the CNI Daemon
+Because NetworkPolicies are not enforced by the Kubernetes control plane directly, the CNI daemon (e.g., \`calico-node\` or \`cilium-agent\`) must watch the API server for policies and Pod changes. When a rule is added, the local CNI daemon translates it into low-level host OS kernel configuration.
+
+### 2. iptables and ipset Chains (Calico standard mode)
+In an iptables-based CNI, the agent configures custom chains (such as \`KUBE-NWPLCY-*\`). It aggregates the matched IPs of labeled pods into **\`ipsets\`**—in-kernel hash tables that allow the iptables engine to match packets in O(1) time rather than linearly scanning hundreds of IP addresses.
+
+### 3. eBPF Filtering (Cilium mode)
+In eBPF-based networks, the CNI compiles NetworkPolicies directly into eBPF bytecode. It loads this program into the Linux kernel and binds it to the virtual ethernet interface (\`veth\` pair) or traffic control (\`tc\`) subsystems. Packets are evaluated and dropped at the socket layer, avoiding IP routing pipeline processing entirely for blocked connections, minimizing CPU utilization.
+
+### 4. Connection Tracking (\`conntrack\`)
+NetworkPolicies operate statefully. The policy engine hooks into the Linux kernel's connection tracking module (\`conntrack\`). Once a TCP handshake packet matches an allowed Egress or Ingress rule, the reverse response packets are automatically allowed back through the firewall, even if no explicit rule permits the return path.`,
       labSteps: [
         {
           id: 'p3-m5-s1',

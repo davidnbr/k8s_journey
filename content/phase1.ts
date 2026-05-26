@@ -22,23 +22,52 @@ const phase1: Phase = {
       description: 'The smallest deployable unit in Kubernetes.',
       duration: '60 min',
       difficulty: 'beginner',
-      theory: `## What is a Pod?
+      theory: `> 🧠 **Brain Warm-Up**: If a Pod contains multiple containers (e.g. an API server and a logging agent), how do they communicate with each other? Can they listen on the same port? Think about their network boundaries before reading.
 
-A **Pod** is the smallest deployable unit in Kubernetes. It wraps one or more containers that share the same network namespace and storage.
+## What is a Pod?
+
+A **Pod** is the smallest deployable unit in Kubernetes. It wraps one or more containers that share the same network namespace, IP address, and storage volumes.
 
 Key facts:
-- Every Pod gets **one IP address** — all containers inside share it
-- Containers in the same Pod communicate via **localhost**
-- Pods are **ephemeral** — when they die, their filesystem is gone
-- In practice, you almost never create bare Pods — use Deployments instead
+- Every Pod gets **one IP address** — all containers inside share it.
+- Containers in the same Pod communicate via **localhost** on different ports. They cannot bind to the same port.
+- Pods are **ephemeral** — when they die, their filesystem is gone.
+- In practice, you almost never create bare Pods — you use Deployments instead.
 
 ## Pod vs Container
 
-| | Docker Container | Kubernetes Pod |
+| Feature | Docker Container | Kubernetes Pod |
 |---|---|---|
 | Network | Its own IP | Shared with all co-located containers |
 | Lifecycle | Individual | All containers start/stop together |
 | Management | Manual | Orchestrated by Kubernetes |
+
+### Pod Architecture (Shared Network & Storage)
+
+\`\`\`
+┌─────────────────────────────────────────────────────────┐
+│                       POD                               │
+│  IP Address: 10.244.1.5 (Shared Network Namespace)      │
+│                                                         │
+│  ┌───────────────────────┐   ┌───────────────────────┐  │
+│  │  Primary Container    │   │   Sidecar Container   │  │
+│  │  (e.g., Node.js API)  │   │  (e.g., Logging Agent)│  │
+│  │  Port: 8080           │   │  Port: 9000           │  │
+│  └──────────┬────────────┘   └───────────┬───────────┘  │
+│             │ (Communicate via localhost)│              │
+│             └─────────────►◄─────────────┘              │
+│             │                            │              │
+│  ┌──────────▼────────────┐   ┌───────────▼───────────┐  │
+│  │      Volume Mount     │   │      Volume Mount     │  │
+│  └──────────┬────────────┘   └───────────┬───────────┘  │
+│             │                            │              │
+│             └─────────────►◄─────────────┘              │
+│                           │                             │
+│                  ┌────────▼────────┐                    │
+│                  │  emptyDir Vol   │                    │
+│                  └─────────────────┘                    │
+└─────────────────────────────────────────────────────────┘
+\`\`\`
 
 ## Pod Lifecycle
 
@@ -48,10 +77,10 @@ Pending → Running → Succeeded
              Failed → (restart policy)
 \`\`\`
 
-- **Pending** — scheduled but waiting for image pull or resources
-- **Running** — at least one container is running
-- **Succeeded** — all containers exited with code 0
-- **Failed** — at least one container exited non-zero`,
+- **Pending** — scheduled but waiting for image pull or resources.
+- **Running** — at least one container is running.
+- **Succeeded** — all containers exited with code 0.
+- **Failed** — at least one container exited non-zero.`,
       labSteps: [
         {
           id: 'p1-m1-s1',
@@ -228,37 +257,43 @@ spec:
       description: 'The right way to run applications: automatic restarts, rolling updates, and rollbacks.',
       duration: '75 min',
       difficulty: 'beginner',
-      theory: `## Why Not Bare Pods?
+      theory: `> 🧠 **Brain Warm-Up**: If a node crashes and runs 10 bare Pods, they die. If the node runs 10 Pods managed by a Deployment, how does Kubernetes know to recreate them? What is the controller stack doing? Think about it.
+
+## Why Not Bare Pods?
 
 Bare Pods have three critical weaknesses:
-1. **No self-healing** — crash = gone forever
-2. **No scaling** — you'd create each Pod manually
-3. **No rolling updates** — you'd have downtime on every deploy
+1. **No self-healing** — if a node crashes or a pod is deleted, it is gone forever.
+2. **No scaling** — scaling would require creating each Pod manifest manually.
+3. **No rolling updates** — updating an image on bare pods requires deleting them first, causing downtime.
 
 A **Deployment** solves all three.
 
 ## The Deployment Stack
 
+A Deployment does not create Pods directly. It manages **ReplicaSets**, which in turn manage the Pods. This hierarchy enables zero-downtime updates and instant rollbacks.
+
 \`\`\`
-DEPLOYMENT        ← you talk to this
-    └── REPLICASET   ← manages replica count
-            └── POD
-            └── POD
-            └── POD
+DEPLOYMENT        ← you talk to this (manages versions)
+    └── REPLICASET   ← manages replica counts (v2-7f8d)
+            └── POD (v2)
+            └── POD (v2)
+            └── POD (v2)
 \`\`\`
 
-The Deployment manages ReplicaSets. A new ReplicaSet is created on each update, enabling rollbacks.
+The Deployment manages ReplicaSets. A new ReplicaSet is created on each update, enabling rollbacks to previous states.
 
 ## Rolling Update Strategy
+
+Kubernetes uses a RollingUpdate strategy to upgrade application versions. By default, it spawns new pods (maxSurge) and terminates old pods (maxUnavailable) sequentially.
 
 \`\`\`
 BEFORE: [v1] [v1] [v1]
 
 maxSurge=1, maxUnavailable=0 (zero-downtime):
-Step 1: [v1][v1][v1][v2]   ← surge
-Step 2: [v1][v1][v2]       ← old removed
-Step 3: [v1][v1][v2][v2]   ← surge
-Step 4: [v1][v2][v2]       ← old removed
+Step 1: [v1][v1][v1][v2]   ← surge v2 created
+Step 2: [v1][v1][v2]       ← old v1 removed after v2 ready
+Step 3: [v1][v1][v2][v2]   ← surge another v2
+Step 4: [v1][v2][v2]       ← old v1 removed
 Step 5: [v2][v2][v2]       ← done ✓
 \`\`\``,
       labSteps: [
@@ -440,32 +475,56 @@ Step 5: [v2][v2][v2]       ← done ✓
       description: 'Give your Pods a stable address and load balance traffic between them.',
       duration: '60 min',
       difficulty: 'beginner',
-      theory: `## The Problem with Pod IPs
+      theory: `> 🧠 **Brain Warm-Up**: Pods are constantly dying and getting recreated with new IP addresses. If you have a backend database Pod and a frontend client Pod, how can the frontend reliably connect to the database without updating its connection config on every pod crash? Think about this networking challenge.
+
+## The Problem with Pod IPs
 
 Pod IPs are **ephemeral**. Every time a Pod restarts or is rescheduled, it gets a new IP. If you hardcode a Pod IP, your app breaks after the first restart.
 
 **A Service provides:**
-- A stable ClusterIP that never changes
-- A DNS name: \`<service>.<namespace>.svc.cluster.local\`
-- Load balancing across all matching Pods (via label selector)
+- A stable Virtual IP (ClusterIP) that never changes for the life of the Service.
+- A predictable DNS name: \`<service-name>.<namespace-name>.svc.cluster.local\`.
+- Load balancing across all matching Pods (via label selectors).
 
 ## Service Types
 
 | Type | Reachable from | Use case |
 |---|---|---|
-| ClusterIP | Inside cluster only | Microservice-to-microservice |
-| NodePort | Outside via NodeIP:Port | Dev/testing |
-| LoadBalancer | Internet via cloud LB | Production |
+| **ClusterIP** | Inside cluster only | Microservice-to-microservice communication |
+| **NodePort** | Outside via NodeIP:Port | Dev/testing port exposure |
+| **LoadBalancer** | Internet via cloud LB | Production web apps |
 
 ## How Services Find Pods
 
-Services use **label selectors** to find their target Pods:
+Services use **label selectors** to dynamically discover their target Pods. The control plane monitors pods and updates the Service's Endpoints or EndpointSlices list.
 
 \`\`\`
 Service selector: { app: web }
               ↓  matches
-Pod labels:   { app: web, version: v2 }  ✓
-Pod labels:   { app: api }               ✗ (not selected)
+Pod labels:   { app: web, version: v2 }  ✓ (Selected)
+Pod labels:   { app: api }               ✗ (Not selected)
+\`\`\`
+
+### Kubernetes Service Traffic Routing
+
+\`\`\`
+Client Request (curl http://web-service:80)
+       │
+       ▼
+┌──────────────────────────────────────────────┐
+│             SERVICE (web-service)            │
+│  ClusterIP: 10.96.45.100  Port: 80           │
+└──────────────────────┬───────────────────────┘
+                       │ (Load Balances traffic via Endpoint list)
+                       ▼
+      ┌────────────────┴────────────────┐
+      │ (kube-proxy / CNI Routing)      │
+      ▼                                 ▼
+┌───────────┐                     ┌───────────┐
+│ Pod (web) │                     │ Pod (web) │
+│ IP: 10.244.1.3                  │ IP: 10.244.2.4
+│ Port: 80    │                   │ Port: 80    │
+└───────────┘                     └───────────┘
 \`\`\``,
       labSteps: [
         {

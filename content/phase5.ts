@@ -10,41 +10,80 @@ const phase5: Phase = {
   title: 'Advanced Kubernetes: Helm, CRDs & Observability',
   shortTitle: 'Advanced',
   description: 'Package and deploy with Helm, extend Kubernetes with CRDs and Operators, and build observability into your cluster with metrics, logging, and tracing.',
-  weeks: 'Week 9–10',
+  weeks: 'Week 9â€“10',
   hours: '~11 hours',
   color: 'text-rose-400',
   bgColor: 'bg-rose-500/10 border-rose-500/30',
   modules: [
-    // ─── Module 1: Helm ──────────────────────────────────────────────────────
+    // â”€â”€â”€ Module 1: Helm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     {
       id: 'p5-m1',
       slug: 'helm',
       title: 'Helm: Kubernetes Package Manager',
-      description: 'Package, version, and deploy Kubernetes applications with Helm charts — the apt/brew for your cluster.',
+      description: 'Package, version, and deploy Kubernetes applications with Helm charts â€” the apt/brew for your cluster.',
       duration: '75 min',
       difficulty: 'intermediate',
-      theory: `## The Problem: YAML at Scale
+      theory: `> ðŸ§  **Brain Warm-Up**: If Helm v3 stores release state directly inside the cluster as Kubernetes Secrets (and lacks a server-side daemon like Helm v2's Tiller), how does it handle concurrent deployments to the same release without causing race conditions or state corruption?
 
-Deploying a real application to Kubernetes requires 5–10 YAML files: a Deployment, a Service, a ConfigMap, an Ingress, a ServiceAccount, maybe a HorizontalPodAutoscaler. Multiplied across dev, staging, and production, this becomes dozens of files that differ only in a handful of values (image tag, replica count, domain name).
+## The Problem: YAML at Scale
+
+Deploying a real application to Kubernetes requires 5â€“10 YAML files: a Deployment, a Service, a ConfigMap, an Ingress, a ServiceAccount, maybe a HorizontalPodAutoscaler. Multiplied across dev, staging, and production, this becomes dozens of files that differ only in a handful of values (image tag, replica count, domain name).
 
 Managing these manually is error-prone and repetitive. Teams end up with copied-and-pasted YAML that drifts out of sync.
 
 ## What is Helm?
 
-**Helm** is the package manager for Kubernetes. Think of it like \`apt\` (Debian), \`brew\` (macOS), or \`npm\` — but instead of software packages, it manages Kubernetes application bundles.
+**Helm** is the package manager for Kubernetes. Think of it like \`apt\` (Debian), \`brew\` (macOS), or \`npm\` â€” but instead of software packages, it manages Kubernetes application bundles.
 
 Helm is maintained by the CNCF and is the most widely-used way to install third-party software (Prometheus, cert-manager, nginx-ingress) onto a cluster.
+
+### Helm Compilation & Deployment Flow
+
+\`\`\`
+                                        +-------------------+
+                                        |  Chart Templates  |
+                                        +---------+---------+
+                                                  |
+                                                  v
++-------------------+                   +---------+---------+
+|   Custom Values   | ----------------> |    Helm Client    |
+| (--set / values)  |                   | (Go template engine|
++-------------------+                   |  & Sprig library) |
+                                        +---------+---------+
+                                                  | (compiles & renders templates)
+                                                  v
+                                        +-------------------+
+                                        | Renders YAML/JSON |
+                                        | (Kubernetes API   |
+                                        |  Manifest Bundle) |
+                                        +---------+---------+
+                                                  |
+                                                  | (3-way merge patch / HTTP POST)
+                                                  v
+                                      +-----------------------+
+                                      | Kubernetes API Server |
+                                      +-----------+-----------+
+                                                  |
+                                    +-------------+-------------+
+                                    |                           |
+                                    v                           v
+                           +--------+--------+         +--------+--------+
+                           |  Target Namespace |       | Release Secrets |
+                           |  (e.g., Pods,   |       | (gzip+base64    |
+                           |   SVCs, etc.)   |       |  JSON metadata) |
+                           +-----------------+         +-----------------+
+\`\`\`
 
 ## Core Concepts
 
 | Concept | Description |
 |---|---|
-| **Chart** | A collection of YAML templates packaged together — like a \`.deb\` package or a Homebrew formula |
+| **Chart** | A collection of YAML templates packaged together â€” like a \`.deb\` package or a Homebrew formula |
 | **Release** | An installed instance of a chart. The same chart can be installed multiple times as different releases. |
 | **Values** | Variables that customize a chart. Defaults live in \`values.yaml\`; overridden with \`--set\` or \`-f myvalues.yaml\` |
 | **Repository** | A collection of charts. Artifact Hub is the main public registry. |
 
-## Helm Template Engine
+## Helm Template Engine & Deep-Dive Compilation
 
 Charts use Go templates to inject values into YAML:
 
@@ -55,7 +94,15 @@ replicas: {{ .Values.replicaCount }}
 name: {{ .Release.Name }}-app
 \`\`\`
 
-When you run \`helm install\`, Helm renders the templates with the provided values and sends the resulting plain YAML to the Kubernetes API server.
+Under the hood, Helm compile and render phases run entirely client-side:
+1. **Values Merging**: Helm compiles values from the chart's defaults, any sub-charts (parent-child scopes), values files passed via \`-f\`, and command-line overrides (\`--set\`). This produces a single unified nested dictionary.
+2. **Template Expansion**: Helm runs Go's standard \`text/template\` engine supplemented with custom helper functions from the Sprig library (e.g. \`toYaml\`, \`indent\`, \`nindent\`, \`default\`).
+3. **Manifest Compilation**: Renders are converted to a combined YAML stream.
+4. **Three-Way Merge Patching**: During upgrades, Helm client does not simply overwrite resources. It performs a three-way merge patch comparing:
+   - The *last release state* (stored in the cluster Release Secret)
+   - The *live state* in the cluster (to preserve out-of-band changes like dynamic node selections or replicas adjusted by HPAs)
+   - The *proposed target state*
+5. **State Storage**: The output release state is serialized, gzipped, base64 encoded, and stored in a Kubernetes Secret of type \`helm.sh/release.v1\` named \`sh.helm.release.v1.<release-name>.v<revision>\` in the installation namespace. Optimistic concurrency control (via \`resourceVersion\` on the Secret) guarantees concurrent updates are rejected by the API server to prevent race conditions.
 
 ## Key Commands
 
@@ -74,13 +121,13 @@ helm history <release>         # Show revision history for a release
 
 ## Helm v3 vs v2
 
-Helm v3 (current, released 2019) removed **Tiller** — a server-side component that ran inside the cluster with cluster-admin privileges. Tiller was a significant security risk because any pod that could reach it could issue arbitrary API calls.
+Helm v3 (current, released 2019) removed **Tiller** â€” a server-side component that ran inside the cluster with cluster-admin privileges. Tiller was a significant security risk because any pod that could reach it could issue arbitrary API calls.
 
 Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are limited to what your own account can do.
 
 ## When to Use Helm
 
-- **Third-party software** (Prometheus, nginx-ingress, cert-manager, ArgoCD): always use Helm — charts encode operational knowledge.
+- **Third-party software** (Prometheus, nginx-ingress, cert-manager, ArgoCD): always use Helm â€” charts encode operational knowledge.
 - **Your own apps**: Helm works but adds template complexity. Many teams prefer Kustomize (next module) for first-party apps.`,
       labSteps: [
         {
@@ -114,13 +161,13 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'NAME                            CHART VERSION   APP VERSION   DESCRIPTION',
             'ingress-nginx/ingress-nginx     4.11.3          1.11.3        Ingress controller for Kubernetes using NGINX...',
           ],
-          explanation: 'The search output shows the chart name, chart version (the Helm package version), and app version (the underlying software version). These are independent — a chart at version 4.11.3 may package nginx 1.11.3. You can pin a specific chart version with --version on helm install.',
+          explanation: 'The search output shows the chart name, chart version (the Helm package version), and app version (the underlying software version). These are independent â€” a chart at version 4.11.3 may package nginx 1.11.3. You can pin a specific chart version with --version on helm install.',
           clusterState: {
             pods: [],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: ['helm search repo ingress-nginx → 1 chart found'],
+            events: ['helm search repo ingress-nginx â†’ 1 chart found'],
             highlightedComponent: 'apiserver',
           },
         },
@@ -177,7 +224,7 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'Get the application URL by running these commands:',
             '  export SERVICE_IP=$(kubectl get svc my-ingress-ingress-nginx-controller -n ingress-nginx -o jsonpath=\'{.status.loadBalancer.ingress[0].ip}\')',
           ],
-          explanation: 'Helm rendered all chart templates with the provided values, applied them to the cluster, and recorded the release in a Secret in the ingress-nginx namespace. --create-namespace creates the namespace if it does not exist. REVISION: 1 is the first deployment — each helm upgrade increments this. STATUS: deployed means all resources were accepted by the API server.',
+          explanation: 'Helm rendered all chart templates with the provided values, applied them to the cluster, and recorded the release in a Secret in the ingress-nginx namespace. --create-namespace creates the namespace if it does not exist. REVISION: 1 is the first deployment â€” each helm upgrade increments this. STATUS: deployed means all resources were accepted by the API server.',
           clusterState: {
             pods: [
               { id: 'my-ingress-ctrl-7f8d2', name: 'my-ingress-ingress-nginx-controller-7f8d2', namespace: 'ingress-nginx', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
@@ -193,7 +240,7 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             events: [
               'Helm release my-ingress created (REVISION 1)',
               'Namespace ingress-nginx created',
-              'Deployment my-ingress-ingress-nginx-controller → 2 replicas',
+              'Deployment my-ingress-ingress-nginx-controller â†’ 2 replicas',
             ],
             highlightedComponent: 'controller',
           },
@@ -207,7 +254,7 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'NAME        NAMESPACE       REVISION  UPDATED                   STATUS    CHART                    APP VERSION',
             'my-ingress  ingress-nginx   1         2026-03-22 10:00:00 UTC   deployed  ingress-nginx-4.11.3     1.11.3',
           ],
-          explanation: 'helm list shows all releases in the specified namespace (or all namespaces with -A). REVISION tracks how many times this release has been installed or upgraded. Helm stores release history as Kubernetes Secrets in the release namespace — each revision is a separate Secret with the rendered manifests, allowing rollback to any previous state.',
+          explanation: 'helm list shows all releases in the specified namespace (or all namespaces with -A). REVISION tracks how many times this release has been installed or upgraded. Helm stores release history as Kubernetes Secrets in the release namespace â€” each revision is a separate Secret with the rendered manifests, allowing rollback to any previous state.',
           clusterState: {
             pods: [
               { id: 'my-ingress-ctrl-7f8d2', name: 'my-ingress-ingress-nginx-controller-7f8d2', namespace: 'ingress-nginx', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
@@ -220,7 +267,7 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
               { id: 'my-ingress-deploy', name: 'my-ingress-ingress-nginx-controller', namespace: 'ingress-nginx', replicas: 2, availableReplicas: 2, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3' },
             ],
             namespaces: ['default', 'ingress-nginx'],
-            events: ['helm list -n ingress-nginx → my-ingress REVISION 1 deployed'],
+            events: ['helm list -n ingress-nginx â†’ my-ingress REVISION 1 deployed'],
             highlightedComponent: 'apiserver',
           },
         },
@@ -239,7 +286,7 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             '1         2026-03-22 10:00:00 UTC   superseded  ingress-nginx-4.11.3   Install complete',
             '2         2026-03-22 10:05:00 UTC   deployed    ingress-nginx-4.11.3   Upgrade complete',
           ],
-          explanation: 'helm upgrade increments the REVISION to 2. The previous revision is now "superseded" but still stored. helm history shows every revision with its status and description. To roll back: helm rollback my-ingress 1 -n ingress-nginx — Helm re-applies the revision 1 manifests (2 replicas), creating REVISION 3 with description "Rollback to 1". Rollback is always a forward operation — it never destroys history.',
+          explanation: 'helm upgrade increments the REVISION to 2. The previous revision is now "superseded" but still stored. helm history shows every revision with its status and description. To roll back: helm rollback my-ingress 1 -n ingress-nginx â€” Helm re-applies the revision 1 manifests (2 replicas), creating REVISION 3 with description "Rollback to 1". Rollback is always a forward operation â€” it never destroys history.',
           clusterState: {
             pods: [
               { id: 'my-ingress-ctrl-7f8d2', name: 'my-ingress-ingress-nginx-controller-7f8d2', namespace: 'ingress-nginx', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
@@ -254,13 +301,13 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             ],
             namespaces: ['default', 'ingress-nginx'],
             events: [
-              'Helm upgrade my-ingress → REVISION 2 (replicaCount 2→3)',
+              'Helm upgrade my-ingress â†’ REVISION 2 (replicaCount 2â†’3)',
               'REVISION 1: superseded | REVISION 2: deployed',
               'To rollback: helm rollback my-ingress 1 -n ingress-nginx',
             ],
             highlightedComponent: 'controller',
           },
-          tip: 'helm rollback my-ingress 1 -n ingress-nginx restores the exact manifests from revision 1. The rollback itself becomes REVISION 3 — history is never destroyed.',
+          tip: 'helm rollback my-ingress 1 -n ingress-nginx restores the exact manifests from revision 1. The rollback itself becomes REVISION 3 â€” history is never destroyed.',
         },
       ],
       quiz: [
@@ -271,22 +318,22 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'A Chart is a specific version; a Release is the latest version of that chart',
             'A Chart is the packaged template bundle; a Release is a named, installed instance of that chart in the cluster',
             'A Release is stored in a Git repository; a Chart is stored in the cluster',
-            'They are different names for the same thing — a Chart becomes a Release after it is pushed to Artifact Hub',
+            'They are different names for the same thing â€” a Chart becomes a Release after it is pushed to Artifact Hub',
           ],
           answer: 1,
-          explanation: 'A Chart is the package — a directory of YAML templates and a values.yaml file, versioned and distributed via a repository. A Release is what you get when you install a chart: a named, running instance in the cluster. You can install the same chart multiple times (as different release names) to get multiple independent releases.',
+          explanation: 'A Chart is the package â€” a directory of YAML templates and a values.yaml file, versioned and distributed via a repository. A Release is what you get when you install a chart: a named, running instance in the cluster. You can install the same chart multiple times (as different release names) to get multiple independent releases.',
         },
         {
           id: 'p5-m1-q2',
           question: 'You install the same Helm chart twice with different release names. What is the result?',
           options: [
-            'An error — a chart can only be installed once per namespace',
+            'An error â€” a chart can only be installed once per namespace',
             'The second install overwrites the first',
             'Two independent releases, each with their own set of Kubernetes resources and revision history',
             'One release with doubled replica counts',
           ],
           answer: 2,
-          explanation: 'Each helm install with a different release name creates a completely independent release. Resources are named using the release name (e.g., {{ .Release.Name }}-deployment), so they do not conflict. This is how teams run multiple isolated instances of the same software — for example, two separate prometheus stacks for different tenants.',
+          explanation: 'Each helm install with a different release name creates a completely independent release. Resources are named using the release name (e.g., {{ .Release.Name }}-deployment), so they do not conflict. This is how teams run multiple isolated instances of the same software â€” for example, two separate prometheus stacks for different tenants.',
         },
         {
           id: 'p5-m1-q3',
@@ -304,26 +351,28 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
           id: 'p5-m1-q4',
           question: 'Helm v3 removed which component compared to Helm v2, and why was that a security improvement?',
           options: [
-            'Removed chart repositories — charts are now stored directly in the cluster as ConfigMaps',
+            'Removed chart repositories â€” charts are now stored directly in the cluster as ConfigMaps',
             'Removed Tiller, a server-side component that ran with cluster-admin privileges inside the cluster',
-            'Removed the values.yaml concept — all configuration is now done via --set flags only',
+            'Removed the values.yaml concept â€” all configuration is now done via --set flags only',
             'Removed rollback support to simplify the release model',
           ],
           answer: 1,
-          explanation: 'Helm v2 required Tiller, a server-side pod running in kube-system with cluster-admin permissions. Any workload that could reach Tiller could issue arbitrary Kubernetes API calls — a major privilege escalation risk. Helm v3 is entirely client-side: it uses your kubeconfig credentials directly, so permissions are limited to what your own account allows.',
+          explanation: 'Helm v2 required Tiller, a server-side pod running in kube-system with cluster-admin permissions. Any workload that could reach Tiller could issue arbitrary Kubernetes API calls â€” a major privilege escalation risk. Helm v3 is entirely client-side: it uses your kubeconfig credentials directly, so permissions are limited to what your own account allows.',
         },
       ],
     },
 
-    // ─── Module 2: Kustomize ─────────────────────────────────────────────────
+    // â”€â”€â”€ Module 2: Kustomize â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     {
       id: 'p5-m2',
       slug: 'kustomize',
       title: 'Kustomize: Environment-Specific Config',
-      description: 'Manage per-environment configuration without templating — using overlays and patches built into kubectl.',
+      description: 'Manage per-environment configuration without templating â€” using overlays and patches built into kubectl.',
       duration: '60 min',
       difficulty: 'intermediate',
-      theory: `## The Problem with Helm for Your Own Apps
+      theory: `> ðŸ§  **Brain Warm-Up**: Since Kustomize is purely template-free and processes resources using AST (Abstract Syntax Tree) transformation, how does it guarantee that references to renamed resources (like a ConfigMap hash suffix change) are correctly updated in Dependent Deployments or Pods without breaking them?
+
+## The Problem with Helm for Your Own Apps
 
 Helm is powerful, but charts require learning Go template syntax and add indirection. For **your own application** where you just need to change an image tag or replica count between dev and production, this complexity often isn't worth it.
 
@@ -331,23 +380,46 @@ Most teams with first-party apps just need: "take these base manifests, and appl
 
 ## What is Kustomize?
 
-**Kustomize** is a configuration management tool that is **built directly into kubectl** since Kubernetes 1.14. No installation needed — run \`kubectl apply -k\` instead of \`kubectl apply -f\`.
+**Kustomize** is a configuration management tool that is **built directly into kubectl** since Kubernetes 1.14. No installation needed â€” run \`kubectl apply -k\` instead of \`kubectl apply -f\`.
 
 Kustomize does **not** use templating. Instead it uses:
 - **Bases**: canonical, shared manifests
 - **Overlays**: environment-specific patches applied on top
 - **kustomization.yaml**: a manifest that declares what resources to include and what transformations to apply
 
+### Kustomize Compilation Pipeline
+
+\`\`\`
++--------------------+
+| Base Manifests     |--+
+| (Golden YAMLs)     |  |
++--------------------+  |
+                        |      +------------------------+
++--------------------+  +----> |    Kustomize Engine    |
+| Overlay Config     |  |      |                        |
+| (kustomization)    |--+      |  1. Parse YAML into    |      +--------------------+
++--------------------+  |      |     Abstract Syntax    |      |  Flat Rendered     |
+                        |      |     Trees (AST)        | ---> |  Kubernetes YAML   |
++--------------------+  +----> |  2. Generate CM hashes |      |  (No templates)    |
+| Patches            |--+      |  3. Apply patches      |      +---------+----------+
+| (RFC 6902 / SMP)   |         |  4. Resolve references |                |
++--------------------+         +------------------------+                | (kubectl apply -k)
+                                                                         v
+                                                              +--------------------+
+                                                              | Kubernetes API     |
+                                                              +--------------------+
+\`\`\`
+
 ## Core Concepts
 
 ### Base
-The base contains your "golden" manifests — a Deployment, Service, etc. that work for all environments. No environment-specific values here.
+The base contains your "golden" manifests â€” a Deployment, Service, etc. that work for all environments. No environment-specific values here.
 
 \`\`\`
 base/
   deployment.yaml
   service.yaml
-  kustomization.yaml   ← lists: resources: [deployment.yaml, service.yaml]
+  kustomization.yaml   â†� lists: resources: [deployment.yaml, service.yaml]
 \`\`\`
 
 ### Overlay
@@ -356,7 +428,7 @@ An overlay references the base and applies patches. Each environment gets its ow
 \`\`\`
 overlays/
   production/
-    kustomization.yaml   ← references ../../base, adds patches
+    kustomization.yaml   â†� references ../../base, adds patches
   staging/
     kustomization.yaml
 \`\`\`
@@ -369,11 +441,26 @@ The kustomization file declares:
 - \`commonLabels\` to add labels to all resources
 - \`patches\` for surgical changes
 
+## Low-Level AST Manipulation and Hashing
+
+Instead of performing string replacement, Kustomize parses input YAML manifests into **Abstract Syntax Trees (ASTs)** using Golang libraries like \`sigs.k8s.io/yaml\` and \`kyaml\`. This allows Kustomize to be structurally aware of the resources.
+
+1. **ConfigMap/Secret Generator Suffixes**: When using \`configMapGenerator\` or \`secretGenerator\`, Kustomize computes a SHA-256 hash of the payload content and appends it as a suffix to the resource name (e.g. \`my-config-f7b2h38d\`).
+2. **Reference Resolution**: To avoid breaking references, the Kustomize engine tracks these name changes. It updates any referencing fieldsâ€”such as \`volumes.configMap.name\`, \`envFrom.configMapRef.name\`, or \`env.valueFrom.configMapKeyRef.name\`â€”within matching Workloads (Deployments, StatefulSets) using built-in field specs that match resource kinds.
+3. **Content-Driven Rolling Updates**: By appending content hashes to Secret and ConfigMap names, Kustomize ensures that any configuration change automatically changes the resource name in the Pod spec, forcing the kubelet to perform a clean rolling update of the workload.
+
 ## Patch Types
 
-**Strategic merge patch**: looks like a partial copy of the original YAML. Kubernetes merges it intelligently (lists are merged by key, not replaced).
+**Strategic Merge Patch (SMP)**: Utilizes the Kubernetes OpenAPI schema to merge structures. For instance, rather than replacing lists completely, it merges container lists by matching the \`name\` field, allowing you to add environment variables or change resource requirements without duplicating the entire container block.
 
-**JSON patch**: RFC 6902 operations (add, remove, replace) — precise and unambiguous but more verbose.
+**JSON Patch**: Implements the RFC 6902 standard. It performs precise, step-by-step structural modifications (e.g. \`add\`, \`replace\`, \`remove\`) targeting specific JSONPaths:
+
+\`\`\`yaml
+# example JSON patch
+- op: replace
+  path: /spec/replicas
+  value: 3
+\`\`\`
 
 ## Kustomize vs Helm
 
@@ -428,7 +515,7 @@ images:
     newTag: v1.5.2
 commonLabels:
   env: production`,
-          explanation: 'The base has generic manifests with no environment-specific values. The production overlay references the base, adds a namePrefix (so all resources become prod-webapp instead of webapp), overrides the image tag to v1.5.2, and adds an env: production label to every resource. No template syntax — just YAML describing transformations.',
+          explanation: 'The base has generic manifests with no environment-specific values. The production overlay references the base, adds a namePrefix (so all resources become prod-webapp instead of webapp), overrides the image tag to v1.5.2, and adds an env: production label to every resource. No template syntax â€” just YAML describing transformations.',
           clusterState: {
             pods: [],
             services: [],
@@ -465,13 +552,13 @@ commonLabels:
             'metadata:',
             '  name: webapp',
           ],
-          explanation: 'kubectl kustomize renders the final YAML without applying it — like helm template for Helm. This is useful for reviewing what will be sent to the API server. The base output is the raw manifests with no transformations applied. Compare this with the production overlay output in the next step.',
+          explanation: 'kubectl kustomize renders the final YAML without applying it â€” like helm template for Helm. This is useful for reviewing what will be sent to the API server. The base output is the raw manifests with no transformations applied. Compare this with the production overlay output in the next step.',
           clusterState: {
             pods: [],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: ['kubectl kustomize base/ → rendered 2 resources (Deployment + Service, no patches)'],
+            events: ['kubectl kustomize base/ â†’ rendered 2 resources (Deployment + Service, no patches)'],
             highlightedComponent: 'apiserver',
           },
           tip: 'kubectl kustomize outputs to stdout so you can pipe it: kubectl kustomize overlays/production/ | kubectl apply -f - (equivalent to kubectl apply -k overlays/production/).',
@@ -500,15 +587,15 @@ commonLabels:
             '      - image: myrepo/webapp:v1.5.2',
             '        name: webapp',
           ],
-          explanation: 'The production overlay output shows three transformations applied to the base: (1) name changed from webapp to prod-webapp via namePrefix, (2) image tag changed from latest to v1.5.2 via the images override, (3) env: production label added to all resources and pod templates via commonLabels. None of the base files were modified — the overlay is purely additive.',
+          explanation: 'The production overlay output shows three transformations applied to the base: (1) name changed from webapp to prod-webapp via namePrefix, (2) image tag changed from latest to v1.5.2 via the images override, (3) env: production label added to all resources and pod templates via commonLabels. None of the base files were modified â€” the overlay is purely additive.',
           clusterState: {
             pods: [],
             services: [],
             deployments: [],
             namespaces: ['default'],
             events: [
-              'kubectl kustomize overlays/production/ → prod-webapp (image: v1.5.2, label env: production)',
-              'Base unchanged — overlay is non-destructive',
+              'kubectl kustomize overlays/production/ â†’ prod-webapp (image: v1.5.2, label env: production)',
+              'Base unchanged â€” overlay is non-destructive',
             ],
             highlightedComponent: 'apiserver',
           },
@@ -557,7 +644,7 @@ commonLabels:
             '+      - image: myrepo/webapp:v1.6.0',
             '         name: webapp',
           ],
-          explanation: 'kubectl diff -k compares the rendered overlay against the live cluster state and outputs a standard unified diff. Lines prefixed with - are what is currently running; lines with + are what would be applied. This is a safe read-only operation — nothing is changed. Running diff before apply is a production best practice, especially in CI pipelines.',
+          explanation: 'kubectl diff -k compares the rendered overlay against the live cluster state and outputs a standard unified diff. Lines prefixed with - are what is currently running; lines with + are what would be applied. This is a safe read-only operation â€” nothing is changed. Running diff before apply is a production best practice, especially in CI pipelines.',
           clusterState: {
             pods: [
               { id: 'prod-webapp-d7f3a', name: 'prod-webapp-d7f3a', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'webapp', env: 'production' }, image: 'myrepo/webapp:v1.5.2', restarts: 0 },
@@ -570,7 +657,7 @@ commonLabels:
             ],
             namespaces: ['default'],
             events: [
-              'kubectl diff -k overlays/production/ → image tag v1.5.2 → v1.6.0 (preview only, not applied)',
+              'kubectl diff -k overlays/production/ â†’ image tag v1.5.2 â†’ v1.6.0 (preview only, not applied)',
             ],
             highlightedComponent: 'apiserver',
           },
@@ -585,19 +672,19 @@ commonLabels:
             'Kustomize overlays require a separate binary; Helm values are built into kubectl',
             'Kustomize overlays use YAML patches applied to a base without templating; Helm values are injected into Go templates',
             'Helm values can only change scalar fields; Kustomize overlays can add entire new resources',
-            'They are functionally identical — Kustomize and Helm overlays both compile to the same internal format',
+            'They are functionally identical â€” Kustomize and Helm overlays both compile to the same internal format',
           ],
           answer: 1,
           explanation: 'Kustomize uses a patch-based model: your base manifests are real, valid YAML and the overlay applies structural transformations (rename, relabel, image override) without any template syntax. Helm uses Go templates where the final YAML is generated by substituting values into template expressions like {{ .Values.image.tag }}. Kustomize requires no new syntax to learn; Helm requires understanding Go templates.',
         },
         {
           id: 'p5-m2-q2',
-          question: 'Where is kustomize installed — do you need a separate tool?',
+          question: 'Where is kustomize installed â€” do you need a separate tool?',
           options: [
-            'Yes — install with helm plugin install kustomize',
-            'Yes — download the kustomize binary from GitHub and add it to PATH',
-            'No — kustomize is built into kubectl since v1.14 and invoked with kubectl apply -k or kubectl kustomize',
-            'No — kustomize runs as a sidecar container in the cluster',
+            'Yes â€” install with helm plugin install kustomize',
+            'Yes â€” download the kustomize binary from GitHub and add it to PATH',
+            'No â€” kustomize is built into kubectl since v1.14 and invoked with kubectl apply -k or kubectl kustomize',
+            'No â€” kustomize runs as a sidecar container in the cluster',
           ],
           answer: 2,
           explanation: 'Kustomize has been integrated directly into kubectl since Kubernetes 1.14. You use it with kubectl apply -k <dir> or kubectl kustomize <dir>. A standalone kustomize binary also exists (for the latest features and fixes ahead of the kubectl release cycle), but for most use cases the kubectl-integrated version is sufficient and requires no additional installation.',
@@ -637,18 +724,56 @@ commonLabels:
       description: 'Extend the Kubernetes API with your own resource types and understand the Operator pattern.',
       duration: '75 min',
       difficulty: 'advanced',
-      theory: `## The Kubernetes API is Extensible
+      theory: `> 🧠 **Brain Warm-Up**: When a Custom Resource (CR) is deleted, how does the API server coordinate with custom controllers to prevent etcd from leaking orphaned external resources (like cloud load balancers or disks) before the CR's metadata is completely expunged?
 
-The built-in Kubernetes resource types (Pod, Deployment, Service, ConfigMap…) are not hardcoded into the API server. They are registered resource definitions. And you can add your own.
+## The Kubernetes API is Extensible
 
-**Custom Resource Definitions (CRDs)** let you register new resource kinds with the API server. Once registered, your custom resources are full citizens of the Kubernetes API — you can \`kubectl get\`, \`kubectl apply\`, \`kubectl delete\`, and \`kubectl describe\` them just like Pods.
+The built-in Kubernetes resource types (Pod, Deployment, Service, ConfigMapâ€¦) are not hardcoded into the API server. They are registered resource definitions. And you can add your own.
+
+**Custom Resource Definitions (CRDs)** let you register new resource kinds with the API server. Once registered, your custom resources are full citizens of the Kubernetes API â€” you can \`kubectl get\`, \`kubectl apply\`, \`kubectl delete\`, and \`kubectl describe\` them just like Pods.
+
+### CRD Controller Reconciliation Architecture
+
+\`\`\`
++-------------------------------------------------------------+
+|                     Kubernetes API Server                   |
+|  +----------------+      +--------+      +---------------+  |
+|  | Mutating/Valid | ---> |  etcd  | ---> | HTTP/2 Watch  |  |
+|  | Webhooks       |      +--------+      | stream        |  |
++--+----------------+----------------------+-------+-------+--+
+                                                   |
+                                                   | (Informer / Reflector)
+                                                   v
++--------------------------------------------------+----------+
+|                 Operator Controller Process                 |
+|  +-------------------+        +--------------------------+  |
+|  |   Local Cache     | <----> |   SharedIndexInformer    |  |
+|  |   (Lister)        |        +------------+-------------+  |
+|  +-------------------+                     |                |
+|                                            v (events: add/upd/del)
+|  +-------------------+        +--------------------------+  |
+|  |  Reconcile Loop   | <----- | Rate-Limiting WorkQueue  |  |
+|  | (Desired vs Actual|        +--------------------------+  |
+|  +---------+---------+                                      |
++------------|------------------------------------------------+
+             |
+             | (1. Read Desired State / 2. Inspect Actual)
+             v
++-------------------------------------------------------------+
+|                         Real World                          |
+|  +--------------------+        +-------------------------+  |
+|  | Cloud Infrastructure|        | Cluster Resources       |  |
+|  | (AWS RDS, LB, etc.) |        | (Pods, Services, etc.)  |  |
+|  +--------------------+        +-------------------------+  |
++-------------------------------------------------------------+
+\`\`\`
 
 ## CRD vs CR
 
 | Term | Description |
 |---|---|
-| **CRD** (CustomResourceDefinition) | The schema — tells the API server "a new kind called Database exists, with these fields" |
-| **CR** (Custom Resource) | An instance of a CRD — like a Pod is an instance of the Pod kind |
+| **CRD** (CustomResourceDefinition) | The schema â€” tells the API server "a new kind called Database exists, with these fields" |
+| **CR** (Custom Resource) | An instance of a CRD â€” like a Pod is an instance of the Pod kind |
 
 The relationship: CRD is to CR as a Go struct is to a Go variable.
 
@@ -661,6 +786,15 @@ This is the crucial insight. When you create a CRD and then create a CR, the API
 
 No actual database is created. No process is started. The CR is just structured data in etcd. To make something happen, you need a **controller**.
 
+## Low-Level Controller Architecture: Informers and Finalizers
+
+Custom controllers (often written in Go using \`controller-runtime\` or \`client-go\`) run as workloads in the cluster and implement a specific reconciliation pattern:
+
+1. **SharedIndexInformer**: Instead of querying the API server continuously, the controller uses an Informer. The Informer opens an HTTP/2 chunked transfer stream (Watch API) to the API server, caches the retrieved objects in a local thread-safe index (\`Lister\`), and propagates event hooks when objects are added, updated, or deleted.
+2. **WorkQueue**: Events are pushed to a rate-limiting work queue. This queues tasks, merges duplicate keys, and retries reconciliations using exponential backoff when errors occur.
+3. **Finalizers (metadata.finalizers)**: To clean up external resources (like cloud databases or disks) before a CR is deleted from etcd, the controller adds a finalizer string to the CR. When a user deletes the CR, the API server sets a \`deletionTimestamp\` but blocks deletion until all finalizers are removed. The controller detects the deletion timestamp, cleans up the external infrastructure, and then removes its finalizer, allowing the CR to be purged from etcd.
+4. **Status Subresource (/status)**: CRDs expose a dedicated \`/status\` subresource. This isolates the status updates from spec changes. Spec edits increment \`metadata.generation\`, triggering a reconcile. Status updates do not. RBAC rules can restrict normal users from modifying the status, ensuring only the controller has permission to write status fields.
+
 ## The Controller Pattern
 
 A **controller** is a reconciliation loop:
@@ -670,24 +804,11 @@ loop forever:
   desired = read CR from API server
   actual  = observe current state (running processes, resources)
   if desired != actual:
-    take action to move actual → desired
+    take action to move actual â†’ desired
 \`\`\`
-
-This is the same pattern the built-in ReplicaSet controller uses to maintain the right number of Pod replicas.
-
-## The Operator Pattern
-
-An **Operator** = CRD + Controller, packaged together. The controller encodes **operational knowledge**: how to install, configure, upgrade, scale, backup, and failover the application.
-
-Real-world examples:
-- **cert-manager**: \`Certificate\` CRD → controller talks to Let's Encrypt, creates TLS Secrets
-- **Argo CD**: \`Application\` CRD → controller syncs Git repo to cluster
-- **Prometheus Operator**: \`ServiceMonitor\` CRD → controller configures Prometheus scrape targets
-- **Istio**: \`VirtualService\` CRD → controller programs Envoy proxy routing rules
-
 ## CRD Schema Validation
 
-CRDs support OpenAPI v3 schema validation. The API server rejects CRs that violate the schema at admission time — before they are stored in etcd:
+CRDs support OpenAPI v3 schema validation. The API server rejects CRs that violate the schema at admission time â€” before they are stored in etcd:
 
 \`\`\`yaml
 schema:
@@ -768,20 +889,20 @@ spec:
             'NAME                              CREATED AT',
             'databases.example.com             2026-03-22T10:00:00Z',
           ],
-          explanation: 'kubectl get crds lists all CustomResourceDefinitions in the cluster (they are cluster-scoped resources). In a real cluster running cert-manager, Prometheus Operator, or Argo CD, you would see dozens of CRDs here — certificates.cert-manager.io, servicemonitors.monitoring.coreos.com, applications.argoproj.io, and many more. Each represents an installed Operator\'s API surface.',
+          explanation: 'kubectl get crds lists all CustomResourceDefinitions in the cluster (they are cluster-scoped resources). In a real cluster running cert-manager, Prometheus Operator, or Argo CD, you would see dozens of CRDs here â€” certificates.cert-manager.io, servicemonitors.monitoring.coreos.com, applications.argoproj.io, and many more. Each represents an installed Operator\'s API surface.',
           clusterState: {
             pods: [],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: ['kubectl get crds → databases.example.com registered'],
+            events: ['kubectl get crds â†’ databases.example.com registered'],
             highlightedComponent: 'apiserver',
           },
         },
         {
           id: 'p5-m3-s3',
           title: 'Create a Custom Resource instance',
-          instruction: 'Create an instance of the Database CRD — a CR for a PostgreSQL database.',
+          instruction: 'Create an instance of the Database CRD â€” a CR for a PostgreSQL database.',
           command: 'kubectl apply -f my-postgres.yaml',
           yamlContent: `apiVersion: example.com/v1
 kind: Database
@@ -802,7 +923,7 @@ spec:
             events: [
               'CR my-postgres (kind: Database) created in default',
               'Spec: engine=postgresql, version=16, storage=10Gi',
-              'Stored in etcd — no controller watching yet',
+              'Stored in etcd â€” no controller watching yet',
             ],
             highlightedComponent: 'etcd',
           },
@@ -826,15 +947,15 @@ spec:
             '  Version:  16',
             'Events:       <none>',
           ],
-          explanation: 'kubectl get databases works exactly like kubectl get pods — the CRD registered the plural form "databases". kubectl describe gives the full object with spec fields. Notice Events: <none> — without a controller watching databases.example.com, no events are generated. The CR is purely passive data in etcd at this point.',
+          explanation: 'kubectl get databases works exactly like kubectl get pods â€” the CRD registered the plural form "databases". kubectl describe gives the full object with spec fields. Notice Events: <none> â€” without a controller watching databases.example.com, no events are generated. The CR is purely passive data in etcd at this point.',
           clusterState: {
             pods: [],
             services: [],
             deployments: [],
             namespaces: ['default'],
             events: [
-              'kubectl get databases → my-postgres (AGE: 5s)',
-              'No controller watching → no actual DB created',
+              'kubectl get databases â†’ my-postgres (AGE: 5s)',
+              'No controller watching â†’ no actual DB created',
             ],
             highlightedComponent: 'etcd',
           },
@@ -849,7 +970,7 @@ spec:
             'database.example.com "my-postgres" deleted',
             'customresourcedefinition.apiextensions.k8s.io "databases.example.com" deleted',
           ],
-          explanation: 'When you delete a CRD, all instances (CRs) of that CRD are also deleted — the CRD owns its CRs. This is why CRD deletion should be done carefully in production: if you uninstall an Operator by deleting its CRDs, all the CR instances (and possibly the resources they represent) are gone too. Operators typically provide an uninstall procedure that handles CR cleanup gracefully before removing CRDs.',
+          explanation: 'When you delete a CRD, all instances (CRs) of that CRD are also deleted â€” the CRD owns its CRs. This is why CRD deletion should be done carefully in production: if you uninstall an Operator by deleting its CRDs, all the CR instances (and possibly the resources they represent) are gone too. Operators typically provide an uninstall procedure that handles CR cleanup gracefully before removing CRDs.',
           clusterState: {
             pods: [],
             services: [],
@@ -857,7 +978,7 @@ spec:
             namespaces: ['default'],
             events: [
               'database.example.com/my-postgres deleted',
-              'CRD databases.example.com deleted → all Database CRs cascade-deleted',
+              'CRD databases.example.com deleted â†’ all Database CRs cascade-deleted',
             ],
             highlightedComponent: 'apiserver',
           },
@@ -892,13 +1013,13 @@ spec:
           id: 'p5-m3-q3',
           question: 'A CRD defines the schema. What actually ACTS on custom resource instances?',
           options: [
-            'The API server — it runs a built-in reconciliation loop for all registered CRDs',
-            'etcd — it triggers webhooks when custom resources are written',
-            'A controller (or operator) — a reconciliation loop that watches the CRs and takes action',
-            'The kubelet on each node — it reads CRs and runs the corresponding workloads',
+            'The API server â€” it runs a built-in reconciliation loop for all registered CRDs',
+            'etcd â€” it triggers webhooks when custom resources are written',
+            'A controller (or operator) â€” a reconciliation loop that watches the CRs and takes action',
+            'The kubelet on each node â€” it reads CRs and runs the corresponding workloads',
           ],
           answer: 2,
-          explanation: 'Controllers (or operators) are the active component. They run a watch loop against the API server, receive notifications when CRs are created/updated/deleted, and implement the reconciliation logic. The API server and etcd are purely passive for CRDs — they store and serve objects but do not act on them.',
+          explanation: 'Controllers (or operators) are the active component. They run a watch loop against the API server, receive notifications when CRs are created/updated/deleted, and implement the reconciliation logic. The API server and etcd are purely passive for CRDs â€” they store and serve objects but do not act on them.',
         },
         {
           id: 'p5-m3-q4',
@@ -910,46 +1031,84 @@ spec:
             'metrics-server and the Kubernetes Dashboard',
           ],
           answer: 1,
-          explanation: 'cert-manager introduces a Certificate CRD — create a Certificate CR and the cert-manager controller talks to Let\'s Encrypt (or another CA) and creates a TLS Secret. Argo CD introduces an Application CRD — create an Application CR pointing at a Git repo and the Argo CD controller syncs the repo contents to the cluster. Both are classic Operators: CRD defines desired state, controller makes it real.',
+          explanation: 'cert-manager introduces a Certificate CRD â€” create a Certificate CR and the cert-manager controller talks to Let\'s Encrypt (or another CA) and creates a TLS Secret. Argo CD introduces an Application CRD â€” create an Application CR pointing at a Git repo and the Argo CD controller syncs the repo contents to the cluster. Both are classic Operators: CRD defines desired state, controller makes it real.',
         },
       ],
     },
 
-    // ─── Module 4: Observability ─────────────────────────────────────────────
+    // â”€â”€â”€ Module 4: Observability â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     {
       id: 'p5-m4',
       slug: 'observability',
       title: 'Observability: Metrics, Logging & Tracing',
-      description: 'Build the three pillars of observability into your cluster — metrics with Prometheus, logs with Loki, and traces with OpenTelemetry.',
+      description: 'Build the three pillars of observability into your cluster â€” metrics with Prometheus, logs with Loki, and traces with OpenTelemetry.',
       duration: '90 min',
       difficulty: 'advanced',
-      theory: `## The Three Pillars of Observability
+      theory: `> ðŸ§  **Brain Warm-Up**: Prometheus operator uses ServiceMonitor CRDs to dynamically configure Prometheus scrape targets. Under the hood, how does the Prometheus controller translate a ServiceMonitor custom resource into a Prometheus scrape configuration without requiring a restart of the Prometheus server process?
+
+## The Three Pillars of Observability
 
 To understand what is happening inside a distributed system you need three complementary signals:
 
 | Pillar | What it is | Tooling |
 |---|---|---|
 | **Metrics** | Numeric time-series data (CPU%, request rate, error rate, latency p99) | Prometheus + Grafana |
-| **Logs** | Text events emitted by applications and system components | Fluent Bit → Loki / Elasticsearch |
-| **Traces** | End-to-end request flow across microservices | OpenTelemetry → Jaeger / Tempo |
+| **Logs** | Text events emitted by applications and system components | Fluent Bit â†’ Loki / Elasticsearch |
+| **Traces** | End-to-end request flow across microservices | OpenTelemetry â†’ Jaeger / Tempo |
 
 No single pillar is sufficient on its own. Metrics tell you *something is wrong*. Logs tell you *what happened*. Traces tell you *where in the request chain it went wrong*.
+
+### Visualizing Kubernetes Observability Data Flow
+
+\`\`\`
++---------------------------------------------------------------------------------+
+|                                Kubernetes Node                                  |
+|                                                                                 |
+|  +--------------------+  (exposes stats)  +----------------------------------+  |
+|  | Application Pod    | ----------------> | Kubelet (Port 10250)             |  |
+|  | (cgroups v2 limits)|                   | - Stats Summary API: /stats/sum  |  |
+|  |                    |                   +-----------------+----------------+  |
+|  | - Stdout/Stderr    |                                     |                   |
+|  +---------+----------+                                     v (scrapes stats)   |
+|            |                                    +-----------+------------+      |
+|            | (writes logs)                      | metrics-server         |      |
+|            v                                    | (exposes metrics.k8s)  |      |
+|  +---------+----------+                         +-----------+------------+      |
+|  | /var/log/pods/     |                                     |                   |
+|  +---------+----------+                         +-----------+------------+      |
+|            ^                                    v (kubectl top)                 |
+|            | (inotify / tail)                   +-----------+------------+      |
+|  +---------+----------+                         | API Server / kubectl   |      |
+|  | Log DaemonSet      |                         +------------------------+      |
+|  | (Fluent Bit / Loki)| ----> [ Loki / ES ]                                     |
+|  +--------------------+                                                         |
+|                                                                                 |
+|  +--------------------+  (/metrics endpoint)    +------------------------+      |
+|  | Application Pod B  | <---------------------- | Prometheus Server      |      |
+|  +--------------------+  (scrapes HTTP/gRPC)    +-----------+------------+      |
+|                                                             |                   |
+|                                                             v (visualizes)      |
+|                                                         [ Grafana ]             |
++---------------------------------------------------------------------------------+
+\`\`\`
 
 ## Metrics Stack: Prometheus + Grafana
 
 **Prometheus** collects metrics using a **pull model**: it scrapes HTTP \`/metrics\` endpoints on a schedule. Every pod that exposes Prometheus-format metrics is automatically collected.
 
 Key components:
-- **kube-state-metrics**: runs as a Deployment, exposes Kubernetes *object state* as metrics — \`kube_pod_status_phase\`, \`kube_deployment_status_replicas_available\`, etc.
-- **node-exporter**: runs as a DaemonSet (one per node), exposes *node-level hardware metrics* — CPU, memory, disk I/O, network bandwidth
+- **kube-state-metrics**: runs as a Deployment, exposes Kubernetes *object state* as metrics â€” \`kube_pod_status_phase\`, \`kube_deployment_status_replicas_available\`, etc.
+- **node-exporter**: runs as a DaemonSet (one per node), exposes *node-level hardware metrics* â€” CPU, memory, disk I/O, network bandwidth
 - **Prometheus Operator**: manages Prometheus configuration via CRDs. The **ServiceMonitor** CRD lets you declaratively tell Prometheus "scrape all Services with label app=myapp"
 - **Alertmanager**: routes alerts from Prometheus to Slack, PagerDuty, email, etc.
+
+Under the hood, when you apply a \`ServiceMonitor\` CRD, the Prometheus Operator controller detects the change, translates the resource selector parameters into raw Prometheus scrape configuration blocks, writes them into the Prometheus configuration file mounted inside the Prometheus container, and triggers a hot-reload of Prometheus via an HTTP POST request to its \`/-/reload\` API endpoint, preventing any downtime or server restarts.
 
 **Grafana** visualizes Prometheus data with pre-built dashboards (cluster overview, node exporter, workload metrics).
 
 ## kubectl top: Quick Resource Usage
 
-\`kubectl top\` requires **metrics-server** — a lightweight deployment that aggregates CPU/memory usage from the kubelet on each node.
+\`kubectl top\` requires **metrics-server** â€” a lightweight deployment that aggregates CPU/memory usage from the kubelet on each node.
 
 \`\`\`
 kubectl top nodes          # CPU and memory per node
@@ -957,29 +1116,35 @@ kubectl top pods -A        # CPU and memory per pod, all namespaces
 kubectl top pods --sort-by=memory -n production  # sorted by memory
 \`\`\`
 
+metrics-server query path:
+1. The metrics-server regularly calls the kubelet's Summary API (\`/stats/summary\` on port 10250) on every node.
+2. The kubelet reads cgroup files from the host Linux kernel (cgroups v2 paths like \`/sys/fs/cgroup/system.slice/containerd.service/...\`, reading \`cpu.stat\` and \`memory.current\`) to calculate container CPU millicores and memory usage.
+3. metrics-server serves these data points through the API extension gateway under the \`metrics.k8s.io\` API path, which kubectl queries.
+
 metrics-server is the data source for HPA. Prometheus is for historical data and alerting.
 
 ## Logging Stack
 
-Kubernetes does not provide centralized logging — logs are per-pod and lost when the pod is deleted.
+Kubernetes does not provide centralized logging â€” logs are per-pod and lost when the pod is deleted.
 
 The standard pattern:
 1. Apps write to **stdout/stderr** (never to files)
-2. A **DaemonSet** (Fluent Bit, Fluentd, or Promtail) runs on every node and tails pod logs
-3. The DaemonSet ships logs to a backend: **Loki** (lightweight, indexes metadata only) or **Elasticsearch** (full-text indexed, heavier)
+2. The container runtime (e.g. \`containerd\`) redirects stdout/stderr streams to host files at \`/var/log/pods/<namespace>_<pod>_<uid>/<container>/<restart_count>.log\`.
+3. A **DaemonSet** (Fluent Bit, Fluentd, or Promtail) runs on every node and tails pod logs using Linux kernel \`inotify\` watch events.
+4. The DaemonSet queries the local kubelet or API server to append metadata (labels, namespace, annotations) to each log line, before shipping them to a backend like **Loki** (lightweight, indexes metadata only) or **Elasticsearch** (full-text indexed, heavier)
 
 **Structured logging** (JSON format) is strongly preferred:
 - Fields are indexable and filterable in any log backend
 - Machines can parse and route by field values
 - Plain text logs require fragile regex parsing
 
-## Distributed Tracing
+## Distributed Tracing & Context Propagation
 
 **OpenTelemetry** is the CNCF standard SDK for instrumentation. Add it to your application code to emit trace spans. Spans are collected by an OpenTelemetry Collector and forwarded to a backend:
 - **Jaeger**: open-source trace backend with UI
 - **Grafana Tempo**: Grafana-native trace backend that integrates with Loki
 
-Tracing requires application code instrumentation — it cannot be done passively like metrics scraping.`,
+For tracing to work across microservice hops, applications must propagate the trace context. The standard W3C Trace Context defines headers like \`traceparent\` (e.g. \`00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01\`), which contains the overall Trace ID, Parent Span ID, and flags. When Service A calls Service B, it injects this header into HTTP/gRPC metadata. Service B extracts it to establish the parent-child relationship between spans.`,
       labSteps: [
         {
           id: 'p5-m4-s1',
@@ -995,7 +1160,7 @@ Tracing requires application code instrumentation — it cannot be done passivel
             'deployment.apps/metrics-server created',
             'service/metrics-server created',
           ],
-          explanation: 'metrics-server is a Kubernetes Metrics API implementation. It aggregates CPU and memory usage reported by the kubelet on each node. It exposes data via the metrics.k8s.io API extension (note the apiservice resource created). kubectl top and HPA both use this API. metrics-server stores only the latest data point — for historical metrics, use Prometheus.',
+          explanation: 'metrics-server is a Kubernetes Metrics API implementation. It aggregates CPU and memory usage reported by the kubelet on each node. It exposes data via the metrics.k8s.io API extension (note the apiservice resource created). kubectl top and HPA both use this API. metrics-server stores only the latest data point â€” for historical metrics, use Prometheus.',
           clusterState: {
             pods: [
               { id: 'metrics-server-7b4d2', name: 'metrics-server-7b4d2', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { 'k8s-app': 'metrics-server' }, image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.2', restarts: 0 },
@@ -1022,7 +1187,7 @@ Tracing requires application code instrumentation — it cannot be done passivel
             'node-1   248m         6%     2143Mi          27%',
             'node-2   183m         4%     1876Mi          23%',
           ],
-          explanation: 'CPU is shown in millicores (m) — 248m = 0.248 CPU cores. Memory is in mebibytes (Mi). CPU% and MEMORY% are relative to the node\'s allocatable capacity (total minus reserved for system). A node at >85% memory is at risk of triggering node-pressure evictions. This command is the fastest way to identify a hot node.',
+          explanation: 'CPU is shown in millicores (m) â€” 248m = 0.248 CPU cores. Memory is in mebibytes (Mi). CPU% and MEMORY% are relative to the node\'s allocatable capacity (total minus reserved for system). A node at >85% memory is at risk of triggering node-pressure evictions. This command is the fastest way to identify a hot node.',
           clusterState: {
             pods: [
               { id: 'metrics-server-7b4d2', name: 'metrics-server-7b4d2', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { 'k8s-app': 'metrics-server' }, image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.2', restarts: 0 },
@@ -1031,8 +1196,8 @@ Tracing requires application code instrumentation — it cannot be done passivel
             deployments: [],
             namespaces: ['default', 'kube-system'],
             events: [
-              'kubectl top nodes → node-1: 248m CPU (6%), 2143Mi mem (27%)',
-              'kubectl top nodes → node-2: 183m CPU (4%), 1876Mi mem (23%)',
+              'kubectl top nodes â†’ node-1: 248m CPU (6%), 2143Mi mem (27%)',
+              'kubectl top nodes â†’ node-2: 183m CPU (4%), 1876Mi mem (23%)',
             ],
             highlightedComponent: 'kubelet',
           },
@@ -1050,7 +1215,7 @@ Tracing requires application code instrumentation — it cannot be done passivel
             'kube-system   coredns-6f6b679f8f-xr9t2                    4m           15Mi',
             'kube-system   metrics-server-7b4d2                         3m           22Mi',
           ],
-          explanation: 'kubectl top pods -A shows consumption across all namespaces. This is the fastest way to find a runaway pod consuming unexpected resources. Sort by memory with --sort-by=memory or by CPU with --sort-by=cpu. If a pod has no resource requests set, kubectl top will still show actual usage — but the scheduler had no information to make a good placement decision.',
+          explanation: 'kubectl top pods -A shows consumption across all namespaces. This is the fastest way to find a runaway pod consuming unexpected resources. Sort by memory with --sort-by=memory or by CPU with --sort-by=cpu. If a pod has no resource requests set, kubectl top will still show actual usage â€” but the scheduler had no information to make a good placement decision.',
           clusterState: {
             pods: [
               { id: 'prod-webapp-d7f3a', name: 'prod-webapp-d7f3a', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'webapp' }, image: 'myrepo/webapp:v1.5.2', restarts: 0 },
@@ -1060,7 +1225,7 @@ Tracing requires application code instrumentation — it cannot be done passivel
             services: [],
             deployments: [],
             namespaces: ['default', 'ingress-nginx', 'kube-system'],
-            events: ['kubectl top pods -A → per-pod CPU and memory across all namespaces'],
+            events: ['kubectl top pods -A â†’ per-pod CPU and memory across all namespaces'],
             highlightedComponent: 'kubelet',
           },
           tip: 'kubectl top pods --sort-by=memory -n production to find the biggest memory consumers in a specific namespace.',
@@ -1068,7 +1233,7 @@ Tracing requires application code instrumentation — it cannot be done passivel
         {
           id: 'p5-m4-s4',
           title: 'Deploy Prometheus + Grafana stack',
-          instruction: 'Install the kube-prometheus-stack Helm chart — a full observability stack in one command.',
+          instruction: 'Install the kube-prometheus-stack Helm chart â€” a full observability stack in one command.',
           command: 'helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && helm install kube-prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace',
           output: [
             '"prometheus-community" has been added to your repositories',
@@ -1119,7 +1284,7 @@ Tracing requires application code instrumentation — it cannot be done passivel
             'kube-prometheus-prometheus-node-exporter-node2            1/1     Running   0          2m',
             'prometheus-kube-prometheus-prometheus-0                   2/2     Running   0          2m',
           ],
-          explanation: 'The monitoring stack includes: Prometheus (scrapes metrics, stores time-series), Grafana (visualization), Alertmanager (routes alerts), node-exporter on every node (DaemonSet — one pod per node, hardware metrics), and kube-state-metrics (Kubernetes object state metrics). node-exporter pods show a pod per node — that is the DaemonSet guarantee.',
+          explanation: 'The monitoring stack includes: Prometheus (scrapes metrics, stores time-series), Grafana (visualization), Alertmanager (routes alerts), node-exporter on every node (DaemonSet â€” one pod per node, hardware metrics), and kube-state-metrics (Kubernetes object state metrics). node-exporter pods show a pod per node â€” that is the DaemonSet guarantee.',
           clusterState: {
             pods: [
               { id: 'prometheus-kube-prometheus-0', name: 'prometheus-kube-prometheus-prometheus-0', namespace: 'monitoring', node: 'node-1', status: 'Running', labels: { app: 'prometheus' }, image: 'quay.io/prometheus/prometheus:v2.55.1', restarts: 0 },
@@ -1185,7 +1350,7 @@ Tracing requires application code instrumentation — it cannot be done passivel
             'kubectl logs --previous <pod-name> always works regardless of how long ago the pod crashed',
           ],
           answer: 2,
-          explanation: 'kubectl logs (and kubectl logs --previous) only work while the pod still exists on the node. Once a pod is deleted or evicted, its logs are gone from the node filesystem. Centralized logging — a DaemonSet (Fluent Bit, Promtail) shipping logs to Loki or Elasticsearch — is the only way to retain logs beyond the pod lifecycle. kubectl logs --previous shows the previous container in the same pod, not logs from days ago.',
+          explanation: 'kubectl logs (and kubectl logs --previous) only work while the pod still exists on the node. Once a pod is deleted or evicted, its logs are gone from the node filesystem. Centralized logging â€” a DaemonSet (Fluent Bit, Promtail) shipping logs to Loki or Elasticsearch â€” is the only way to retain logs beyond the pod lifecycle. kubectl logs --previous shows the previous container in the same pod, not logs from days ago.',
         },
         {
           id: 'p5-m4-q2',
@@ -1197,16 +1362,16 @@ Tracing requires application code instrumentation — it cannot be done passivel
             'metrics-server stores 30 days of history; kube-state-metrics stores only the latest data point',
           ],
           answer: 1,
-          explanation: 'metrics-server aggregates live resource usage (CPU cores, memory bytes) from the kubelet on each node and exposes them via the metrics.k8s.io API. It stores only the latest value. kube-state-metrics watches the Kubernetes API and converts object state into Prometheus-format metrics — is the deployment at desired replicas? is the pod in CrashLoopBackOff? These are completely different data sources and most production clusters run both.',
+          explanation: 'metrics-server aggregates live resource usage (CPU cores, memory bytes) from the kubelet on each node and exposes them via the metrics.k8s.io API. It stores only the latest value. kube-state-metrics watches the Kubernetes API and converts object state into Prometheus-format metrics â€” is the deployment at desired replicas? is the pod in CrashLoopBackOff? These are completely different data sources and most production clusters run both.',
         },
         {
           id: 'p5-m4-q3',
           question: 'Prometheus uses a pull or push model for collecting metrics?',
           options: [
-            'Push — applications send metrics to Prometheus on each event',
-            'Pull — Prometheus scrapes /metrics endpoints on a configurable schedule',
-            'Both — Prometheus uses push for counters and pull for gauges',
-            'Neither — Prometheus only reads from a central metrics database',
+            'Push â€” applications send metrics to Prometheus on each event',
+            'Pull â€” Prometheus scrapes /metrics endpoints on a configurable schedule',
+            'Both â€” Prometheus uses push for counters and pull for gauges',
+            'Neither â€” Prometheus only reads from a central metrics database',
           ],
           answer: 1,
           explanation: 'Prometheus uses a pull (scrape) model: it periodically sends HTTP GET requests to /metrics endpoints on the targets it is configured to watch. This makes Prometheus the authority on when and how often to collect data, and means the target does not need to know where Prometheus is. The Pushgateway exists for short-lived jobs that cannot be scraped, but it is the exception, not the rule.',
@@ -1216,7 +1381,7 @@ Tracing requires application code instrumentation — it cannot be done passivel
           question: 'Why is structured (JSON) logging preferred over plain text logs in Kubernetes?',
           options: [
             'JSON logs are smaller and use less disk space than plain text',
-            'Kubernetes requires JSON logs — plain text logs cause errors in kubelet',
+            'Kubernetes requires JSON logs â€” plain text logs cause errors in kubelet',
             'Structured logs have machine-parseable fields that can be indexed, filtered, and alerted on by log backends without fragile regex parsing',
             'JSON logs are automatically forwarded to Prometheus as metrics',
           ],
@@ -1227,69 +1392,103 @@ Tracing requires application code instrumentation — it cannot be done passivel
           id: 'p5-m4-q5',
           question: 'Which observability pillar helps you understand why a specific user request was slow across multiple microservices?',
           options: [
-            'Metrics — a Prometheus query can show per-service latency breakdown',
-            'Logs — correlating log timestamps across services reveals the slow step',
-            'Traces — a distributed trace shows the end-to-end call chain with per-span timing, identifying exactly which service or database call added latency',
-            'kubectl top — it shows real-time latency per pod',
+            'Metrics â€” a Prometheus query can show per-service latency breakdown',
+            'Logs â€” correlating log timestamps across services reveals the slow step',
+            'Traces â€” a distributed trace shows the end-to-end call chain with per-span timing, identifying exactly which service or database call added latency',
+            'kubectl top â€” it shows real-time latency per pod',
           ],
           answer: 2,
-          explanation: 'Distributed tracing is specifically designed for this. A trace captures the complete request flow: Service A called Service B (12ms), which called the database (340ms — the bottleneck), which returned to Service B (2ms), which returned to Service A. Metrics can tell you the p99 latency is high; traces tell you exactly which hop in the chain is responsible. OpenTelemetry is the standard instrumentation SDK; Jaeger and Grafana Tempo are popular backends.',
+          explanation: 'Distributed tracing is specifically designed for this. A trace captures the complete request flow: Service A called Service B (12ms), which called the database (340ms â€” the bottleneck), which returned to Service B (2ms), which returned to Service A. Metrics can tell you the p99 latency is high; traces tell you exactly which hop in the chain is responsible. OpenTelemetry is the standard instrumentation SDK; Jaeger and Grafana Tempo are popular backends.',
         },
       ],
     },
 
-    // ─── Module 5: Production Readiness ──────────────────────────────────────
+    // â”€â”€â”€ Module 5: Production Readiness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     {
       id: 'p5-m5',
       slug: 'production-readiness',
       title: 'Production Readiness Checklist',
-      description: 'Apply everything from the course — a comprehensive checklist for running Kubernetes workloads safely in production.',
+      description: 'Apply everything from the course â€” a comprehensive checklist for running Kubernetes workloads safely in production.',
       duration: '60 min',
       difficulty: 'advanced',
-      theory: `## Production is Different
+      theory: `> ðŸ§  **Brain Warm-Up**: When a worker node experiences disk pressure or memory pressure, the kubelet eviction manager initiates pod evictions. How does the kubelet choose which pods to evict first, and how do Pod QOS classes (Guaranteed, Burstable, BestEffort) and PodDisruptionBudgets affect this selection?
 
-A cluster that works in development often fails in production in surprising ways. The difference is not just traffic volume — it is the accumulation of small omissions: no resource limits, no probes, no network policies, no log aggregation.
+## Production is Different
+
+A cluster that works in development often fails in production in surprising ways. The difference is not just traffic volume â€” it is the accumulation of small omissions: no resource limits, no probes, no network policies, no log aggregation.
 
 This module ties together every topic from the course into a production readiness checklist.
+
+### Pod Quality of Service (QoS) & Eviction Hierarchy
+
+\`\`\`
+                EVICTION / OOM-KILL PRIORITY HIERARCHY
+
+     +----------------------------------------------------+  - High Priority Eviction
+     | BestEffort QoS                                     |  - oom_score_adj: 1000
+     | (No resource requests or limits configured)        |  - First to be terminated
+     +----------------------------------------------------+
+     | Burstable QoS                                      |  - Medium Priority Eviction
+     | (Requests set; limits optionally set but not equal)|  - oom_score_adj: dynamic
+     |                                                    |    (1000 - 10 * req/cap)
+     +----------------------------------------------------+
+     | Guaranteed QoS                                     |  - Lowest Priority Eviction
+     | (Requests == Limits for all CPUs and Memory)       |  - oom_score_adj: -997
+     |                                                    |  - Shielded from OOM-kill
+     +----------------------------------------------------+
+\`\`\`
+
+## Low-Level Eviction Mechanics & Linux OOM Configuration
+
+When a node runs low on physical memory or disk space, the kubelet Eviction Manager initiates hard or soft evictions to keep the node OS stable:
+
+1. **Eviction Thresholds**: By default, kubelet monitors resource usage and triggers evictions when memory availability falls below 100Mi or node disk storage is less than 10%.
+2. **QoS Classes & Eviction Ranking**: The kubelet ranks pods for eviction according to their resource usage relative to their requests, sorted by QoS class:
+   - **BestEffort**: Pods with no CPU/memory requests or limits set. The kubelet configures their containers with Linux \`/proc/<pid>/oom_score_adj\` set to \`1000\`. These are the first to be terminated.
+   - **Burstable**: Pods with requests set, but limits do not match requests or are omitted. The oom_score_adj is computed dynamically as \`1000 - (10 * memory_request / node_capacity)\`. If they consume more than their requested memory, they are evicted before Guaranteed pods.
+   - **Guaranteed**: Pods where requests equal limits for all CPUs and memory across all containers. The oom_score_adj is set to \`-997\`. These are protected and only evicted if the node runs completely out of memory and no other lower-priority pods exist.
+3. **PodDisruptionBudget (PDB) Limits**: PDBs (e.g. \`maxUnavailable: 1\`) are respected during voluntary cluster admin actions (like \`kubectl drain\`) by using the API server's Eviction endpoint. However, during node-pressure crises, the local kubelet executes involuntary evictions directly and ignores PDBs to protect node integrity.
+4. **Topology Spread Constraints**: In production, workloads should leverage topology spread constraints and anti-affinity rules to distribute pods across hostnames or availability zones, ensuring single-node or single-zone failures don't cause complete service outage.
+5. **API Token Hardening**: Disabling ServiceAccount token mounting (\`automountServiceAccountToken: false\`) ensures that compromised containers do not have immediate access to the API server credentials at \`/var/run/secrets/kubernetes.io/serviceaccount/token\`.
 
 ## Checklist: Workload Configuration
 
 **Every production Pod must have:**
 
-- ✅ **Resource requests and limits** on every container — without requests, the scheduler cannot place pods correctly; without limits, one runaway pod can OOMKill its neighbors
-- ✅ **Liveness probe** — tells Kubernetes when to restart a container that is deadlocked or hung
-- ✅ **Readiness probe** — tells Kubernetes when the container is ready to receive traffic (prevents requests to a pod still starting up)
-- ✅ **Multiple replicas** for all stateless apps — a single-replica deployment has zero tolerance for node failure or rolling update disruption
-- ✅ **PodDisruptionBudget** for critical services — limits voluntary disruptions (node drains, cluster upgrades) to maintain availability
-- ✅ **Pod anti-affinity** — spread replicas across nodes (or availability zones) so a single node failure does not take all replicas offline
+- âœ… **Resource requests and limits** on every container â€” without requests, the scheduler cannot place pods correctly; without limits, one runaway pod can OOMKill its neighbors
+- âœ… **Liveness probe** â€” tells Kubernetes when to restart a container that is deadlocked or hung
+- âœ… **Readiness probe** â€” tells Kubernetes when the container is ready to receive traffic (prevents requests to a pod still starting up)
+- âœ… **Multiple replicas** for all stateless apps â€” a single-replica deployment has zero tolerance for node failure or rolling update disruption
+- âœ… **PodDisruptionBudget** for critical services â€” limits voluntary disruptions (node drains, cluster upgrades) to maintain availability
+- âœ… **Pod anti-affinity** â€” spread replicas across nodes (or availability zones) so a single node failure does not take all replicas offline
 
 ## Checklist: Networking & Security
 
-- ✅ **Services use ClusterIP** internally; **Ingress** for external HTTP/HTTPS with TLS termination
-- ✅ **NetworkPolicies**: default-deny all ingress/egress, then explicit allow rules for required traffic
-- ✅ **Secrets** for all sensitive data — never hard-code passwords in ConfigMaps or environment variables
-- ✅ **RBAC**: dedicated ServiceAccounts per application, least-privilege Roles — no wildcard verbs
-- ✅ **automountServiceAccountToken: false** on every Pod that does not call the Kubernetes API
+- âœ… **Services use ClusterIP** internally; **Ingress** for external HTTP/HTTPS with TLS termination
+- âœ… **NetworkPolicies**: default-deny all ingress/egress, then explicit allow rules for required traffic
+- âœ… **Secrets** for all sensitive data â€” never hard-code passwords in ConfigMaps or environment variables
+- âœ… **RBAC**: dedicated ServiceAccounts per application, least-privilege Roles â€” no wildcard verbs
+- âœ… **automountServiceAccountToken: false** on every Pod that does not call the Kubernetes API
 
 ## Checklist: Reliability
 
-- ✅ **Namespaces + ResourceQuotas** per team or environment — prevent one team from starving others
-- ✅ **Pod topology spread constraints** for zone-aware scheduling
-- ✅ **HPA** for traffic-sensitive services — scale out automatically under load
-- ✅ **Cluster Autoscaler** for node-level scaling — let the cluster grow and shrink with demand
+- âœ… **Namespaces + ResourceQuotas** per team or environment â€” prevent one team from starving others
+- âœ… **Pod topology spread constraints** for zone-aware scheduling
+- âœ… **HPA** for traffic-sensitive services â€” scale out automatically under load
+- âœ… **Cluster Autoscaler** for node-level scaling â€” let the cluster grow and shrink with demand
 
 ## Checklist: Observability
 
-- ✅ **metrics-server + Prometheus + Grafana** — real-time and historical metrics
-- ✅ **Centralized log aggregation** (Loki/ELK) — logs survive pod deletion
-- ✅ **Alerts** configured for: pod CrashLoopBackOff, OOMKilled, high error rates, disk pressure, certificate expiry
+- âœ… **metrics-server + Prometheus + Grafana** â€” real-time and historical metrics
+- âœ… **Centralized log aggregation** (Loki/ELK) â€” logs survive pod deletion
+- âœ… **Alerts** configured for: pod CrashLoopBackOff, OOMKilled, high error rates, disk pressure, certificate expiry
 
 ## Checklist: Operations
 
-- ✅ **Regular etcd backups** — etcd is the source of truth; losing it means losing the entire cluster state
-- ✅ **Cluster upgrade plan** — Kubernetes supports N-2 version skew; upgrade one minor version at a time, control plane before nodes
-- ✅ **Helm or Kustomize** for all deployments — no manual \`kubectl apply\` in production
-- ✅ **GitOps** (ArgoCD or Flux) — Git is the source of truth; every cluster change goes through pull request review and is automatically reconciled
+- âœ… **Regular etcd backups** â€” etcd is the source of truth; losing it means losing the entire cluster state
+- âœ… **Cluster upgrade plan** â€” Kubernetes supports N-2 version skew; upgrade one minor version at a time, control plane before nodes
+- âœ… **Helm or Kustomize** for all deployments â€” no manual \`kubectl apply\` in production
+- âœ… **GitOps** (ArgoCD or Flux) â€” Git is the source of truth; every cluster change goes through pull request review and is automatically reconciled
 
 ## GitOps
 
@@ -1299,7 +1498,7 @@ Benefits:
 - **Auditability**: every change has a Git commit, author, and timestamp
 - **Rollback**: git revert undoes any change
 - **Drift detection**: the agent alerts when cluster state diverges from Git
-- **No direct kubectl access** needed in production — all changes go through Git`,
+- **No direct kubectl access** needed in production â€” all changes go through Git`,
       labSteps: [
         {
           id: 'p5-m5-s1',
@@ -1311,8 +1510,8 @@ kind: Pod
 metadata:
   name: insecure-app
 spec:
-  # Problem 1: no serviceAccountName → uses default SA (over-permissive)
-  # automountServiceAccountToken not set → API token mounted by default
+  # Problem 1: no serviceAccountName â†’ uses default SA (over-permissive)
+  # automountServiceAccountToken not set â†’ API token mounted by default
   containers:
   - name: app
     image: myrepo/app:latest   # Problem 2: mutable tag, not pinned
@@ -1329,7 +1528,7 @@ spec:
   - name: host-vol
     hostPath:                  # Problem 7: hostPath volume (node filesystem access)
       path: /var/data`,
-          explanation: 'This single pod spec has 7 production violations: (1) default ServiceAccount with broad API access, (2) :latest tag makes deployments non-reproducible, (3) no resource requests means the scheduler is blind and no limits means one container can starve neighbours, (4-5) no liveness/readiness probes means traffic is sent to unready pods and hung pods are never restarted, (6) plaintext secret in env — visible in kubectl describe and etcd, (7) hostPath mounts the node filesystem into the container — a container escape can access all node data.',
+          explanation: 'This single pod spec has 7 production violations: (1) default ServiceAccount with broad API access, (2) :latest tag makes deployments non-reproducible, (3) no resource requests means the scheduler is blind and no limits means one container can starve neighbours, (4-5) no liveness/readiness probes means traffic is sent to unready pods and hung pods are never restarted, (6) plaintext secret in env â€” visible in kubectl describe and etcd, (7) hostPath mounts the node filesystem into the container â€” a container escape can access all node data.',
           clusterState: {
             pods: [
               { id: 'insecure-app', name: 'insecure-app', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'insecure-app' }, image: 'myrepo/app:latest', restarts: 3 },
@@ -1436,7 +1635,7 @@ spec:
             '*.*         []                  []               [*]',
             '            [*]                 []               [*]',
           ],
-          explanation: 'On a cluster with default RBAC settings, the default ServiceAccount in the default namespace has wildcard (*) permissions — full cluster-admin equivalent. Any pod using the default SA and not setting automountServiceAccountToken: false can read Secrets, create pods, and modify RBAC — a complete cluster compromise from a single container breakout. Always use dedicated SAs with minimal permissions and set automountServiceAccountToken: false on pods that do not need API access.',
+          explanation: 'On a cluster with default RBAC settings, the default ServiceAccount in the default namespace has wildcard (*) permissions â€” full cluster-admin equivalent. Any pod using the default SA and not setting automountServiceAccountToken: false can read Secrets, create pods, and modify RBAC â€” a complete cluster compromise from a single container breakout. Always use dedicated SAs with minimal permissions and set automountServiceAccountToken: false on pods that do not need API access.',
           clusterState: {
             pods: [
               { id: 'secure-app-8f3d1', name: 'secure-app-8f3d1', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'secure-app' }, image: 'myrepo/app:v2.3.1', restarts: 0 },
@@ -1453,7 +1652,7 @@ spec:
             ],
             highlightedComponent: 'apiserver',
           },
-          tip: 'You can restrict the default ServiceAccount cluster-wide by applying a zero-permission RoleBinding — but the safest approach is always automountServiceAccountToken: false on pods that do not call the API.',
+          tip: 'You can restrict the default ServiceAccount cluster-wide by applying a zero-permission RoleBinding â€” but the safest approach is always automountServiceAccountToken: false on pods that do not call the API.',
         },
         {
           id: 'p5-m5-s4',
@@ -1509,7 +1708,7 @@ spec:
             ],
             highlightedComponent: 'controller',
           },
-          tip: 'Congratulations — you have completed the Kubernetes course! The next step is CKA (Certified Kubernetes Administrator) or CKAD (Certified Kubernetes Application Developer) for a formal certification.',
+          tip: 'Congratulations â€” you have completed the Kubernetes course! The next step is CKA (Certified Kubernetes Administrator) or CKAD (Certified Kubernetes Application Developer) for a formal certification.',
         },
       ],
       quiz: [
@@ -1532,7 +1731,7 @@ spec:
             'It improves pod startup time by skipping the token projection step',
             'Without it, pods cannot communicate with other pods in the cluster',
             'The default ServiceAccount often has broad permissions; if a container is compromised, the mounted token gives an attacker API access to the cluster',
-            'Kubernetes 1.35 deprecated ServiceAccount tokens — they are no longer supported',
+            'Kubernetes 1.35 deprecated ServiceAccount tokens â€” they are no longer supported',
           ],
           answer: 2,
           explanation: 'By default, Kubernetes mounts a ServiceAccount token into every pod. If an attacker gains code execution in a container, they can read this token and make authenticated API calls to the Kubernetes API server. Most application pods do not need API access at all. Setting automountServiceAccountToken: false removes the token from the pod filesystem, eliminating this attack vector entirely.',
@@ -1542,9 +1741,9 @@ spec:
           question: 'What is GitOps and why is it preferred over manual kubectl apply in production?',
           options: [
             'GitOps is a GitHub-specific feature that auto-deploys on push to main; manual kubectl is preferred for its flexibility',
-            'GitOps means the cluster state is declared in Git and continuously reconciled by an agent (ArgoCD/Flux) — providing audit trail, rollback via git revert, drift detection, and no direct cluster access needed',
+            'GitOps means the cluster state is declared in Git and continuously reconciled by an agent (ArgoCD/Flux) â€” providing audit trail, rollback via git revert, drift detection, and no direct cluster access needed',
             'GitOps is a Helm plugin that stores chart releases in Git repositories',
-            'GitOps and manual kubectl are equivalent — GitOps is just a marketing term',
+            'GitOps and manual kubectl are equivalent â€” GitOps is just a marketing term',
           ],
           answer: 1,
           explanation: 'In a GitOps workflow, every desired cluster state is committed to Git (Helm values, Kustomize overlays, raw manifests). An agent (ArgoCD or Flux) watches the Git repo and automatically reconciles the cluster toward the declared state. Benefits: every change has a PR, author, and review; rollback is git revert; the agent alerts on drift (cluster diverged from Git); no human needs kubectl write access to production.',
@@ -1559,19 +1758,19 @@ spec:
             'Reduce the replica count to give each pod more memory, or disable the OOM killer in Linux',
           ],
           answer: 1,
-          explanation: 'OOMKilled means the container exceeded its memory limit and the Linux OOM killer terminated it. The two root causes and fixes: (1) the limit is set too low for legitimate usage — increase the memory limit (and request) to match the application\'s actual needs; (2) the application has a memory leak — fix the leak in the code. Increasing limits without investigating the root cause just delays the problem if there is a leak.',
+          explanation: 'OOMKilled means the container exceeded its memory limit and the Linux OOM killer terminated it. The two root causes and fixes: (1) the limit is set too low for legitimate usage â€” increase the memory limit (and request) to match the application\'s actual needs; (2) the application has a memory leak â€” fix the leak in the code. Increasing limits without investigating the root cause just delays the problem if there is a leak.',
         },
         {
           id: 'p5-m5-q5',
           question: 'Your team is upgrading from Kubernetes 1.33 to 1.35. What is the safe upgrade path?',
           options: [
-            'Upgrade directly from 1.33 to 1.35 in one step — Kubernetes supports skipping minor versions',
-            'Upgrade one minor version at a time: 1.33 → 1.34 → 1.35. Upgrade the control plane first, then each node group. Verify workloads after each step.',
-            'Upgrade nodes first, then the control plane — nodes must be on the target version before the API server',
+            'Upgrade directly from 1.33 to 1.35 in one step â€” Kubernetes supports skipping minor versions',
+            'Upgrade one minor version at a time: 1.33 â†’ 1.34 â†’ 1.35. Upgrade the control plane first, then each node group. Verify workloads after each step.',
+            'Upgrade nodes first, then the control plane â€” nodes must be on the target version before the API server',
             'Back up etcd, then delete the cluster and recreate it on 1.35',
           ],
           answer: 1,
-          explanation: 'Kubernetes only supports upgrading one minor version at a time (the N-2 rule means a 1.33 kubelet can talk to a 1.35 API server, but skipping directly is not tested and not supported). Always upgrade the control plane (API server, scheduler, controller-manager) before upgrading nodes — the API server must be at the newer version first. After each step, verify that workloads are healthy before proceeding to the next minor version.',
+          explanation: 'Kubernetes only supports upgrading one minor version at a time (the N-2 rule means a 1.33 kubelet can talk to a 1.35 API server, but skipping directly is not tested and not supported). Always upgrade the control plane (API server, scheduler, controller-manager) before upgrading nodes â€” the API server must be at the newer version first. After each step, verify that workloads are healthy before proceeding to the next minor version.',
         },
       ],
     },

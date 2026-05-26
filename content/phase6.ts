@@ -23,7 +23,9 @@ const phase6: Phase = {
       description: 'Understand cloud-native architecture, CNCF projects, observability, and container orchestration basics for the entry-level certification.',
       duration: '10 hours',
       difficulty: 'intermediate',
-      theory: `## What is the KCNA?
+      theory: `> 🧠 **Brain Warm-Up**: How does the CNCF categorize project maturity, and why does Kubernetes use a gRPC-based Container Runtime Interface (CRI) instead of talking directly to Docker daemon? Think about it before reading below.
+
+## What is the KCNA?
 
 The **Kubernetes and Cloud Native Associate (KCNA)** exam is a pre-professional certification designed to test foundational knowledge of Kubernetes and the wider cloud-native ecosystem.
 
@@ -45,11 +47,87 @@ Unlike the practical CKA or CKAD, the KCNA is a **multiple-choice exam** consist
 5. **Cloud Native Application Delivery (8%)**
    - GitOps concepts, CI/CD, Helm package management
 
-### Study Strategy & Key Terms
-- **Declarative vs. Imperative**: Kubernetes operates primarily on a declarative model (matching desired state to actual state).
-- **CNCF Maturity Tiers**: Sandbox (experimental) → Incubating (proven in production) → Graduated (highest standard, e.g., Kubernetes, Prometheus, Envoy, Helm).
-- **OpenTelemetry (OTel)**: Standardizing telemetry collection (metrics, logs, traces) across different backends.
-- **GitOps**: Storing declarative infrastructure and application configurations in Git repositories to maintain a single source of truth.`,
+### Visualizing CRI Architecture
+
+The Container Runtime Interface (CRI) abstractly decouples the Kubelet from the underlying container execution engines. Below is the workflow from API invocation down to container initiation:
+
+\`\`\`
++------------------+
+|     Kubelet      |
++--------+---------+
+         |
+         | gRPC API (over UNIX Domain Socket)
+         v
++------------------------------------+
+| CRI Engine (containerd or CRI-O)  | <--- Manages Pod Sandbox, pulls images,
++--------+---------------------------+      networks setup, mounts volumes
+         |
+         | OCI Specification (JSON bundle)
+         v
++------------------+
+| OCI runc / crun  | <--- Lightweight CLI tool that executes container actions
++--------+---------+
+         |
+         | Linux Kernel system calls (clone, setns, unshare, pivot_root)
+         v
++------------------------------------------+
+| Linux Kernel (namespaces & cgroups v2)   | <--- Resource containment & isolation
++------------------------------------------+
+\`\`\`
+
+### Visualizing CNCF Project Maturity Funnel
+
+Projects advance through the CNCF landscape based on strict adoption, governance, and stability criteria:
+
+\`\`\`
+  +--------------------------------------------+
+  |              CNCF Sandbox                  |  <-- Experimental, low barrier of entry,
+  |  (e.g., Kube-vip, Cluster API, Radius)    |      intellectual property transferred.
+  +--------------------+-----------------------+
+                       |
+                       v
+  +--------------------+-----------------------+
+  |             CNCF Incubating                |  <-- Production ready, healthy governance,
+  | (e.g., Keda, Thanos, Dapr, Cilium, Knative) |      documented production adoption.
+  +--------------------+-----------------------+
+                       |
+                       v
+  +--------------------+-----------------------+
+  |              CNCF Graduated                |  <-- Industry standards, high security bar,
+  |  (e.g., Kubernetes, Prometheus, Helm, OTel) |      mature governance, multiple org maintainers.
+  +--------------------------------------------+
+\`\`\`
+
+### Deep-Dive: Cloud Native Internals & the CNCF Landscape
+
+#### 1. Container Runtime Interface (CRI) & OCI
+Historically, Kubernetes communicated directly with Docker via the hardcoded \`dockershim\` inside the Kubelet. As other runtimes like CoreOS's rkt emerged, the community established the **Container Runtime Interface (CRI)** in Kubernetes v1.5. The CRI is a **gRPC API specification** comprising two primary services:
+* **RuntimeService**: Manages the pod sandbox lifecycle (e.g., setting up namespaces, network interfaces) and container execution.
+* **ImageService**: Manages pulling, storing, listing, and removing container images.
+
+When the Kubelet schedules a Pod, it issues gRPC calls to the CRI runtime socket (e.g., \`unix:///run/containerd/containerd.sock\`). The CRI runtime (e.g., \`containerd\`, \`CRI-O\`) translates these instructions into filesystem structures conforming to the **Open Container Initiative (OCI)** runtime specification, and invokes an OCI-compliant runtime like \`runc\` or \`crun\` to spin up the actual Linux processes.
+
+#### 2. CNCF Project Maturity Framework
+The Cloud Native Computing Foundation (CNCF) organizes projects into three tiers to guide adopters on stability and production-readiness:
+* **Sandbox**: A playground for experimental, promising technologies. Requires minimal validation.
+* **Incubating**: Demonstrates solid production use cases, clear governance, a growing contributor base, and has undergone a formal security audit.
+* **Graduated**: The gold standard. Must meet all incubating criteria, have multiple major organizations committing code, show vast production deployment scale, and pass a rigorous third-party security audit.
+
+#### 3. Cloud Native Observability & OpenTelemetry (OTel)
+Telemetry collection has evolved from fragmented agent architectures to a standardized approach via **OpenTelemetry (OTel)**. OTel merges OpenTracing and OpenMetrics. The observability stack features three pillars:
+* **Metrics**: Numeric values representing system performance over time (CPU utilization, HTTP error counts). Typically gathered pull-style by **Prometheus**.
+* **Logs**: Timestamped lines of text representing structured or unstructured events. Collected via tools like FluentBit or Vector.
+* **Traces**: End-to-end latency breakdowns representing a request traversing microservices (spans).
+
+The **OTel Collector** pipeline consists of:
+1. **Receivers**: How data gets into the collector (pull or push; e.g., OTLP, Prometheus, Jaeger protocols).
+2. **Processors**: How data is mutated, batched, filtered, or scrubbed of PII.
+3. **Exporters**: Where data is sent (e.g., Prometheus remote-write, Elasticsearch, Jaeger).
+
+#### 4. GitOps & Cloud Native Application Delivery
+**GitOps** is a paradigm where git repositories are the single source of truth for declarative infrastructure. A reconciliation loop compares the desired state in Git with the running state in the cluster.
+* **Pull-Based GitOps**: An agent inside the cluster (e.g., ArgoCD or Flux) continuously monitors Git and pulls changes. This is highly secure, as credentials to modify the cluster do not leave the cluster.
+* **Push-Based GitOps**: A traditional CI/CD pipeline (e.g., GitHub Actions, GitLab CI) triggers on a git push, executing \`kubectl apply\` using external cluster credentials. This is easier to set up but introduces a wider security perimeter.`,
       labSteps: [
         {
           id: 'p6-m1-s1',
@@ -227,7 +305,6 @@ Unlike the practical CKA or CKAD, the KCNA is a **multiple-choice exam** consist
         },
       ],
     },
-
     // ─── Module 2: CKA ───────────────────────────────────────────────────────
     {
       id: 'p6-m2',
@@ -236,7 +313,9 @@ Unlike the practical CKA or CKAD, the KCNA is a **multiple-choice exam** consist
       description: 'Master cluster installation, troubleshooting nodes, etcd maintenance, imperative operations, storage, and complex networking scenarios under time pressure.',
       duration: '15 hours',
       difficulty: 'advanced',
-      theory: `## The CKA Exam Format
+      theory: `> 🧠 **Brain Warm-Up**: What low-level system checks does the Kubelet perform when determining if a node is 'Ready', and why must swap space be disabled under cgroups v1/v2 scheduling? Think about it before reading below.
+
+## The CKA Exam Format
 
 The **Certified Kubernetes Administrator (CKA)** is a highly respected, **100% practical, hands-on exam** containing 15-20 scenarios to solve in 2 hours.
 
@@ -260,6 +339,62 @@ You will be given multiple cluster contexts and terminal access to solve real-wo
    - Use NodeSelectors, Affinity rules, Taints and Tolerations
 5. **Storage (10%)**
    - Provision PVs, PVCs, StorageClasses, and configure pod volumes
+
+### Visualizing Node Health & Diagnostics Flow
+
+The Kubelet continuously checks underlying subsystems. If any health boundary is breached, the lease update reflects pressure conditions or a flat 'NotReady' status:
+
+\`\`\`
++-----------------------------------------------------------------+
+|                       Kubelet Node Agent                        |
++--------+--------------------+------------------+--------+--------+
+         |                    |                  |        |
+         v                    v                  v        v
+  [ CRI Socket Ping ]   [ Eviction Manager ]  [ systemd ] [ Lease API ]
+  - Is containerd active? - Memory Pressure    - Active?   - Every 10s
+  - OCI runc responsive?  - Disk Pressure      - Configs?  - Keep-alive
+  - gRPC ping OK?         - PID Pressure       - Logs OK?  - Heartbeat
+\`\`\`
+
+### Visualizing etcd Backup and Restore Mechanics
+
+Because etcd is the single source of truth for cluster state, operations must use authentic client certificates:
+
+\`\`\`
+Backup Phase:
+[ Admin CLI ] ---> (etcdctl snapshot save --cacert=... --cert=... --key=...) ---> [ Port 2379 ] ---> [ etcd DB ] ---> Writes [ snapshot.db ]
+
+Restore Phase:
+1. Stop API server (Move /etc/kubernetes/manifests/* to safety)
+2. Run restore command:
+   [ etcdctl snapshot restore /srv/data/etcd-snapshot.db --data-dir=/var/lib/etcd-new ]
+3. Update etcd static pod manifest to point to the new data-dir
+4. Restore API server manifest to resume control plane loop
+\`\`\`
+
+### CKA Deep-Dive: Node Troubleshooting, etcd, & Networking Internals
+
+#### 1. Node Ready Diagnostics & Kubelet Eviction Manager
+A node's transition to \`NotReady\` is orchestrated by the **Kubelet Eviction Manager**. The Kubelet monitors system resource thresholds against configured eviction parameters (e.g., \`memory.available < 100Mi\`, \`nodefs.available < 10%\`). If a threshold is breached, the Kubelet:
+1. Sets Node Conditions (e.g., \`MemoryPressure = True\`, \`DiskPressure = True\`).
+2. Rejects incoming Pods and schedules active Pods for eviction according to QoS class priority (BestEffort → Burstable → Guaranteed).
+3. Transmits heartbeat leases to the API server in the \`kube-node-lease\` namespace every 10 seconds. If the Kubelet crashes or loses connection to the container runtime, these heartbeat leases time out, causing the **kube-controller-manager**'s Node LifeCycle Controller mark the node as \`NotReady\` or \`Unknown\`.
+
+#### 2. Kubelet Swap Space Restrictions
+Historically, the Kubelet required disabling swap space on host nodes (\`swapoff -a\`).
+* **Resource Predictability**: The Kubernetes scheduler selects nodes based on available CPU/memory requests. If a node swaps memory to disk, the OS scheduler bypasses the limits. A container could exceed memory request/limits without being terminated, leading to node performance degradation.
+* **Cgroups Isolation**: Linux Control Groups (cgroups v1) did not natively separate swap space allocation per-container. Under **cgroups v2**, swap limits can be configured, allowing modern Kubernetes releases (v1.28+) to support swap space with explicit \`failSwapOn: false\` configuration, although disabling swap remains the safest path for CKA exam consistency.
+
+#### 3. etcd Raft Consensus & PKI Maintenance
+The etcd datastore uses the **Raft consensus algorithm** to ensure state consistency across control plane members. Raft requires a majority quorum ($Q = \lfloor N/2 \rfloor + 1$) to validate state changes and write transactions.
+* **Ports**: etcd listens on port \`2379\` for client requests (from the API server) and port \`2380\` for peer-to-peer raft synchronization.
+* **TLS Authentication**: etcd is secured with mutual TLS (mTLS). Admin actions require pointing \`etcdctl\` to the certificate authority (\`ca.crt\`), client certificate (\`server.crt\` or \`peer.crt\`), and client key (\`server.key\`).
+* **Restoration Mechanics**: To perform a clean etcd restore, you must halt all write traffic. In a standard \`kubeadm\` cluster, moving static pod manifests out of \`/etc/kubernetes/manifests\` causes the Kubelet to terminate the local \`kube-apiserver\` and \`etcd\` pods. You can then run \`etcdctl snapshot restore\` into a fresh directory, update the etcd manifest path, and restore the control plane.
+
+#### 4. NetworkPolicies: Under-the-Hood Implementation
+NetworkPolicies are declarative rules targeting Pod groups. Kubernetes does not enforce NetworkPolicies itself; it delegates enforcement to the installed **CNI (Container Network Interface)** plugin.
+* **iptables Engine**: Plugins like Calico convert NetworkPolicy selectors into Linux \`iptables\` chains and rules, utilizing \`ipset\` for matching multiple pod IPs dynamically without scaling latency.
+* **eBPF Engine**: Modern CNIs like Cilium compile rules directly into **eBPF (Extended Berkeley Packet Filter)** bytecodes, attaching them directly to the veth interfaces of the containers. This avoids iptables packet routing overhead and yields near-native throughput.
 
 ### High-Speed Imperative Commands Cheat Sheet
 
@@ -512,7 +647,6 @@ spec:
         },
       ],
     },
-
     // ─── Module 3: CKAD ──────────────────────────────────────────────────────
     {
       id: 'p6-m3',
@@ -521,7 +655,9 @@ spec:
       description: 'Design and build multi-container pods, deploy update strategies (canaries/blue-green), configure config injection, configure probes, and establish job structures.',
       duration: '15 hours',
       difficulty: 'advanced',
-      theory: `## The CKAD Exam Focus
+      theory: `> 🧠 **Brain Warm-Up**: How do multi-container pod patterns (Sidecar vs. Adapter vs. Ambassador) share namespace resources at the Linux kernel level, and how does the Kubelet ensure Init Containers complete before starting regular app containers? Think about it before reading below.
+
+## The CKAD Exam Focus
 
 The **Certified Kubernetes Application Developer (CKAD)** exam tests your ability to design, build, configure, and troubleshoot cloud-native applications running on Kubernetes.
 
@@ -545,11 +681,71 @@ Similar to the CKA, the CKAD is a **practical, hands-on, terminal-based exam** l
 5. **Services and Networking (17%)**
    - Setup NetworkPolicies, expose applications using ClusterIP, NodePort, and Ingress routing
 
-### Multi-Container Pod Patterns
+### Visualizing Multi-Container Pod Patterns
 
-- **Sidecar**: Extends or enhances the main container (e.g., a logging agent parsing logs, or a helper syncing assets).
-- **Ambassador**: Proxy container routing connection requests to databases or external resources (e.g., localhost → database proxy).
-- **Adapter**: Standardizes application output or metrics format before sending to monitoring systems.
+All containers in a Pod share the same network namespace (IP, ports, loopback) and IPC namespace. Volumes can also be shared to bridge distinct storage contexts:
+
+\`\`\`
++-------------------------------------------------------------------------------+
+| Pod Sandbox Namespace Boundaries                                              |
+|                                                                               |
+|   +--------------------------+                 +--------------------------+   |
+|   |     Main Application     |                 |  Helper/Sidecar/Adapter  |   |
+|   |   (e.g., Node.js app)    |                 |   (e.g., Log Forwarder)  |   |
+|   |   Port: 3000             |                 |   Tails app.log          |   |
+|   +------------+-------------+                 +------------+-------------+   |
+|                |                                            |                 |
+|                | writes logs                                | reads logs      |
+|                v                                            v                 |
+|   +------------+--------------------------------------------+------------+   |
+|   |                      Shared volume (emptyDir)                         |   |
+|   +-----------------------------------------------------------------------+   |
+|                                                                               |
+|   Note: Both containers bind to 'localhost' and communicate over IPC.          |
++-------------------------------------------------------------------------------+
+\`\`\`
+
+### Visualizing Pod Init & Execution Lifecycle
+
+Init Containers run sequentially to completion before any application containers begin execution:
+
+\`\`\`
+Pod Scheduled
+      │
+      ▼
+[ Init Container 1 ] ──(Succeeds)──> [ Init Container 2 ] ──(Succeeds)──> [ App Containers & Sidecars ]
+      │                                    │                                 │
+  (Failure)                            (Failure)                             ▼
+      │                                    │                      Kubelet runs Probes:
+      v                                    v                      1. Startup Probes
+ [ Restart Pod ]                      [ Restart Pod ]             2. Liveness Probes
+                                                                  3. Readiness Probes
+\`\`\`
+
+### CKAD Deep-Dive: Multi-Container Patterns, Resource Allocation, and Probes
+
+#### 1. Linux Namespace Sharing & The Infra (Pause) Container
+When the Kubelet schedules a Pod, the CRI runtime first deploys a special helper container called the **Infra Container** (or **Pause Container**).
+* **Namespace Isolation**: The Pause container's sole job is to hold the namespaces open (Network, IPC, and optionally PID namespaces).
+* **Shared Network**: All subsequently created container processes join the Network namespace of the Pause container via system calls (like \`setns\`). This enables containers inside the same Pod to connect via \`localhost\` (e.g. an application container communicating with a database ambassador proxy on \`localhost:5432\`).
+* **Volume Mounts**: Filesystem layers remain isolated unless sharing paths through K8s volumes (such as an \`emptyDir\` mapped to \`/var/log\` in container A, and \`/app/logs\` in container B).
+
+#### 2. Advanced Multi-Container Pod Design Patterns
+* **Sidecar Pattern**: Extends the main container without changing its source code. For example, a Cloud SQL proxy sidecar allows the main app to talk to a local port while managing TLS and auth to GCP.
+* **Adapter Pattern**: Acts as a translation layer. It transforms heterogeneous outputs from the main application (e.g. custom key-value diagnostic output) into standard formatted endpoints (e.g., Prometheus metrics) so monitoring servers can scrap them uniformly.
+* **Ambassador Pattern**: Connects the main application container to remote external services. The application talks to a static local address, while the ambassador container dynamic-routes requests to external test, staging, or sharded database clusters.
+
+#### 3. Resource Scheduling, Limits, & cgroups v2 Mechanisms
+Kubernetes enforces resource policies utilizing Linux Control Groups (**cgroups**):
+* **CPU Requests**: Translated into \`cpu.shares\` (\`cpu.weight\` in cgroups v2). This acts as a relative priority weight. If CPU cycles are contested, the CPU scheduler allocates shares proportionally.
+* **CPU Limits**: Enforced using CFS (Completely Fair Scheduler) Bandwidth Control. The limit is converted into quota (\`cpu.cfs_quota_us\`) over a period (\`cpu.cfs_period_us\`). If a container exceeds its CPU limit, the kernel throttles the container, causing slow response times but **not** termination.
+* **Memory Limits**: Mapped to \`memory.max\` in cgroups v2. Because memory is incompressible, if a container requests more physical memory than its limit, the kernel triggers an Out-Of-Memory (OOM) event. The Linux kernel OOM-killer selects the process for immediate termination, and Kubelet records exit code \`137\` (128 + SIGKILL).
+
+#### 4. Kubelet Health Probes & Lifecycle Loop
+Probes are run periodically by the Kubelet's probe manager.
+* **Startup Probes**: Runs first. Suspends all Liveness and Readiness probes until it succeeds or times out. Ideal for applications with long initialization cycles.
+* **Liveness Probes**: Determines if a container needs to be restarted. If it fails, the Kubelet kills the container and invokes the Pod's restartPolicy.
+* **Readiness Probes**: Determines if a container can serve network traffic. If a readiness probe fails, the Kubelet stops sending its status as Ready, causing the EndpointSlice controller to extract the Pod's IP from the Endpoints list of matching Services, preventing user requests from reaching the unhealthy pod.
 
 ### Vim & Shell Productivity Tips
 
@@ -576,7 +772,7 @@ spec:
   containers:
   - name: app
     image: alpine
-    command: ["sh", "-c", "while true; do echo \\"$(date) - App is active\\" >> /var/log/app.log; sleep 2; done"]
+    command: ["sh", "-c", "while true; do echo \"$(date) - App is active\" >> /var/log/app.log; sleep 2; done"]
     volumeMounts:
     - name: shared-logs
       mountPath: /var/log

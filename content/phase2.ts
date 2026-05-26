@@ -23,33 +23,65 @@ const phase2: Phase = {
       description: 'Isolate workloads into virtual clusters for teams, environments, and access control.',
       duration: '45 min',
       difficulty: 'beginner',
-      theory: `## What Are Namespaces?
+      theory: `> 🧠 **Brain Warm-Up**: If two teams in a Kubernetes cluster create a Deployment with the same name (e.g. \`api\`), how does the cluster prevent name collisions, and does this separation also block network communication between them by default?
 
-A **namespace** is a virtual cluster inside a Kubernetes cluster. Think of it as a folder — you can have multiple folders on the same disk, each with their own files and their own access permissions.
+## What Are Namespaces?
 
-Every Kubernetes resource lives in exactly one namespace (cluster-scoped resources like Nodes are the exception). Two teams can both have a Deployment named \`api\` as long as they are in different namespaces.
+A **namespace** is a logical partition inside a physical Kubernetes cluster. It provides a scope for names of resources. Resource names must be unique within a namespace, but can be duplicated across different namespaces.
+
+Under the hood, namespaces do **not** represent physical isolation. They partition API resources logically by prefixing key paths in **etcd** (e.g., \`/registry/pods/production/api-pod\` vs \`/registry/pods/staging/api-pod\`).
+
+### Namespaces vs Linux Namespaces
+It is crucial to distinguish **Kubernetes Namespaces** from **Linux Kernel Namespaces** (such as \`net\`, \`mnt\`, \`pid\`, \`ipc\`, and \`uts\`):
+- **Linux Namespaces** are a kernel feature that isolates system resources (processes, mount points, network interfaces) for containers on a single host.
+- **Kubernetes Namespaces** are a control plane construct in the API server designed for multi-tenancy, access control, and quota management.
+
+### Visualizing Namespaces
+
+\`\`\`text
++---------------------------------------------------------------------------------+
+|                                 PHYSICAL CLUSTER                                |
+|                                                                                 |
+|  +---------------------------+  +---------------------------+  +-------------+  |
+|  |   Namespace: production   |  |     Namespace: staging    |  | Cluster-    |  |
+|  |                           |  |                           |  | Scoped      |  |
+|  |  +---------------------+  |  |  +---------------------+  |  | Resources   |  |
+|  |  |   Deployment: api   |  |  |  |   Deployment: api   |  |  |             |  |
+|  |  +---------------------+  |  |  +---------------------+  |  |  +-------+  |  |
+|  |                           |  |                           |  |  | Nodes |  |  |
+|  |  +---------------------+  |  |  +---------------------+  |  |  +-------+  |  |
+|  |  |  NetworkPolicy (X)  |  |  |  |  NetworkPolicy (X)  |  |  |             |  |
+|  |  +---------------------+  |  |  +---------------------+  |  |  +-------+  |  |
+|  |                           |  |                           |  |  | PVs   |  |  |
+|  +---------------------------+  +---------------------------+  +-------+  |  |
+|               |                               |                                 |
+|               +---(Allowed by default unless)-+                                 |
+|                   (blocked by NetworkPolicy)                                    |
++---------------------------------------------------------------------------------+
+\`\`\`
 
 ## Default Namespaces
 
-Kubernetes creates four namespaces on every fresh cluster:
+Kubernetes creates four default namespaces on bootstrap:
 
 | Namespace | Purpose |
 |---|---|
-| \`default\` | Where resources go if you don't specify \`-n\` |
-| \`kube-system\` | Kubernetes infrastructure components (apiserver, etcd, coredns…) |
-| \`kube-public\` | Publicly readable by all — rarely used in practice |
-| \`kube-node-lease\` | Stores node heartbeat Lease objects — don't touch these |
+| \`default\` | The default target for API requests when no namespace is specified. |
+| \`kube-system\` | Reserved for infrastructure components managed by the control plane (e.g., \`kube-apiserver\`, \`etcd\`, \`kube-scheduler\`, \`coredns\`, \`kube-proxy\`). |
+| \`kube-public\` | Created automatically and readable by all users (including unauthenticated ones). Used for cluster bootstrap discovery info. |
+| \`kube-node-lease\` | Houses \`Lease\` objects associated with each node. Kubelet sends heartbeats by updating these leases, reducing API load compared to updating the full Node status. |
 
-## Why Use Namespaces?
+## Logical vs Physical Boundary
 
-**1. Team / Environment Isolation**
-Separate \`dev\`, \`staging\`, and \`production\` workloads so a developer can't accidentally affect prod.
+By default, **namespaces are NOT secure network boundaries**.
+- **DNS Resolution**: CoreDNS resolves services using the Fully Qualified Domain Name (FQDN) format: \`<service-name>.<namespace-name>.svc.cluster.local\`. A Pod in the \`staging\` namespace can resolve and route traffic to a Service in the \`production\` namespace simply by using its FQDN.
+- **Network Isolation**: To enforce physical network isolation between namespaces, you must define **NetworkPolicies** targeting the namespaces via \`namespaceSelector\`. This instructs the Container Network Interface (CNI) plugin (e.g., Calico, Cilium) to configure packet filtering (e.g., using \`iptables\` rules or eBPF programs) to drop unauthorized cross-namespace traffic.
 
-**2. ResourceQuota scoping**
-Attach a \`ResourceQuota\` to a namespace to cap how much CPU/memory a team can consume.
+## Resource Allocation and RBAC
 
-**3. RBAC scope**
-Grant a developer full access to the \`dev\` namespace while giving them read-only access to \`production\`.
+Namespaces are the primary boundary for resource quotas and access control:
+1. **ResourceQuota**: Scopes total compute allocation. When a \`ResourceQuota\` is applied, the admission controller rejects Pod creation requests that do not specify CPU/Memory requests or limits, or that exceed the namespace quota ceiling.
+2. **Role-Based Access Control (RBAC)**: \`Role\` and \`RoleBinding\` resources are namespaced, granting privileges restricted to that namespace. Cluster-wide privileges require \`ClusterRole\` and \`ClusterRoleBinding\` objects.
 
 ## Setting a Default Namespace
 
@@ -208,9 +240,11 @@ kubectl config set-context --current --namespace=default
       description: 'Tag resources with key-value metadata and use selectors to wire Services, Deployments, and queries together.',
       duration: '45 min',
       difficulty: 'beginner',
-      theory: `## What Are Labels?
+      theory: `> 🧠 **Brain Warm-Up**: How does a Kubernetes Service dynamically find which Pods to route traffic to, and what low-level mechanism is updated on the worker nodes when a Pod's labels change?
 
-**Labels** are key-value pairs attached to any Kubernetes resource. They are the primary mechanism for organising and selecting resources.
+## What Are Labels?
+
+**Labels** are key-value pairs attached to metadata fields in Kubernetes API objects. They are key to the design of Kubernetes, enabling loose coupling between resources. Instead of hardcoding relationships (e.g., pointing a Service to a specific Pod name), objects query other objects dynamically using labels.
 
 \`\`\`yaml
 metadata:
@@ -221,28 +255,60 @@ metadata:
     version: v2
 \`\`\`
 
-Labels are arbitrary — you choose the keys and values. However, the Kubernetes community has settled on a set of recommended keys:
+Label keys have two optional parts: a prefix (up to 253 characters, domain-style) and a name (up to 63 characters). The Kubernetes community uses recommended keys prefixed with \`app.kubernetes.io/\` (e.g., \`app.kubernetes.io/name\`, \`app.kubernetes.io/part-of\`).
 
-| Key | Example values |
-|---|---|
-| \`app\` | web, api, worker |
-| \`tier\` | frontend, backend, cache |
-| \`env\` | dev, staging, production |
-| \`version\` | v1, v2, 1.4.2 |
+### Visualizing Service Selectors
 
-## How Selectors Work
-
-**Selectors** are how Kubernetes objects find each other. When you create a Service:
-
-\`\`\`yaml
-spec:
-  selector:
-    app: web
+\`\`\`text
+  +---------------------+
+  |   Service Object    |
+  | selector: app=web   |
+  +---------------------+
+             |
+             v (EndpointSlice Controller watches label changes via Informer)
+  +---------------------+
+  | EndpointSlice (EP)  | <--- Contains IPs: [10.244.1.5, 10.244.2.12]
+  +---------------------+
+             |
+   +---------+---------+ (kube-proxy syncs to nodes)
+   |                   |
+   v                   v
++------------------+ +------------------+
+|      Node 1      | |      Node 2      |
+| iptables / IPVS  | | iptables / IPVS  |
+| rules updated    | | rules updated    |
++------------------+ +------------------+
+   | (routes traffic)  | (routes traffic)
+   v                   v
++------------------+ +------------------+
+| Pod: app=web     | | Pod: app=web     |
+| IP: 10.244.1.5   | | IP: 10.244.2.12  |
++------------------+ +------------------+
 \`\`\`
 
-The Service routes traffic to **every Pod** that has the label \`app: web\`. Add more Pods with that label and they automatically join the Service — no update needed.
+## The Reconcile Loop & Selectors
 
-Deployments use selectors the same way: the ReplicaSet controller finds "its" Pods by matching labels.
+Under the hood, labels and selectors power the **Reconcile Loop** — the core control mechanism of Kubernetes.
+
+1. **Informer Caches**: Controllers (like the ReplicaSet controller or the EndpointSlice controller) run in the \`kube-controller-manager\`. They register a **Watch** on the kube-apiserver for specific resource types.
+2. **Label Matching**: When a new Pod is created or labeled, the EndpointSlice controller filters Pods using the label selector defined in a Service.
+3. **Endpoint Propagation**: The controller generates or updates an \`EndpointSlice\` object listing the IPs of all matching Pods.
+4. **Data Plane Updates**: \`kube-proxy\` running on every node watches the API server for changes to Services and EndpointSlices. Upon notification, it updates the node's packet-routing configuration:
+   - **iptables mode**: Updates chaining rules to randomly distribute connections across target Pod IPs using the \`statistic\` module.
+   - **IPVS mode**: Inserts entries into an in-kernel IPVS hash table, supporting faster routing and advanced load-balancing algorithms (e.g., least connections).
+
+## Labels vs Annotations
+
+While both store key-value metadata, they have distinct roles:
+
+| Feature | Labels | Annotations |
+|---|---|---|
+| **Queryable/Selector-friendly** | Yes (via label selectors in API queries and manifests) | No (cannot be used to filter resources in API requests) |
+| **Character Limits** | Max 63 characters for keys/values, strict alphanumeric format | No strict length limits (can store large strings like JSON) |
+| **Primary Use Cases** | Dynamic grouping, Service targeting, scheduling constraints (NodeSelector) | CI/CD metadata (git hash, build ID), tool config (Ingress controllers, annotations for cert-manager) |
+
+### Orphaned Pods
+If you modify a Pod's labels such that they no longer match a Deployment's replica selector, the Deployment's controller immediately detects that the actual state (N - 1 matching pods) does not match the desired state (N). It spins up a new Pod to restore the replica count. The original Pod remains running as an **orphan**, disconnected from both the Deployment's control loop and the Service's traffic routing.
 
 ## Querying With kubectl
 
@@ -254,17 +320,7 @@ kubectl get pods -l app=web,tier=frontend
 # Set-based (comma = AND)
 kubectl get pods -l 'tier in (frontend,backend)'
 kubectl get pods -l 'env notin (staging)'
-\`\`\`
-
-## Labels vs Annotations
-
-| | Labels | Annotations |
-|---|---|---|
-| Can be used in selectors? | Yes | No |
-| Use for | Identifying and grouping | Non-identifying metadata |
-| Examples | \`app: web\`, \`env: prod\` | \`git-commit: abc123\`, \`owner: team-a\` |
-
-**Rule of thumb**: if you need to query or select by it, use a label. If it is just descriptive metadata, use an annotation.`,
+\`\`\``,
       labSteps: [
         {
           id: 'p2-m2-s1',
@@ -433,11 +489,11 @@ kubectl get pods -l 'env notin (staging)'
       description: 'Externalise non-sensitive configuration from container images using ConfigMaps.',
       duration: '60 min',
       difficulty: 'beginner',
-      theory: `## The 12-Factor App Principle
+      theory: `> 🧠 **Brain Warm-Up**: If a ConfigMap is updated, how does the update propagate to containers using the ConfigMap as environment variables versus those mounting it as a volume, and why?
 
-The **12-factor app** methodology (12factor.net) states: *store config in the environment, not in the code*. Hardcoding \`APP_ENV=production\` inside a container image means you need a different image for every environment. That breaks portability.
+## ConfigMaps and Twelve-Factor Portability
 
-**ConfigMaps** solve this by storing key-value configuration data as a Kubernetes object, separate from your container image.
+The **12-Factor App** methodology states that config should be strictly separated from code. In Kubernetes, this separation is achieved using **ConfigMaps**. ConfigMaps decouple environment-specific parameters from the immutable container image, allowing the same container image to run across dev, staging, and production environments.
 
 ## What ConfigMaps Store
 
@@ -446,6 +502,50 @@ The **12-factor app** methodology (12factor.net) states: *store config in the en
 - Command-line arguments
 
 ConfigMaps are for **non-sensitive** data. Never put passwords or tokens in a ConfigMap — use a Secret instead.
+
+### Visualizing ConfigMap Projection
+
+\`\`\`text
+                  +-------------------------+
+                  |  ConfigMap in etcd      |
+                  |  (Key-Value Data Store)  |
+                  +-------------------------+
+                               |
+                               | (API Server)
+                               v
+                       +---------------+
+                       |   Kubelet     |
+                       +---------------+
+                               |
+         +---------------------+---------------------+
+         | (Static Injection)                        | (Dynamic Sync Loop)
+         v                                           v
++-----------------------------+             +-----------------------------+
+|    Environment Variables    |             |        Volume Mount         |
+|                             |             |                             |
+| - Injected at startup       |             | - Kubelet writes to tmpfs   |
+| - Read-only thereafter      |             | - Atomic symlink flip       |
+| - Requires Pod restart      |             | - Live update (~1 min sync) |
++-----------------------------+             +-----------------------------+
+\`\`\`
+
+## Consumption Mechanisms & Internal Details
+
+When you reference a ConfigMap in a Pod spec, the injection behaves differently depending on the projection mechanism:
+
+### 1. Environment Variables (\`valueFrom.configMapKeyRef\` / \`envFrom\`)
+- **Mechanism**: The container runtime (e.g. containerd) reads the ConfigMap values from the API server during container creation and sets them inside the container's process environment block (\`env\`).
+- **Low-Level Detail**: The process reads env vars once during initialization.
+- **Update Behavior**: **Static**. If the ConfigMap is modified, the environment variables inside the container **do not change**. The Pod must be restarted (e.g., via a rolling deployment trigger like \`kubectl rollout restart\`) to pick up updates.
+
+### 2. Volume Mounts
+- **Mechanism**: The \`kubelet\` creates a local directory on the host under \`/var/lib/kubelet/pods/<pod-uid>/volumes/kubernetes.io~configmap/\` backed by **tmpfs** (in-memory RAM filesystem). It requests the ConfigMap from the API server and writes the keys as files.
+- **Low-Level Detail**: To prevent race conditions where a process reads a half-written config file during an update, kubelet uses **atomic symlink swapping**:
+  1. It writes the new files to a unique timestamped directory (\`..data_timestamp\`).
+  2. It updates a symbolic link (\`..data\`) to point to the new directory.
+  3. The individual keys are symlinked to files inside \`..data\`.
+- **Update Behavior**: **Dynamic**. Kubelet's periodic sync loop (defaulting to every 60 seconds, controlled by \`syncFrequency\` and \`configMapAndSecretChangeDetectionStrategy\`) will detect the update, fetch the new payload, and update the symlinks.
+- **Exception**: If you mount a ConfigMap using \`subPath\`, the file is bind-mounted directly. The kernel does not update static bind-mounts when the parent directory's symlinks change. Therefore, **subPath mounted ConfigMaps do not receive hot updates**.
 
 ## Three Ways to Consume a ConfigMap
 
@@ -681,31 +781,77 @@ spec:
       description: 'Store and consume sensitive data like passwords, tokens, and TLS certificates safely.',
       duration: '60 min',
       difficulty: 'intermediate',
-      theory: `## What Are Secrets?
+      theory: `> 🧠 **Brain Warm-Up**: What is the default encryption state of Kubernetes Secrets in etcd, and what low-level mechanism ensures they do not get written to the physical storage disk of the worker nodes?
 
-**Secrets** are Kubernetes objects designed to hold sensitive data: passwords, OAuth tokens, SSH keys, and TLS certificates. They work like ConfigMaps but with a few important differences.
+## What Are Secrets?
 
-## Base64 Encoding vs Encryption
+**Secrets** are designed to store sensitive configuration data such as database passwords, API tokens, private TLS keys, and docker registry credentials.
 
-Secrets store values as **base64-encoded** strings. This is **NOT encryption** — it is just an encoding to safely handle binary data in YAML. Anyone with access to etcd or sufficient RBAC permissions can decode a Secret trivially.
+While they behave similarly to ConfigMaps, their lifecycle, storage, and access paths are engineered to prevent exposure.
 
-\`\`\`bash
-echo "s3cr3t" | base64          # encode: czNjcjN0Cg==
-echo "czNjcjN0Cg==" | base64 -d # decode: s3cr3t
+### Visualizing Secrets Security Flow
+
+\`\`\`text
+                  +--------------------------------+
+                  |  kubectl apply -f secret.yaml  | (Base64 Encoded Payload)
+                  +--------------------------------+
+                                  |
+                                  v
+                  +--------------------------------+
+                  |      kube-apiserver            |
+                  |  (Optionally encrypts via KMS) |
+                  +--------------------------------+
+                                  |
+                                  v
+                  +--------------------------------+
+                  |           etcd                 | (Stored in Raft consensus:
+                  |                                |  Plaintext OR KMS Encrypted)
+                  +--------------------------------+
+                                  |
+                   (mTLS / API Server watches)
+                                  |
+                                  v
+                  +--------------------------------+
+                  |            Kubelet             |
+                  +--------------------------------+
+                                  |
+               (Mounts payload into worker node memory)
+                                  v
+                  +--------------------------------+
+                  |      tmpfs (RAM disk)          | (Never written to worker node
+                  |  /var/lib/kubelet/pods/...     |  physical storage disk)
+                  +--------------------------------+
 \`\`\`
 
-For actual encryption at rest, you need **EncryptionConfiguration** on the kube-apiserver — this is NOT enabled by default in most clusters.
+## Base64 vs Encryption at Rest
+
+A common point of confusion is that Secrets are "encrypted" in the manifest. **Base64 is a serialization encoding scheme, not encryption.** It exists to allow binary files (like certificates) to be safely encoded into YAML strings without breaking parser syntax.
+
+\`\`\`bash
+# To decode a secret from YAML:
+echo "czNjcjN0" | base64 --decode  # outputs: s3cr3t
+\`\`\`
+
+To secure Secrets at rest in the backend database (**etcd**, which uses Raft consensus to replicate state), you must configure **EncryptionConfiguration** on the \`kube-apiserver\`.
+
+Without this configuration, keys and values are stored in etcd as plaintext. The API server supports multiple providers for encryption:
+1. **Local Providers**: \`aescbc\` (AES-CBC), \`secretbox\` (XSalsa20 and Poly1305).
+2. **KMS Provider**: Integrates with external Key Management Services (AWS KMS, GCP KMS, HashiCorp Vault) via a local gRPC plugin. The KMS provider uses **envelope encryption**: a local Key Encryption Key (KEK) encrypts the data, and the KMS encrypts the KEK.
+
+## Host-Level Security: tmpfs & Env Vars
+
+To secure secrets on the physical worker nodes where Pods run, Kubernetes avoids writing them to disk:
+1. **tmpfs Mounts**: When a Secret is mounted as a volume, the \`kubelet\` creates a **tmpfs** (RAM disk) volume inside the host memory. The secret files are written directly into RAM. If the node is powered down or rebooted, the secret data vanishes instantly from host memory.
+2. **Environment Variables**: While convenient, using \`secretKeyRef\` to inject secrets as environment variables is discouraged for high-security workloads. Environment variables are visible in plaintext to anyone with container process-inspection rights via \`/proc/<pid>/environ\` and are frequently dumped into application log aggregators during crashes.
 
 ## Secret Types
 
-| Type | Use case |
-|---|---|
-| \`Opaque\` | Generic key-value secrets (passwords, tokens) |
-| \`kubernetes.io/tls\` | TLS certificate + private key pair |
-| \`kubernetes.io/dockerconfigjson\` | Registry pull credentials |
-| \`kubernetes.io/service-account-token\` | Service account JWTs (auto-managed) |
-
-*(These are the three most commonly used types. Kubernetes defines 8 built-in Secret types in total — others include \`kubernetes.io/service-account-token\`, \`kubernetes.io/basic-auth\`, \`kubernetes.io/ssh-auth\`, \`kubernetes.io/dockercfg\`, and \`bootstrap.kubernetes.io/token\`.)*
+| Secret Type | Required Data Keys | Intended Usage |
+|---|---|---|
+| \`Opaque\` | User-defined | Default type for generic key-value pairs (e.g. database credentials). |
+| \`kubernetes.io/tls\` | \`tls.crt\`, \`tls.key\` | Stores a public certificate and matching private key. Used by Ingress controllers to terminate TLS. |
+| \`kubernetes.io/dockerconfigjson\` | \`.dockerconfigjson\` | Stores registry authentication credentials (base64 JSON config) used by kubelet to pull images from private registries via \`imagePullSecrets\`. |
+| \`kubernetes.io/service-account-token\` | \`token\`, \`ca.crt\` | Contains a JWT token representing the ServiceAccount. Historically auto-created, now primarily generated dynamically via the TokenRequest API for security. |
 
 ## Best Practices
 
@@ -893,26 +1039,67 @@ spec:
       description: 'Tell Kubernetes when your app is alive, ready to serve traffic, and finished starting up.',
       duration: '75 min',
       difficulty: 'intermediate',
-      theory: `## Why Probes Matter
+      theory: `> 🧠 **Brain Warm-Up**: How does the kubelet physically execute an \`exec\` probe versus an \`httpGet\` probe at the OS level, and how does a failing readiness probe change routing rules on nodes?
 
-Without probes, Kubernetes only knows if a container\'s **process is running** — not whether the application inside is actually healthy or ready to serve requests. Probes bridge this gap.
+## Why Probes Matter
 
-## The Three Probe Types
+Without health probes, the Kubernetes control plane relies solely on the container process exit code. If a process enters an infinite loop, deadlocks, or runs out of database connections but does not crash, the PID remains alive. To the container runtime, the container is healthy. Probes allow the **kubelet** to query application-level health directly.
 
-### Liveness Probe
-**Question: "Is this container still alive?"**
+### Visualizing Probes Lifecycle & Traffic Routing
 
-If the liveness probe fails \`failureThreshold\` times in a row, kubelet **restarts** the container. Use this to recover from deadlocks or infinite loops where the process is running but stuck.
+\`\`\`text
+               +------------------------------------------------+
+               |                  Kubelet                       |
+               +------------------------------------------------+
+                     | (probes container at periodSeconds)
+                     |
+         +-----------+-----------+
+         | (httpGet / tcpSocket) | (exec)
+         v                       v
++------------------+   +---------------------------------------+
+|  Host network    |   | CRI gRPC API (ExecSync)               |
+|  namespace check |   | -> calls container runtime (containerd)|
++------------------+   | -> runs process via runc in container |
+         |             +---------------------------------------+
+         |                                |
+         +---------------++---------------+
+                         |
+                         v
+                Does probe pass?
+                 /            \
+               NO              YES
+               /                \
+   +--------------------+     +--------------------------------+
+   |  Which probe?      |     | Pod marked Ready / Healthy     |
+   |   /            \   |     +--------------------------------+
+  Liveness       Readiness
+    /                \
+Restart container  Remove Pod IP from EndpointSlice
+                   -> kube-proxy removes iptables/IPVS rule
+\`\`\`
 
-### Readiness Probe
-**Question: "Is this container ready to receive traffic?"**
+## How Kubelet Executes Probes at the OS Level
 
-If the readiness probe fails, the Pod is **removed from the Service\'s endpoint list** — no traffic is sent to it. The container is NOT restarted. Use this to prevent traffic going to pods that are still warming up, loading caches, or temporarily overloaded.
+Kubelet runs a dedicated Prober Manager that schedules checks per container. The execution depends on the mechanism:
+- **\`httpGet\` / \`tcpSocket\` / \`gRPC\`**: The kubelet initiates the request from the host network namespace directly to the container's IP address. For \`httpGet\`, any response code \`>= 200\` and \`< 400\` is a success.
+- **\`exec\`**: Kubelet makes a gRPC request to the **Container Runtime Interface (CRI)** API (\`ExecSync\`). The container runtime (e.g., containerd) invokes the OCI runtime (e.g., \`runc\`) to execute the binary within the container’s PID, mount, and network namespaces. The probe succeeds if the process returns exit code \`0\`. This is resource-intensive, as it forks a process inside the container every few seconds.
 
-### Startup Probe
-**Question: "Has the app finished starting up?"**
+## Probe Types and Internal Pipelines
 
-While the startup probe is running (and has not yet succeeded), **liveness and readiness probes are disabled**. Use this for slow-starting apps (JVM, large Python apps) to give them time to initialise without being killed by a liveness probe.
+### 1. Startup Probe
+- **Purpose**: Checks if the application has completed initialization.
+- **Workflow**: While the startup probe is running, all other probes (liveness, readiness) are disabled. If the startup probe fails \`failureThreshold\` times, the kubelet kills the container and initiates the restart policy.
+
+### 2. Liveness Probe
+- **Purpose**: Detects if the application has entered a non-recoverable deadlocked state.
+- **Workflow**: If the probe fails, kubelet communicates with the CRI to terminate the container. The termination process triggers a \`SIGTERM\`, waits for \`terminationGracePeriodSeconds\`, and sends \`SIGKILL\`. A new container is started.
+
+### 3. Readiness Probe
+- **Purpose**: Determines if the container is ready to accept client traffic.
+- **Workflow**: Unlike liveness, **readiness failure does not trigger a restart**. Instead:
+  1. The kubelet updates the Pod's status to \`Ready: False\`.
+  2. The EndpointSlice controller in the control plane detects this state change and removes the Pod's IP address from the corresponding \`EndpointSlice\` objects.
+  3. \`kube-proxy\` on all nodes watches for \`EndpointSlice\` changes and recalculates the node's \`iptables\` or \`IPVS\` rules, omitting this Pod's IP. Traffic stops routing to the Pod.
 
 ## Probe Mechanisms
 
@@ -1213,46 +1400,65 @@ spec:
       description: 'Reserve capacity for your pods and cap their resource consumption to prevent noisy-neighbor problems.',
       duration: '60 min',
       difficulty: 'intermediate',
-      theory: `## Requests vs Limits
+      theory: `> 🧠 **Brain Warm-Up**: How does the Linux kernel enforce CPU limits differently from memory limits under the hood, and what happens to a container's QoS class and eviction priority when they are set?
 
-Every container can (and should) declare two resource settings:
+## Requests vs Limits: Linux Kernel Implementation
 
-**Requests** — the minimum resources the container needs.
-- Used by the **scheduler** to find a node with enough available capacity
-- The pod is **guaranteed** this much; it will never be given less
-- \`cpu: 100m\` = 100 millicores (1/10 of a CPU core)
-- \`memory: 128Mi\` = 128 mebibytes
+Kubernetes manages container resources using the Linux kernel's **Control Groups (cgroups)** mechanism. When a container runtime spins up a container, it translates resource fields into cgroups configurations on the host. Modern systems run **cgroups v2**, which simplifies directory structures and controller coordination compared to cgroups v1.
 
-**Limits** — the maximum resources the container can use.
-- Exceeding CPU limit → container is **throttled** (slowed down, not killed)
-- Exceeding memory limit → container is **OOMKilled** (killed immediately)
+### Visualizing CPU Throttling vs Memory OOMKills
 
-Note: memory enforcement is **reactive** — the kernel only invokes the OOM killer when it detects memory pressure. A container may briefly exceed its limit before being killed, unlike CPU which is proactively throttled.
-
-\`\`\`yaml
-resources:
-  requests:
-    cpu: 100m
-    memory: 128Mi
-  limits:
-    cpu: 200m
-    memory: 256Mi
+\`\`\`text
+       +---------------------------------------------+
+       |             CONTAINER RUNTIME               |
+       |     (Applies limits to cgroups v2)          |
+       +---------------------------------------------+
+              |                               |
+    (CPU: Compressible)             (Memory: Incompressible)
+              |                               |
+              v                               v
+    +-------------------+           +-------------------+
+    | cpu.max (cgroup)  |           | memory.max (cg)   |
+    | (CFS Bandwidth)   |           |                   |
+    +-------------------+           +-------------------+
+              |                               |
+   Container uses > limit          Container uses > limit
+              |                               |
+              v                               v
+    +-------------------+           +-------------------+
+    |  Proactive        |           |  Reactive         |
+    |  Throttling       |           |  OOM Killer       |
+    |                   |           |  (SIGKILL sent)   |
+    +-------------------+           +-------------------+
+ (Slows down, continues)             (Process terminated)
 \`\`\`
 
-## QoS Classes
+### CPU (Compressible Resource)
+- **Requests**: Map to \`cpu.weight\` (in cgroups v2) or \`cpu.shares\` (in cgroups v1). This is a relative weight that determines how much CPU time a container gets **under contention**. If a node's CPU is idle, a container can consume 100% of the CPU regardless of its request. If multiple containers compete, the kernel allocates CPU cycles proportionally based on their weight.
+- **Limits**: Map to \`cpu.max\` (cgroups v2) or \`cpu.cfs_quota_us\` and \`cpu.cfs_period_us\` (cgroups v1). This is enforced via the Completely Fair Scheduler (CFS) bandwidth controller. If a limit is set to \`200m\` (0.2 cores) with a default period of 100,000 microseconds (100ms), the container is allocated a quota of 20,000 microseconds of CPU time per period. If it exhausts this quota in the first 20ms, it is **throttled** (suspended) for the remaining 80ms. It is not killed.
 
-Kubernetes assigns a Quality of Service class to each pod based on its resource configuration:
+### Memory (Incompressible Resource)
+- **Requests**: Used primarily by the \`kube-scheduler\` to find a node with sufficient allocatable memory capacity. Kubelet also uses it to calculate QoS class eviction priority. It does not enforce a hard limit on startup.
+- **Limits**: Map to \`memory.max\` (cgroups v2) or \`memory.limit_in_bytes\` (cgroups v1). Unlike CPU, memory cannot be throttled. If a container's processes attempt to allocate memory beyond this limit, the kernel triggers the **Out-Of-Memory (OOM) Killer**. The OOM killer selects and terminates the process within the container using \`SIGKILL\`, resulting in an exit code \`137\` and an \`OOMKilled\` status.
 
-| QoS Class | Condition | Eviction priority |
-|---|---|---|
-| \`Guaranteed\` | EVERY container has requests == limits for BOTH cpu AND memory | Last to be evicted |
-| \`Burstable\` | Pod does not qualify as Guaranteed AND at least one container has a CPU or memory request or limit set | Middle |
-| \`BestEffort\` | No requests or limits set | First to be evicted |
+## Quality of Service (QoS) Classes and Eviction
 
-- **Guaranteed**: EVERY container in the pod has requests == limits for BOTH cpu AND memory. This is the highest-priority QoS class and the last to be evicted.
-- **Burstable**: the Pod does not qualify as Guaranteed, AND at least one container has a CPU or memory request or limit set. Includes pods where some containers have limits without requests, or requests without limits.
+Kubernetes groups Pods into three QoS classes based on their resource settings, which determine their eviction priority when the node is under resource pressure:
 
-When a node runs out of memory, Kubernetes evicts BestEffort pods first, then Burstable, and only evicts Guaranteed as a last resort.
+1. **Guaranteed**: Every container in the Pod has both CPU and memory requests and limits set, and the request value exactly equals the limit value.
+2. **Burstable**: The Pod does not meet the Guaranteed criteria, but at least one container has a CPU or memory request or limit set.
+3. **BestEffort**: No containers have any requests or limits defined.
+
+### Eviction and OOM Score Adjustment
+
+When a node experiences memory pressure, the **kubelet eviction manager** monitors memory metrics. If the node falls below the hard eviction threshold (e.g., \`memory.available < 100Mi\`), it evicts pods in the following order: \`BestEffort\` -> \`Burstable\` -> \`Guaranteed\`.
+
+At the OS kernel level, when the system runs out of physical memory, the kernel OOM killer uses the process's \`oom_score\` to decide what to kill. The kubelet configures the kernel's \`oom_score_adj\` for each container process based on its QoS class:
+- **Guaranteed**: Gets an \`oom_score_adj\` of \`-997\`. This makes these processes highly resistant to being killed by host OOM events.
+- **BestEffort**: Gets an \`oom_score_adj\` of \`1000\`. These processes are targeted first.
+- **Burstable**: Gets an \`oom_score_adj\` calculated dynamically:
+  oom_score_adj = 1000 - (10 * memoryRequest / nodeCapacity)
+  This ensures that Burstable pods that request a larger percentage of the node's memory have a lower \`oom_score_adj\` and are safer than those that request less but consume more.
 
 ## LimitRange and ResourceQuota
 

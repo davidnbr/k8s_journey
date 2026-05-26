@@ -22,25 +22,44 @@ const phase0: Phase = {
       description: 'The problem Kubernetes solves and why it matters.',
       duration: '45 min',
       difficulty: 'beginner',
-      theory: `## The Problem
+      theory: `> 🧠 **Brain Warm-Up**: Imagine you run a web app inside a single Docker container on a bare virtual machine. If the container crashes in the middle of the night, what happens? How would you automatically detect it and restart it? Think about this operational headache before reading below.
 
-Before Kubernetes, running containers at scale meant manually managing dozens or hundreds of servers. If a container crashed, you had to notice and restart it manually. Scaling meant SSHing into servers and running commands. Updates meant downtime.
+## The Problem
+
+Before Kubernetes, running containers at scale meant manually managing dozens or hundreds of servers. If a container crashed, you had to notice it via alerts and restart it manually. Scaling meant SSHing into servers, running docker run commands, and updating load balancer configs. Rolling updates meant downtime.
 
 **Kubernetes is a container orchestration platform** that automates these operational tasks:
 
-- **Self-healing** — crashed containers restart automatically
-- **Scaling** — scale from 1 to 1000 replicas with one command
-- **Rolling updates** — deploy new versions with zero downtime
-- **Service discovery** — containers find each other automatically
-- **Resource management** — pack workloads efficiently across machines
+- **Self-healing** — crashed containers are restarted automatically; failed nodes are evacuated
+- **Scaling** — scale from 1 to 1000 replicas with a single command or automatically based on CPU
+- **Rolling updates** — deploy new code versions sequentially with zero downtime
+- **Service discovery** — containers find and communicate with each other automatically
+- **Resource management** — pack workloads efficiently across physical nodes to save hosting costs
+
+### Container Infrastructure Evolution
+
+\`\`\`
+Traditional Deploy        Containerized (Docker)       Orchestrated (Kubernetes)
+┌───────────────┐        ┌─────────────────────┐       ┌───────────────────────┐
+│   Web App     │        │ ┌───────┐ ┌───────┐ │       │ ┌───────┐ ┌─────────┐ │
+│───────────────│        │ │ App 1 │ │ App 2 │ │       │ │ Pod 1 │ │ Service │ │
+│   Host OS     │        │ ├───────┴─┼───────┤ │       │ ├───────┴─┴─────────┤ │
+│───────────────│        │ │    Docker Engine    │ │       │ │   Worker Node     │ │
+│ Hypervisor/VM │        │ ├───────────────────┤ │       │ ├───────────────────┤ │
+│───────────────│        │ │      Host OS      │ │       │ │   Control Plane   │ │
+│   Hardware    │        │ └───────────────────┘ │       │ └───────────────────┘ │
+└───────────────┘        └─────────────────────┘       └───────────────────────┘
+   Manual scaling,         Port conflicts, no             Automated scheduling,
+   long boot times         built-in self-healing          self-healing, routing
+\`\`\`
 
 ## The Mental Model
 
 Think of Kubernetes like a **shipping company**:
-- The **Control Plane** is the company headquarters — it makes all decisions
-- **Worker Nodes** are the cargo ships — they actually carry the containers
-- **Pods** are the shipping containers — the unit of work
-- **kubectl** is your radio — how you give instructions to HQ`,
+- The **Control Plane** is the company headquarters — it makes all decisions and schedules work.
+- **Worker Nodes** are the cargo ships — they have physical capacity (CPU/RAM) and run the containers.
+- **Pods** are the shipping containers — the basic atomic unit of transport in the cluster.
+- **kubectl** is your satellite radio — the CLI tool you use to send declarative instructions to HQ.`,
       labSteps: [
         {
           id: 'p0-m1-s1',
@@ -152,24 +171,53 @@ Think of Kubernetes like a **shipping company**:
       description: 'Deep-dive into control plane and node components.',
       duration: '60 min',
       difficulty: 'beginner',
-      theory: `## The Two Planes
+      theory: `> 🧠 **Brain Warm-Up**: When you run a command like \`kubectl apply\`, does the command communicate directly with the worker nodes or does it talk to something else? How do the worker nodes learn about your request? Think about this flow of communication.
 
-A Kubernetes cluster is split into two logical sections:
+## The Two Planes
 
-**Control Plane** — makes all decisions. Never runs your workloads.
-- **kube-apiserver** — the front door; all communication goes here
-- **etcd** — the cluster's database; stores all state
-- **kube-scheduler** — decides which node each Pod runs on
-- **kube-controller-manager** — runs reconciliation loops to maintain desired state
+A Kubernetes cluster is split into two logical areas: the Control Plane (the brain) and the Worker Nodes (the brawn).
 
-**Worker Nodes** — run your actual workloads. Each node has:
-- **kubelet** — the node agent; ensures containers run as instructed
-- **kube-proxy** — manages iptables/nftables/IPVS rules for Service routing *(optional — omitted when using eBPF-based CNIs like Cilium)*
-- **container runtime** — actually runs containers (containerd)
+**Control Plane** — makes global decisions (scheduling, handling events). Never runs your actual workloads.
+- **kube-apiserver** — the front door; exposes the Kubernetes API and validates incoming requests.
+- **etcd** — the cluster's database; stores all state as a key-value database.
+- **kube-scheduler** — watches for new Pods and decides which node each Pod runs on based on resource needs.
+- **kube-controller-manager** — runs loops to maintain desired state (e.g., node controller, replica controller).
+
+**Worker Nodes** — host the actual containers that run your apps. Each node has:
+- **kubelet** — the node foreman; ensures containers are running in a Pod according to instructions.
+- **kube-proxy** — manages network routing rules for Services (directs traffic to Pods).
+- **container runtime** — the software engine (typically containerd) that pulls images and runs the containers.
+
+### Kubernetes Cluster Architecture Topology
+
+\`\`\`
+┌────────────────────────────────────────────────────────┐
+│                    CONTROL PLANE                       │
+│  ┌───────────────┐              ┌───────────────────┐  │
+│  │  kube-apiserver ◄────────────►       etcd        │  │
+│  └──────┬──────▲─┘              └───────────────────┘  │
+│         │      │                                       │
+│  ┌──────▼──────┴───────┐        ┌───────────────────┐  │
+│  │ kube-controller-mgr │        │  kube-scheduler   │  │
+│  └─────────────────────┘        └───────────────────┘  │
+└─────────┬──────▲───────────────────────────────────────┘
+            │      │  (Secure HTTPS communication via API Server port 6443)
+┌─────────▼──────┴───────────────────────────────────────┐
+│                      WORKER NODE                       │
+│  ┌─────────────────────┐        ┌───────────────────┐  │
+│  │       kubelet       │        │    kube-proxy     │  │
+│  └──────────┬──────────┘        └─────────┬─────────┘  │
+│             ▼                             ▼            │
+│      containerd (CRI)               iptables (Routing) │
+│    ┌───────────────────┐                               │
+│    │  Pod 1   │ Pod 2  │                               │
+│    └───────────────────┘                               │
+└────────────────────────────────────────────────────────┘
+\`\`\`
 
 ## The Reconciliation Loop
 
-Kubernetes works by constantly comparing **desired state** (what you asked for) to **actual state** (what exists). The controller-manager runs loops to close any gap.
+Kubernetes works on a declarative model: you declare your **desired state** (e.g., "run 3 replicas of web-app") and Kubernetes continuously compares it to **actual state** (e.g., "only 2 replicas are running"). If a discrepancy exists, controllers take action to reconcile it.
 
 \`\`\`
 You apply YAML (desired: 3 pods)
