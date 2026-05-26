@@ -14,21 +14,33 @@ interface PageProps {
   params: Promise<{ phase: string; module: string }>
 }
 
+// Inline formatting: bold, code, links
+function formatInline(text: string): string {
+  return text
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline underline-offset-2">$1</a>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>')
+    .replace(/`(.+?)`/g, '<code class="bg-slate-800 text-blue-300 text-xs px-1.5 py-0.5 rounded font-mono">$1</code>')
+}
+
 // Render theory markdown-ish text to JSX
 function TheoryContent({ text }: { text: string }) {
   const lines = text.split('\n')
   const elements: React.ReactNode[] = []
   let inCode = false
   let codeLines: string[] = []
+  let codeIndent = 0
   let i = 0
 
   while (i < lines.length) {
     const line = lines[i]
 
-    if (line.startsWith('```')) {
+    // Code blocks
+    if (line.trim().startsWith('```')) {
       if (!inCode) {
         inCode = true
         codeLines = []
+        const match = line.match(/^(\s*)```/)
+        codeIndent = match ? match[1].length : 0
       } else {
         inCode = false
         elements.push(
@@ -42,11 +54,17 @@ function TheoryContent({ text }: { text: string }) {
     }
 
     if (inCode) {
-      codeLines.push(line)
+      let cleanLine = line
+      if (codeIndent > 0) {
+        const regex = new RegExp(`^\\s{0,${codeIndent}}`)
+        cleanLine = line.replace(regex, '')
+      }
+      codeLines.push(cleanLine)
       i++
       continue
     }
 
+    // Headings
     if (line.startsWith('## ')) {
       elements.push(
         <h2 key={i} className="text-lg font-bold text-slate-100 mt-6 mb-3 border-b border-slate-800 pb-2">
@@ -59,8 +77,9 @@ function TheoryContent({ text }: { text: string }) {
           {line.slice(4)}
         </h3>
       )
-    } else if (line.startsWith('| ')) {
-      // Table
+    }
+    // Tables
+    else if (line.startsWith('| ')) {
       const tableLines: string[] = []
       while (i < lines.length && lines[i].startsWith('|')) {
         tableLines.push(lines[i])
@@ -86,9 +105,8 @@ function TheoryContent({ text }: { text: string }) {
                 return (
                   <tr key={ri}>
                     {cells.map((cell, ci) => (
-                      <td key={ci} className="text-slate-300 text-xs border-b border-slate-800 py-2 pr-4">
-                        {cell}
-                      </td>
+                      <td key={ci} className="text-slate-300 text-xs border-b border-slate-800 py-2 pr-4"
+                        dangerouslySetInnerHTML={{ __html: formatInline(cell) }} />
                     ))}
                   </tr>
                 )
@@ -98,33 +116,130 @@ function TheoryContent({ text }: { text: string }) {
         </div>
       )
       continue
-    } else if (line.startsWith('- ') || line.startsWith('* ')) {
-      const items: string[] = []
-      while (i < lines.length && (lines[i].startsWith('- ') || lines[i].startsWith('* '))) {
-        items.push(lines[i].slice(2))
+    }
+    // Callout blocks: > [!TIP], > [!NOTE], > [!WARNING], > [!IMPORTANT]
+    else if (/^>\s*\[!(TIP|NOTE|WARNING|IMPORTANT|CAUTION)\]/.test(line)) {
+      const match = line.match(/^>\s*\[!(TIP|NOTE|WARNING|IMPORTANT|CAUTION)\]/)!
+      const type = match[1]
+      const calloutLines: string[] = []
+      i++ // skip the type line
+      while (i < lines.length && lines[i].startsWith('> ')) {
+        calloutLines.push(lines[i].slice(2))
+        i++
+      }
+      const colorMap: Record<string, { border: string; bg: string; text: string; icon: string }> = {
+        TIP: { border: 'border-emerald-500/30', bg: 'bg-emerald-500/5', text: 'text-emerald-300', icon: '💡' },
+        NOTE: { border: 'border-blue-500/30', bg: 'bg-blue-500/5', text: 'text-blue-300', icon: 'ℹ️' },
+        WARNING: { border: 'border-yellow-500/30', bg: 'bg-yellow-500/5', text: 'text-yellow-300', icon: '⚠️' },
+        IMPORTANT: { border: 'border-violet-500/30', bg: 'bg-violet-500/5', text: 'text-violet-300', icon: '❗' },
+        CAUTION: { border: 'border-red-500/30', bg: 'bg-red-500/5', text: 'text-red-300', icon: '🔴' },
+      }
+      const c = colorMap[type] ?? colorMap.NOTE
+      elements.push(
+        <div key={`callout-${i}`} className={`${c.bg} border ${c.border} rounded-lg p-4 mb-4`}>
+          <div className={`flex items-center gap-2 font-semibold text-xs uppercase tracking-wider ${c.text} mb-2`}>
+            <span>{c.icon}</span> {type}
+          </div>
+          <div className="text-slate-300 text-sm leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: calloutLines.map(formatInline).join('<br/>') }} />
+        </div>
+      )
+      continue
+    }
+    // Blockquotes
+    else if (line.startsWith('> ')) {
+      const quoteLines: string[] = []
+      while (i < lines.length && lines[i].startsWith('> ')) {
+        quoteLines.push(lines[i].slice(2))
         i++
       }
       elements.push(
-        <ul key={`ul-${i}`} className="list-disc list-inside text-slate-300 text-sm space-y-1 mb-3 pl-2">
+        <blockquote key={`bq-${i}`} className="border-l-2 border-slate-600 pl-4 py-1 mb-3 text-slate-400 text-sm italic leading-relaxed">
+          {quoteLines.map((ql, qi) => (
+            <span key={qi} dangerouslySetInnerHTML={{ __html: formatInline(ql) }} />
+          ))}
+        </blockquote>
+      )
+      continue
+    }
+    // Numbered lists
+    else if (/^\d+\.\s/.test(line)) {
+      const items: string[] = []
+      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+        items.push(lines[i].replace(/^\d+\.\s/, ''))
+        i++
+      }
+      elements.push(
+        <ol key={`ol-${i}`} className="list-decimal list-inside text-slate-300 text-sm space-y-1 mb-3 pl-2">
           {items.map((item, ii) => (
             <li key={ii} className="leading-relaxed" dangerouslySetInnerHTML={{
-              __html: item
-                .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>')
-                .replace(/`(.+?)`/g, '<code class="bg-slate-800 text-blue-300 text-xs px-1.5 py-0.5 rounded font-mono">$1</code>')
+              __html: formatInline(item)
             }} />
           ))}
+        </ol>
+      )
+      continue
+    }
+    // Unordered lists (with nested support)
+    else if (line.startsWith('- ') || line.startsWith('* ')) {
+      const items: { text: string; indent: number }[] = []
+      while (i < lines.length && (/^(\s*)([-*])\s/.test(lines[i]))) {
+        const match = lines[i].match(/^(\s*)([-*])\s(.*)/)
+        if (match) {
+          items.push({ text: match[3], indent: match[1].length })
+        }
+        i++
+      }
+      // Group by indent level — render nested as sub-lists
+      const renderList = (itemList: { text: string; indent: number }[], baseIndent: number) => {
+        const result: React.ReactNode[] = []
+        let j = 0
+        while (j < itemList.length) {
+          const item = itemList[j]
+          if (item.indent === baseIndent) {
+            // Collect any children (higher indent)
+            const children: { text: string; indent: number }[] = []
+            j++
+            while (j < itemList.length && itemList[j].indent > baseIndent) {
+              children.push(itemList[j])
+              j++
+            }
+            result.push(
+              <li key={j} className="leading-relaxed">
+                <span dangerouslySetInnerHTML={{ __html: formatInline(item.text) }} />
+                {children.length > 0 && (
+                  <ul className="list-disc list-inside ml-4 mt-1 space-y-1 text-slate-400">
+                    {renderList(children, children[0].indent)}
+                  </ul>
+                )}
+              </li>
+            )
+          } else {
+            j++
+          }
+        }
+        return result
+      }
+      elements.push(
+        <ul key={`ul-${i}`} className="list-disc list-inside text-slate-300 text-sm space-y-1 mb-3 pl-2">
+          {renderList(items, items[0]?.indent ?? 0)}
         </ul>
       )
       continue
-    } else if (line.trim() === '') {
+    }
+    // Horizontal rule
+    else if (line.trim() === '---' || line.trim() === '***') {
+      elements.push(<hr key={i} className="border-slate-800 my-6" />)
+    }
+    // Empty line
+    else if (line.trim() === '') {
       // skip blank
-    } else {
-      const html = line
-        .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>')
-        .replace(/`(.+?)`/g, '<code class="bg-slate-800 text-blue-300 text-xs px-1.5 py-0.5 rounded font-mono">$1</code>')
+    }
+    // Normal paragraph
+    else {
       elements.push(
         <p key={i} className="text-slate-300 text-sm leading-relaxed mb-3"
-          dangerouslySetInnerHTML={{ __html: html }} />
+          dangerouslySetInnerHTML={{ __html: formatInline(line) }} />
       )
     }
     i++

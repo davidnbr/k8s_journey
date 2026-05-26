@@ -3,7 +3,10 @@ import { phases } from '@/content/index'
 
 export default function HomePage() {
   const totalModules = phases.reduce((a, p) => a + p.modules.length, 0)
-  const totalHours = '~170'
+  const totalHours = phases.reduce((acc, p) => {
+    const matched = p.hours.match(/\d+/)
+    return acc + (matched ? parseInt(matched[0], 10) : 0)
+  }, 0)
 
   return (
     <main className="min-h-screen bg-slate-950 flex flex-col">
