@@ -11,7 +11,7 @@ const phase0: Phase = {
   shortTitle: 'Foundation',
   description: 'Build the right mental model before touching a cluster. Understand WHY Kubernetes exists and HOW it is structured.',
   weeks: 'Week 1',
-  hours: '~5 hours',
+  hours: '~8 hours',
   color: 'text-violet-400',
   bgColor: 'bg-violet-500/10 border-violet-500/30',
   modules: [
@@ -331,6 +331,223 @@ Status updated back to etcd via API Server
           options: ['kube-proxy', 'kube-scheduler', 'kubelet', 'kube-apiserver'],
           answer: 2,
           explanation: 'kubelet is the node agent. It watches the API server for Pods assigned to its node, then instructs the container runtime (containerd) to start or stop containers.',
+        },
+      ],
+    },
+    {
+      id: 'p0-m3',
+      slug: 'kubectl-kubeconfig',
+      title: 'kubectl & kubeconfig',
+      description: 'Master the CLI and configuration file that connect you to any Kubernetes cluster.',
+      duration: '45 min',
+      difficulty: 'beginner',
+      theory: `> 🧠 **Brain Warm-Up**: If you manage 5 clusters (dev, staging, prod-us, prod-eu, local-minikube), how does a single kubectl binary know which cluster to talk to? Where are credentials stored, and how do you switch between them without breaking a live deployment?
+
+## kubeconfig: Your Cluster Address Book
+
+\`kubectl\` is a stateless binary — it reads a **kubeconfig** file on every invocation to know where to connect and how to authenticate. By default this file lives at \`~/.kube/config\`.
+
+A kubeconfig file has three sections and one pointer:
+
+\`\`\`yaml
+apiVersion: v1
+kind: Config
+clusters:             # 1. Cluster endpoints (API server URL + CA cert)
+  - name: prod-cluster
+    cluster:
+      server: https://api.prod.example.com:6443
+      certificate-authority-data: <base64-CA>
+users:                # 2. Credentials (client cert, token, or auth provider)
+  - name: prod-admin
+    user:
+      client-certificate-data: <base64-cert>
+      client-key-data: <base64-key>
+contexts:             # 3. Named bindings: cluster + user + namespace
+  - name: prod-context
+    context:
+      cluster: prod-cluster
+      user: prod-admin
+      namespace: production
+current-context: prod-context   # ← active context
+\`\`\`
+
+## Contexts: Named Cluster Sessions
+
+A **context** is a named triplet: cluster + user + namespace. Switching context changes which cluster kubectl targets next — it is safe and instant.
+
+\`\`\`
+kubeconfig
+├── clusters: [dev-cluster, prod-cluster, local]
+├── users:    [dev-admin, prod-admin, minikube]
+├── contexts:
+│   ├── dev   → dev-cluster  + dev-admin  + namespace: default
+│   ├── prod  → prod-cluster + prod-admin + namespace: production
+│   └── local → local        + minikube   + namespace: default
+└── current-context: dev   ← kubectl uses this
+\`\`\`
+
+## Output Formats
+
+| Flag | Use case |
+|---|---|
+| \`-o wide\` | Extra columns (Node IP, etc.) |
+| \`-o yaml\` | Full resource as YAML |
+| \`-o json\` | Full resource as JSON |
+| \`-o jsonpath='{.metadata.name}'\` | Extract a specific field |
+| \`-o name\` | Just resource names (scripting) |
+
+## Merging Multiple kubeconfigs
+
+When you receive credentials for a new cluster (from AWS EKS, GKE, kubeadm, etc.) you get a separate kubeconfig. Merge it safely:
+
+\`\`\`bash
+KUBECONFIG=~/.kube/config:~/new-cluster.yaml \\
+  kubectl config view --merge --flatten > ~/.kube/merged.yaml
+mv ~/.kube/merged.yaml ~/.kube/config
+\`\`\`
+
+Alternatively, use the \`KUBECONFIG\` env var to temporarily target a specific file:
+
+\`\`\`bash
+KUBECONFIG=~/project.yaml kubectl get pods
+\`\`\`
+
+## Productivity Tips
+
+\`\`\`bash
+alias k=kubectl
+alias kgp='kubectl get pods'
+alias kns='kubectl config set-context --current --namespace'
+
+# Install kubectx/kubens for one-word context/namespace switching
+brew install kubectx
+kubectx prod      # switch context
+kubens production # switch namespace
+\`\`\``,
+      labSteps: [
+        {
+          id: 'p0-m3-s1',
+          title: 'Inspect the kubeconfig',
+          instruction: 'Display the full kubeconfig to see clusters, users, and contexts.',
+          command: 'kubectl config view',
+          output: [
+            'apiVersion: v1',
+            'clusters:',
+            '- cluster:',
+            '    certificate-authority-data: DATA+OMITTED',
+            '    server: https://127.0.0.1:6443',
+            '  name: local',
+            'contexts:',
+            '- context:',
+            '    cluster: local',
+            '    user: kubernetes-admin',
+            '    namespace: default',
+            '  name: local',
+            'current-context: local',
+            'kind: Config',
+            'users:',
+            '- name: kubernetes-admin',
+            '  user:',
+            '    client-certificate-data: DATA+OMITTED',
+            '    client-key-data: DATA+OMITTED',
+          ],
+          explanation: 'kubectl config view masks certificate data as DATA+OMITTED. The current-context field determines which cluster kubectl targets. The server URL is the kube-apiserver endpoint — the single entry point for all commands.',
+          clusterState: { ...emptyCluster, highlightedComponent: 'apiserver' },
+          tip: 'Use --raw to see actual base64-encoded certificate values (handle with care).',
+        },
+        {
+          id: 'p0-m3-s2',
+          title: 'List all contexts',
+          instruction: 'See all contexts and which one is currently active.',
+          command: 'kubectl config get-contexts',
+          output: [
+            'CURRENT   NAME           CLUSTER        AUTHINFO          NAMESPACE',
+            '*         local          local          kubernetes-admin   default',
+            '          prod           prod-cluster   prod-admin         production',
+            '          staging        staging-k8s    staging-admin      staging',
+          ],
+          explanation: 'The asterisk (*) marks the active context. Each context is a named cluster+user+namespace triplet. Switching contexts is safe — it only changes where future commands point, nothing else.',
+          clusterState: { ...emptyCluster },
+          tip: '"kubectl config current-context" prints just the active context name — useful in shell prompts and scripts.',
+        },
+        {
+          id: 'p0-m3-s3',
+          title: 'Switch context',
+          instruction: 'Switch the active context to point kubectl at a different cluster.',
+          command: 'kubectl config use-context staging',
+          output: ['Switched to context "staging".'],
+          explanation: 'Switching context writes the new current-context value into ~/.kube/config. All subsequent kubectl commands target the staging cluster. Switch back any time with "kubectl config use-context local".',
+          clusterState: { ...emptyCluster },
+        },
+        {
+          id: 'p0-m3-s4',
+          title: 'Set the default namespace for the current context',
+          instruction: 'Stop typing -n on every command by persisting a namespace to the current context.',
+          command: 'kubectl config set-context --current --namespace=staging',
+          output: ['Context "local" modified.'],
+          explanation: 'This writes the namespace into the active context entry in kubeconfig. All subsequent commands in this context default to the staging namespace without -n. Context changes are local to your machine and don\'t affect the cluster.',
+          clusterState: { ...emptyCluster, namespaces: ['default', 'kube-system', 'staging'] },
+          tip: 'Reset to default: "kubectl config set-context --current --namespace=default"',
+        },
+        {
+          id: 'p0-m3-s5',
+          title: 'Extract a field with jsonpath',
+          instruction: 'Use jsonpath to extract just the API server URL from the kubeconfig.',
+          command: "kubectl config view -o jsonpath='{.clusters[0].cluster.server}'",
+          output: ['https://127.0.0.1:6443'],
+          explanation: 'jsonpath is a query language for JSON/YAML structures. The -o jsonpath flag lets you extract any field from kubectl output — essential for scripting, CI pipelines, and automating cluster operations.',
+          clusterState: { ...emptyCluster },
+          tip: 'Combine with other commands: kubectl get pod nginx -o jsonpath=\'{.status.podIP}\' prints just the Pod IP.',
+        },
+      ],
+      quiz: [
+        {
+          id: 'p0-m3-q1',
+          question: 'What are the three top-level sections in a kubeconfig file?',
+          options: [
+            'pods, services, deployments',
+            'clusters, users, contexts',
+            'apiserver, etcd, kubelet',
+            'namespaces, roles, bindings',
+          ],
+          answer: 1,
+          explanation: 'A kubeconfig has three sections: clusters (API server URLs + CA certs), users (authentication credentials — client certs, tokens, or auth providers), and contexts (named combinations of cluster + user + optional namespace). The current-context field points to the active one.',
+        },
+        {
+          id: 'p0-m3-q2',
+          question: 'What is a kubeconfig "context"?',
+          options: [
+            'A running Kubernetes namespace',
+            'A named combination of cluster + user + namespace',
+            'An authentication token for the API server',
+            'A kubectl command alias',
+          ],
+          answer: 1,
+          explanation: 'A context is a named binding of: cluster (which API server to talk to) + user (which credentials to use) + optional namespace (default namespace for commands). Switching context instantly changes where kubectl points — it is safe and local to your machine.',
+        },
+        {
+          id: 'p0-m3-q3',
+          question: 'How do you make all kubectl commands in the current context default to namespace "production" without typing -n?',
+          options: [
+            'kubectl set-namespace production',
+            'export KUBECTL_NAMESPACE=production',
+            'kubectl config set-context --current --namespace=production',
+            'kubectl namespace use production',
+          ],
+          answer: 2,
+          explanation: '"kubectl config set-context --current --namespace=production" modifies the namespace field of the active context in kubeconfig. After this, all commands in that context use production as the default namespace.',
+        },
+        {
+          id: 'p0-m3-q4',
+          question: 'You receive a new kubeconfig file for a production cluster. How do you add it to your existing ~/.kube/config without losing existing contexts?',
+          options: [
+            'Replace ~/.kube/config entirely with the new file',
+            'Use KUBECONFIG=~/.kube/config:new-cluster.yaml kubectl config view --merge --flatten to merge them',
+            'Run kubectl import-config new-cluster.yaml',
+            'Copy the file to ~/.kube/contexts/',
+          ],
+          answer: 1,
+          explanation: 'The KUBECONFIG env var accepts colon-separated paths. Using --merge and --flatten with kubectl config view merges all contexts and outputs the combined result. This is the safe way to add new cluster configs without losing existing ones.',
         },
       ],
     },

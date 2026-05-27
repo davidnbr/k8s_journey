@@ -11,7 +11,7 @@ const phase1: Phase = {
   shortTitle: 'Primitives',
   description: 'Master the essential building blocks: Pods, Deployments, and Services. These three resources are the foundation of everything in Kubernetes.',
   weeks: 'Weeks 1–3',
-  hours: '~20 hours',
+  hours: '~24 hours',
   color: 'text-blue-400',
   bgColor: 'bg-blue-500/10 border-blue-500/30',
   modules: [
@@ -661,6 +661,300 @@ Client Request (curl http://web-service:80)
           ],
           answer: 2,
           explanation: 'NodePort is useful when you don\'t have a cloud provider (no LoadBalancer) but need external access. It opens a port (30000-32767) on every node. For production external traffic, use LoadBalancer or Ingress.',
+        },
+      ],
+    },
+    {
+      id: 'p1-m4',
+      slug: 'init-containers',
+      title: 'Init Containers & Lifecycle Hooks',
+      description: 'Run setup tasks before your app starts and handle graceful shutdown with preStop hooks.',
+      duration: '45 min',
+      difficulty: 'beginner',
+      theory: `> 🧠 **Brain Warm-Up**: Your application needs a database schema migration to run before the API server accepts traffic. Both are in the same Pod. How do you guarantee the migration completes successfully before the API container starts? Think about startup ordering within a Pod.
+
+## Init Containers
+
+An **init container** runs to completion before any of the main containers start. This gives you sequenced, guaranteed setup:
+
+\`\`\`
+Pod starts
+  ↓
+init-container-1 runs → exits 0
+  ↓
+init-container-2 runs → exits 0
+  ↓
+main containers start (in parallel)
+\`\`\`
+
+Key properties:
+- Run **sequentially** — each must complete before the next starts
+- If an init container fails, kubelet restarts it (respecting the Pod's restartPolicy)
+- Main containers **cannot start** until all init containers succeed
+- Can use a **different image** than the main container (e.g., a kubectl image for setup, vault for secret fetching)
+
+### Common Patterns
+
+\`\`\`
+Pattern 1: Wait for a dependency
+  initContainers:
+  - name: wait-for-db
+    image: busybox
+    command: ['sh', '-c', 'until nc -z mysql-svc 3306; do sleep 2; done']
+
+Pattern 2: Fetch secrets from Vault
+  initContainers:
+  - name: vault-init
+    image: vault:latest
+    command: ['vault', 'agent', 'render', '-config=/vault-agent.hcl']
+    # Writes secrets to a shared emptyDir volume
+
+Pattern 3: Run database migrations
+  initContainers:
+  - name: migrate
+    image: myapp:latest
+    command: ['./manage.py', 'migrate', '--no-input']
+\`\`\`
+
+## Lifecycle Hooks
+
+Kubernetes provides two hooks that run code at specific moments in a container's lifecycle:
+
+### postStart
+Fires immediately after a container is created — **concurrently** with the container's main process (ENTRYPOINT). The container does not reach Running state until postStart completes.
+
+**⚠️ Warning**: postStart is NOT guaranteed to run before ENTRYPOINT. For strict ordering, use init containers instead.
+
+### preStop
+Fires before SIGTERM is sent. Kubernetes waits for preStop to finish, then sends SIGTERM. Critical for graceful shutdown — drain in-flight requests, deregister from service discovery, flush write buffers.
+
+\`\`\`yaml
+lifecycle:
+  preStop:
+    exec:
+      command: ['/bin/sh', '-c', 'nginx -s quit; sleep 5']
+\`\`\`
+
+## terminationGracePeriodSeconds
+
+When a Pod is deleted:
+
+\`\`\`
+kubectl delete pod nginx
+         ↓
+preStop hook runs         Pod removed from Service Endpoints
+(simultaneously)          (new traffic stops arriving)
+         ↓
+SIGTERM sent to process
+         ↓  (app drains in-flight requests)
+[terminationGracePeriodSeconds countdown — default 30s]
+         ↓  (if still alive after grace period)
+SIGKILL
+\`\`\`
+
+For apps that take longer than 30 seconds to drain, set \`terminationGracePeriodSeconds\` to match. Combine with a preStop sleep to give load balancers time to deregister the Pod:
+
+\`\`\`yaml
+spec:
+  terminationGracePeriodSeconds: 60
+  containers:
+  - lifecycle:
+      preStop:
+        exec:
+          command: ['sleep', '15']  # Wait for LB health check deregistration
+\`\`\``,
+      labSteps: [
+        {
+          id: 'p1-m4-s1',
+          title: 'Create a Pod with an init container',
+          instruction: 'Apply a Pod spec with an init container that runs before the main nginx container.',
+          command: 'kubectl apply -f -',
+          yamlContent: `apiVersion: v1
+kind: Pod
+metadata:
+  name: app-with-init
+spec:
+  initContainers:
+  - name: wait-for-service
+    image: busybox:1.36
+    command: ['sh', '-c', 'echo "Waiting for dependency..."; sleep 3; echo "Ready!"']
+  containers:
+  - name: app
+    image: nginx:1.27
+    ports:
+    - containerPort: 80`,
+          output: ['pod/app-with-init created'],
+          explanation: 'The init container runs first. Only after it exits with code 0 does nginx start. During the init phase, kubectl get pods shows STATUS: Init:0/1, which means 0 of 1 init containers have completed.',
+          clusterState: {
+            pods: [
+              { id: 'app-init', name: 'app-with-init', namespace: 'default', node: 'node-1', status: 'Pending', labels: {}, image: 'nginx:1.27', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'],
+            events: ['Init container wait-for-service started'],
+          },
+        },
+        {
+          id: 'p1-m4-s2',
+          title: 'Watch the init lifecycle',
+          instruction: 'Watch the Pod progress through init stages to Running.',
+          command: 'kubectl get pods -w',
+          output: [
+            'NAME             READY   STATUS         RESTARTS   AGE',
+            'app-with-init    0/1     Init:0/1       0          2s',
+            'app-with-init    0/1     PodInitializing 0         5s',
+            'app-with-init    1/1     Running        0          7s',
+          ],
+          explanation: 'Init:0/1 means 0 of 1 init containers completed. PodInitializing is the brief window between init success and main container start. Running means both the init container succeeded and nginx is up.',
+          clusterState: {
+            pods: [
+              { id: 'app-init', name: 'app-with-init', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+        },
+        {
+          id: 'p1-m4-s3',
+          title: 'Read init container logs',
+          instruction: 'Use -c to specify the init container name and view its logs.',
+          command: 'kubectl logs app-with-init -c wait-for-service',
+          output: ['Waiting for dependency...', 'Ready!'],
+          explanation: 'The -c flag selects which container in the Pod to read logs from. Init container logs persist after completion — essential for debugging a stuck Init:0/1 state. Always check init container logs first when a Pod never reaches Running.',
+          clusterState: {
+            pods: [
+              { id: 'app-init', name: 'app-with-init', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+          tip: 'For the main container logs: kubectl logs app-with-init -c app (or just kubectl logs app-with-init since "app" is the only main container).',
+        },
+        {
+          id: 'p1-m4-s4',
+          title: 'Share data between init and main containers',
+          instruction: 'Use an emptyDir volume to pass a generated config from init container to the main app.',
+          command: 'kubectl apply -f -',
+          yamlContent: `apiVersion: v1
+kind: Pod
+metadata:
+  name: init-volume-share
+spec:
+  initContainers:
+  - name: setup
+    image: busybox:1.36
+    command: ['sh', '-c', 'echo "DB_HOST=mysql-service" > /config/app.env']
+    volumeMounts:
+    - name: config-dir
+      mountPath: /config
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ['sh', '-c', 'cat /config/app.env && sleep 3600']
+    volumeMounts:
+    - name: config-dir
+      mountPath: /config
+  volumes:
+  - name: config-dir
+    emptyDir: {}`,
+          output: ['pod/init-volume-share created'],
+          explanation: 'The init container writes a config file to an emptyDir volume. The main container reads from the same volume. This pattern lets you generate configs, fetch secrets from Vault, or clone git repos before your app starts — without baking secrets into the image.',
+          clusterState: {
+            pods: [
+              { id: 'ivs', name: 'init-volume-share', namespace: 'default', node: 'node-2', status: 'Running', labels: {}, image: 'busybox:1.36', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+          tip: 'Verify: kubectl exec init-volume-share -c app -- cat /config/app.env',
+        },
+        {
+          id: 'p1-m4-s5',
+          title: 'Add a preStop hook for graceful shutdown',
+          instruction: 'Apply a Deployment where nginx sends a quit signal before SIGTERM to drain connections.',
+          command: 'kubectl apply -f -',
+          yamlContent: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graceful-nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: graceful-nginx
+  template:
+    metadata:
+      labels:
+        app: graceful-nginx
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: nginx
+        image: nginx:1.27
+        ports:
+        - containerPort: 80
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "nginx -s quit; sleep 5"]`,
+          output: ['deployment.apps/graceful-nginx created'],
+          explanation: 'On Pod deletion or rolling update, the preStop hook sends nginx -s quit (graceful drain) then waits 5 seconds. This gives in-flight HTTP requests time to complete before SIGTERM arrives. Without this, active connections are forcefully terminated mid-request.',
+          clusterState: {
+            pods: [
+              { id: 'gn-1', name: 'graceful-nginx-aaa', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'graceful-nginx' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'gn-2', name: 'graceful-nginx-bbb', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'graceful-nginx' }, image: 'nginx:1.27', restarts: 0 },
+            ],
+            services: [],
+            deployments: [{ id: 'gn', name: 'graceful-nginx', namespace: 'default', replicas: 2, availableReplicas: 2, image: 'nginx:1.27' }],
+            namespaces: ['default'], events: [],
+          },
+          tip: 'The sleep 5 accounts for the time between Kubernetes removing the Pod from Service endpoints and the load balancer propagating that change. Without this buffer, the LB may still send requests to a shutting-down Pod.',
+        },
+      ],
+      quiz: [
+        {
+          id: 'p1-m4-q1',
+          question: 'In what order do init containers run?',
+          options: [
+            'All init containers run simultaneously in parallel',
+            'Sequentially — each must complete successfully before the next starts',
+            'Randomly — determined by the scheduler at runtime',
+            'After main containers — they are post-startup tasks',
+          ],
+          answer: 1,
+          explanation: 'Init containers run one at a time, in declaration order. Each must exit with code 0 before the next starts. Only after ALL init containers succeed do the main containers start in parallel. This guarantees strict dependency ordering.',
+        },
+        {
+          id: 'p1-m4-q2',
+          question: 'What STATUS does kubectl show while an init container is running?',
+          options: [
+            'STATUS: Initializing',
+            'STATUS: Init:0/1 (completed/total)',
+            'STATUS: Pending — same as before scheduling',
+            'READY: 0/1',
+          ],
+          answer: 1,
+          explanation: '"Init:0/1" means 0 of 1 init containers completed. Three init containers with 2 done would show "Init:2/3". This distinguishes init-waiting from other Pending states and tells you exactly how many init containers are outstanding.',
+        },
+        {
+          id: 'p1-m4-q3',
+          question: 'What is the preStop lifecycle hook used for?',
+          options: [
+            'Health checks before the main container starts',
+            'Graceful cleanup (drain connections, deregister from service discovery) before SIGTERM is sent',
+            'Pulling images before the container starts',
+            'Running database migrations',
+          ],
+          answer: 1,
+          explanation: 'preStop runs before SIGTERM is sent to the container process. It is used for graceful shutdown: finishing in-flight requests, deregistering from service discovery, flushing write buffers. Without preStop, SIGTERM interrupts active work immediately.',
+        },
+        {
+          id: 'p1-m4-q4',
+          question: 'An init container fails (exits non-zero). What happens next?',
+          options: [
+            'The main container starts and handles the error',
+            'The Pod is immediately deleted',
+            'Kubernetes restarts the init container according to the Pod restartPolicy',
+            'The failed init container is skipped and the next one runs',
+          ],
+          answer: 2,
+          explanation: 'A failed init container is restarted by kubelet according to the Pod\'s restartPolicy (default: Always). The Pod stays in Init:CrashLoopBackOff if it keeps failing. Main containers never start until all init containers succeed — this is the key guarantee.',
         },
       ],
     },

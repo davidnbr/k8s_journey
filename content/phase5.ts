@@ -1,8 +1,6 @@
-import type { Phase, ClusterState } from '@/lib/types'
+import type { Phase } from '@/lib/types'
 
-const emptyCluster: ClusterState = {
-  pods: [], services: [], deployments: [], namespaces: ['default'], events: [],
-}
+
 
 const phase5: Phase = {
   id: 'phase-5',
@@ -10,8 +8,8 @@ const phase5: Phase = {
   title: 'Advanced Kubernetes: Helm, CRDs & Observability',
   shortTitle: 'Advanced',
   description: 'Package and deploy with Helm, extend Kubernetes with CRDs and Operators, and build observability into your cluster with metrics, logging, and tracing.',
-  weeks: 'Week 9â€“10',
-  hours: '~11 hours',
+  weeks: 'Week 9–12',
+  hours: '~19 hours',
   color: 'text-rose-400',
   bgColor: 'bg-rose-500/10 border-rose-500/30',
   modules: [
@@ -1770,7 +1768,590 @@ spec:
             'Back up etcd, then delete the cluster and recreate it on 1.35',
           ],
           answer: 1,
-          explanation: 'Kubernetes only supports upgrading one minor version at a time (the N-2 rule means a 1.33 kubelet can talk to a 1.35 API server, but skipping directly is not tested and not supported). Always upgrade the control plane (API server, scheduler, controller-manager) before upgrading nodes â€” the API server must be at the newer version first. After each step, verify that workloads are healthy before proceeding to the next minor version.',
+          explanation: 'Kubernetes only supports upgrading one minor version at a time (the N-2 rule means a 1.33 kubelet can talk to a 1.35 API server, but skipping directly is not tested and not supported). Always upgrade the control plane (API server, scheduler, controller-manager) before upgrading nodes — the API server must be at the newer version first. After each step, verify that workloads are healthy before proceeding to the next minor version.',
+        },
+      ],
+    },
+
+    // ─── Module 6: GitOps ───────────────────────────────────────────────────
+    {
+      id: 'p5-m6',
+      slug: 'gitops',
+      title: 'GitOps with ArgoCD',
+      description: 'Automate deployments by treating Git as the single source of truth for your cluster state.',
+      duration: '75 min',
+      difficulty: 'advanced',
+      theory: `> 🧠 **Brain Warm-Up**: If kubectl apply is the way to deploy to Kubernetes, why does running it from a CI/CD pipeline create problems at scale — with drift detection, multi-team collaboration, and audit trails? Think about what “who changed what and when” means without a canonical source of truth.
+
+## What is GitOps?
+
+**GitOps** is an operational framework where the desired state of your infrastructure and applications is declared in Git, and an automated agent continuously reconciles the live cluster state toward that declaration.
+
+The four GitOps principles (OpenGitOps):
+1. **Declarative** — desired state described as data (YAML), not scripts
+2. **Versioned and immutable** — Git history is the audit trail; every change is a commit
+3. **Pulled automatically** — an in-cluster agent pulls from Git (no push credentials leave the cluster)
+4. **Continuously reconciled** — the agent detects and corrects drift automatically
+
+## GitOps vs Traditional CI/CD
+
+\`\`\`
+Traditional (Push-based CI/CD)        GitOps (Pull-based)
+─────────────────────────────         ────────────────────────────
+CI pipeline has kubectl + kubeconfig  Cluster agent pulls from Git
+Pipeline pushes changes to cluster    No cluster credentials in CI
+Drift is not detected                 Drift auto-corrected every ~3 min
+Rollback = re-run pipeline            Rollback = git revert (instant)
+Audit trail is CI logs                Audit trail is git history
+\`\`\`
+
+## ArgoCD Architecture
+
+**ArgoCD** is the most widely-adopted GitOps controller. It runs inside the cluster and watches a Git repository, continuously applying changes.
+
+\`\`\`
+Git Repository (desired state)
+  ├── apps/
+  │   ├── deployment.yaml
+  │   ├── service.yaml
+  │   └── ingress.yaml
+  └── config/
+      └── configmap.yaml
+         │
+         │  (ArgoCD polls every 3 minutes or via webhook)
+         ▼
+┌─────────────────────────────────┐
+│           ArgoCD Server         │
+│  ┌──────────────────────────┐   │
+│  │   Application Controller │   │
+│  │  (Compares live vs Git)  │   │
+│  └──────────┬───────────────┘   │
+│             │ diff detected     │
+│             ▼                   │
+│  ┌──────────────────────────┐   │
+│  │    Sync Engine           │   │
+│  │  (kubectl apply, Helm    │   │
+│  │   template, Kustomize)   │   │
+│  └──────────────────────────┘   │
+└──────────────┬──────────────────┘
+               │ applies manifests
+               ▼
+        Kubernetes API Server
+\`\`\`
+
+## ArgoCD Application Resource
+
+The core object in ArgoCD is an **Application** — a CRD that links a Git repo path to a cluster namespace:
+
+\`\`\`yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+  namespace: argocd
+spec:
+  source:
+    repoURL: https://github.com/myorg/k8s-manifests
+    targetRevision: main
+    path: apps/my-app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    automated:
+      prune: true       # delete resources removed from Git
+      selfHeal: true    # auto-fix manual drift
+\`\`\`
+
+## Sync Strategies
+
+| Strategy | Behavior |
+|---|---|
+| Manual | ArgoCD shows OutOfSync but waits for human approval |
+| Automated | Syncs automatically on every Git change |
+| Automated + selfHeal | Also reverts manual kubectl changes that drift from Git |
+| Automated + prune | Also deletes resources removed from Git |
+
+## App of Apps Pattern
+
+For managing many applications, ArgoCD supports a hierarchical pattern where one “parent” Application manages multiple “child” Applications:
+
+\`\`\`
+root-app (Application)
+  └── apps/ directory in Git
+      ├── frontend-app.yaml   (Application)
+      ├── backend-app.yaml    (Application)
+      └── monitoring-app.yaml (Application)
+\`\`\`
+
+This lets you bootstrap an entire cluster's worth of applications with a single ArgoCD Application.`,
+      labSteps: [
+        {
+          id: 'p5-m6-s1',
+          title: 'Install ArgoCD',
+          instruction: 'Install ArgoCD into a dedicated namespace using the official manifest.',
+          command: 'kubectl create namespace argocd && kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml',
+          output: [
+            'namespace/argocd created',
+            'customresourcedefinition.apiextensions.k8s.io/applications.argoproj.io created',
+            'customresourcedefinition.apiextensions.k8s.io/appprojects.argoproj.io created',
+            'serviceaccount/argocd-application-controller created',
+            'serviceaccount/argocd-server created',
+            '...',
+            'deployment.apps/argocd-server created',
+          ],
+          explanation: 'ArgoCD installs into its own namespace. It creates several CRDs (Application, AppProject), Deployments (server, repo-server, application-controller), and RBAC resources. The application-controller is the core reconciliation loop.',
+          clusterState: {
+            pods: [
+              { id: 'argo-server', name: 'argocd-server-xxx', namespace: 'argocd' as unknown as 'default', node: 'node-1', status: 'Running', labels: { app: 'argocd-server' }, image: 'argocd:latest', restarts: 0 },
+              { id: 'argo-ctrl', name: 'argocd-application-controller-0', namespace: 'argocd' as unknown as 'default', node: 'node-2', status: 'Running', labels: { app: 'argocd-application-controller' }, image: 'argocd:latest', restarts: 0 },
+            ],
+            services: [{ id: 'argo-svc', name: 'argocd-server', namespace: 'argocd' as unknown as 'default', type: 'ClusterIP', selector: { app: 'argocd-server' }, port: 443, clusterIP: '10.96.100.1' }],
+            deployments: [],
+            namespaces: ['default', 'argocd'],
+            events: ['ArgoCD installed successfully'],
+          },
+          tip: 'In production, patch the argocd-server Service to type LoadBalancer or expose it via Ingress. For local testing: kubectl port-forward svc/argocd-server -n argocd 8080:443',
+        },
+        {
+          id: 'p5-m6-s2',
+          title: 'Get the initial admin password',
+          instruction: 'Retrieve the auto-generated admin password for the ArgoCD UI.',
+          command: `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 --decode`,
+          output: ['v8Kx3mNpQrL9wZdT'],
+          explanation: 'ArgoCD generates an initial admin password stored in a Secret. The password is base64-encoded so we pipe through base64 --decode to get the plaintext. Log into the UI at https://localhost:8080 with admin / this password, then change it immediately.',
+          clusterState: {
+            pods: [
+              { id: 'argo-server', name: 'argocd-server-xxx', namespace: 'argocd' as unknown as 'default', node: 'node-1', status: 'Running', labels: { app: 'argocd-server' }, image: 'argocd:latest', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default', 'argocd'], events: [],
+          },
+        },
+        {
+          id: 'p5-m6-s3',
+          title: 'Create an ArgoCD Application',
+          instruction: 'Apply an Application manifest that tells ArgoCD to sync a Git repository to your cluster.',
+          command: 'kubectl apply -f -',
+          yamlContent: `apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true`,
+          output: ['application.argoproj.io/guestbook created'],
+          explanation: 'This Application tells ArgoCD: “Watch the guestbook/ path on the main branch of this repo and ensure it matches the guestbook namespace in the local cluster.” Without syncPolicy.automated, it starts OutOfSync and waits for a manual sync.',
+          clusterState: {
+            pods: [],
+            services: [], deployments: [], namespaces: ['default', 'argocd', 'guestbook'], events: ['Application guestbook created — OutOfSync'],
+          },
+        },
+        {
+          id: 'p5-m6-s4',
+          title: 'Sync the application',
+          instruction: 'Trigger a manual sync to deploy the guestbook app from Git to the cluster.',
+          command: 'argocd app sync guestbook',
+          output: [
+            'TIMESTAMP  GROUP  KIND        NAMESPACE  NAME          STATUS   HEALTH',
+            '...        apps   Deployment  guestbook  guestbook-ui  Synced   Healthy',
+            '...               Service     guestbook  guestbook-ui  Synced   Healthy',
+            '',
+            'Name:               guestbook',
+            'Sync Status:        Synced',
+            'Health Status:      Healthy',
+          ],
+          explanation: 'ArgoCD applies the manifests from Git to the cluster. After sync, STATUS becomes Synced and HEALTH becomes Healthy (all Deployment replicas running). ArgoCD\'s health assessment goes beyond kubectl — it checks Deployment rollout status, not just Pod running.',
+          clusterState: {
+            pods: [
+              { id: 'gb-ui', name: 'guestbook-ui-xxx', namespace: 'guestbook' as unknown as 'default', node: 'node-1', status: 'Running', labels: { app: 'guestbook-ui' }, image: 'guestbook-ui:latest', restarts: 0 },
+            ],
+            services: [{ id: 'gb-svc', name: 'guestbook-ui', namespace: 'guestbook' as unknown as 'default', type: 'ClusterIP', selector: { app: 'guestbook-ui' }, port: 80, clusterIP: '10.96.110.5' }],
+            deployments: [{ id: 'gb-dep', name: 'guestbook-ui', namespace: 'guestbook' as unknown as 'default', replicas: 1, availableReplicas: 1, image: 'guestbook-ui:latest' }],
+            namespaces: ['default', 'argocd', 'guestbook'],
+            events: ['Application guestbook synced — Healthy'],
+          },
+        },
+        {
+          id: 'p5-m6-s5',
+          title: 'Enable auto-sync with self-healing',
+          instruction: 'Patch the Application to enable automated sync — ArgoCD will now apply Git changes automatically and revert manual drift.',
+          command: 'kubectl patch application guestbook -n argocd --type=merge -p \'{“spec”:{“syncPolicy”:{“automated”:{“prune”:true,”selfHeal”:true}}}}\'',
+          output: ['application.argoproj.io/guestbook patched'],
+          explanation: 'With automated + selfHeal: if someone runs kubectl edit directly on the cluster, ArgoCD detects the drift within 3 minutes and reverts it to match Git. With prune: true, resources deleted from Git are also deleted from the cluster. This enforces Git as the single source of truth.',
+          clusterState: {
+            pods: [
+              { id: 'gb-ui', name: 'guestbook-ui-xxx', namespace: 'guestbook' as unknown as 'default', node: 'node-1', status: 'Running', labels: { app: 'guestbook-ui' }, image: 'guestbook-ui:latest', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default', 'argocd', 'guestbook'],
+            events: ['Auto-sync enabled — self-heal active'],
+          },
+          tip: 'To deploy a new version: update the image tag in Git and commit. ArgoCD detects the change and applies it automatically. No CI pipeline needs kubectl credentials.',
+        },
+      ],
+      quiz: [
+        {
+          id: 'p5-m6-q1',
+          question: 'What is the core difference between push-based CI/CD and GitOps pull-based deployment?',
+          options: [
+            'GitOps uses Helm; CI/CD uses raw YAML',
+            'In GitOps, an in-cluster agent pulls from Git — cluster credentials never leave the cluster; in push-based CI/CD the pipeline pushes to the cluster using credentials stored in CI',
+            'GitOps requires a cloud provider; CI/CD works on-premises',
+            'GitOps only works with ArgoCD; CI/CD uses any tool',
+          ],
+          answer: 1,
+          explanation: 'The key security and architectural difference: in push-based CI/CD, the pipeline needs cluster credentials (kubeconfig/token) stored in the CI system. In GitOps, the agent runs inside the cluster and pulls from Git — sensitive cluster credentials never leave the cluster boundary.',
+        },
+        {
+          id: 'p5-m6-q2',
+          question: 'What does “selfHeal: true” mean in an ArgoCD Application?',
+          options: [
+            'ArgoCD restarts crashed Pods automatically',
+            'ArgoCD automatically reverts manual changes to the cluster that drift from the Git state',
+            'ArgoCD runs health checks on all Pods every minute',
+            'ArgoCD fixes YAML syntax errors in Git automatically',
+          ],
+          answer: 1,
+          explanation: 'selfHeal means ArgoCD continuously monitors the live cluster state and compares it to Git. If someone makes a manual kubectl change that differs from Git, ArgoCD detects the drift (within ~3 minutes) and reverts the change to match the Git declaration.',
+        },
+        {
+          id: 'p5-m6-q3',
+          question: 'Where does ArgoCD store the state of each Application release?',
+          options: [
+            'In a local SQLite database on the ArgoCD server Pod',
+            'As Kubernetes Secret objects in the argocd namespace',
+            'In a separate etcd instance',
+            'In the Git repository as a state file',
+          ],
+          answer: 1,
+          explanation: 'ArgoCD stores Application state as Kubernetes Secret objects (type: helm.sh/release.v1 or similar) in the argocd namespace. This means ArgoCD state survives ArgoCD restarts and is backed by the same etcd that backs all cluster state.',
+        },
+        {
+          id: 'p5-m6-q4',
+          question: 'What is the “App of Apps” pattern used for?',
+          options: [
+            'Running multiple containers in one Pod',
+            'Bootstrapping an entire cluster\'s applications with a single parent ArgoCD Application that manages many child Applications',
+            'Deploying the same app to multiple clusters simultaneously',
+            'Combining Helm charts with raw YAML manifests',
+          ],
+          answer: 1,
+          explanation: 'The App of Apps pattern has a root ArgoCD Application that points to a directory of other Application manifests in Git. This bootstraps an entire cluster: one ArgoCD sync deploys all your teams\' applications. It\'s the standard pattern for fleet management at scale.',
+        },
+      ],
+    },
+
+    // ─── Module 7: Service Mesh ──────────────────────────────────────────────
+    {
+      id: 'p5-m7',
+      slug: 'service-mesh',
+      title: 'Service Mesh with Istio',
+      description: 'Add mutual TLS, traffic management, and deep observability to service-to-service communication without changing application code.',
+      duration: '90 min',
+      difficulty: 'advanced',
+      theory: `> 🧠 **Brain Warm-Up**: If you want every service-to-service HTTP call inside your cluster to be encrypted and authenticated — but you don't want to add TLS code to 50 microservices — how would you enforce that transparently? Who would terminate the TLS, and where would the encryption keys live?
+
+## The Problem: Distributed Systems Complexity
+
+As a system grows from a monolith to microservices, new problems emerge:
+- **Security**: How do you ensure every service-to-service call is encrypted and authenticated?
+- **Reliability**: How do you add retries, circuit breakers, and timeouts without rewriting every service?
+- **Observability**: How do you get request traces across 20 services without adding tracing SDK to each?
+
+A **service mesh** solves all three by moving this logic out of the application into the network layer.
+
+## How a Service Mesh Works: The Sidecar Pattern
+
+Istio injects an **Envoy proxy sidecar** into every Pod (automatically via MutatingAdmissionWebhook). The sidecar intercepts ALL inbound and outbound traffic using iptables rules — the application process is unaware.
+
+\`\`\`
+WITHOUT ISTIO                     WITH ISTIO
+─────────────────────             ──────────────────────────────────
+Pod A (app container)             Pod A
+  │ plain HTTP                      │ app container
+  ▼                                 │ envoy sidecar ← intercepts traffic
+Pod B (app container)               │   (mTLS, retries, metrics)
+                                    ▼
+                                  Pod B
+                                    │ envoy sidecar ← mutual TLS
+                                    │ app container
+\`\`\`
+
+## Core Istio Components
+
+\`\`\`
+┌───────────────────────────────────────────────────────┐
+│                  CONTROL PLANE                        │
+│                                                       │
+│  istiod (Pilot + Citadel + Galley merged)            │
+│  ├── Pilot: distributes routing config to sidecars   │
+│  ├── Citadel: Certificate Authority (issues mTLS certs) │
+│  └── Galley: validates Istio config resources        │
+└─────────────────────────┬─────────────────────────────┘
+                          │ xDS API (gRPC streaming)
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     DATA PLANE (every pod)                      │
+│  ┌──────────────────────────────────────┐                       │
+│  │ Pod                                  │                       │
+│  │  ┌───────────┐    ┌───────────────┐  │                       │
+│  │  │ App       │←───│ Envoy Sidecar │  │                       │
+│  │  │ Container │───→│ (istio-proxy) │  │                       │
+│  │  └───────────┘    └───────────────┘  │                       │
+│  │                   Handles:           │                       │
+│  │                   • mTLS termination │                       │
+│  │                   • retries/timeouts │                       │
+│  │                   • metrics/traces   │                       │
+│  └──────────────────────────────────────┘                       │
+└─────────────────────────────────────────────────────────────────┘
+\`\`\`
+
+## Mutual TLS (mTLS)
+
+Istio's Citadel component acts as a Certificate Authority. It issues short-lived X.509 certificates to every sidecar based on the Pod's ServiceAccount (SPIFFE identity: \`spiffe://cluster.local/ns/default/sa/web-sa\`).
+
+- **Strict mode** — sidecars only accept mTLS connections; plain HTTP is rejected
+- **Permissive mode** — sidecars accept both mTLS and plain HTTP (migration mode)
+
+\`\`\`yaml
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: production
+spec:
+  mtls:
+    mode: STRICT  # Reject all non-mTLS connections in this namespace
+\`\`\`
+
+## Traffic Management
+
+Istio's VirtualService and DestinationRule resources control how traffic is routed between services — independently of Kubernetes Services:
+
+\`\`\`yaml
+# Canary deploy: send 10% of traffic to v2
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: web
+spec:
+  hosts: [web]
+  http:
+  - route:
+    - destination:
+        host: web
+        subset: v1
+      weight: 90
+    - destination:
+        host: web
+        subset: v2
+      weight: 10
+\`\`\`
+
+## Observability: The Golden Signals
+
+Because all traffic passes through Envoy sidecars, Istio automatically collects:
+- **Metrics** — request rate, error rate, latency (exported to Prometheus)
+- **Traces** — distributed traces across all hops (via Jaeger/Zipkin via B3/W3C headers)
+- **Access logs** — every request/response with full metadata
+
+This observability is **zero-code** — no SDK changes required in any application.`,
+      labSteps: [
+        {
+          id: 'p5-m7-s1',
+          title: 'Install Istio with istioctl',
+          instruction: 'Download istioctl and install Istio with the demo profile (includes all components for learning).',
+          command: 'istioctl install --set profile=demo -y',
+          output: [
+            '✔ Istio core installed',
+            '✔ Istiod installed',
+            '✔ Egress gateways installed',
+            '✔ Ingress gateways installed',
+            '✔ Installation complete',
+            'Thank you for installing Istio 1.22.',
+          ],
+          explanation: 'The demo profile installs istiod (control plane), an ingress gateway, and an egress gateway. For production, use the default profile (no egress gateway, tuned resource limits). istioctl install validates the cluster compatibility before installing.',
+          clusterState: {
+            pods: [
+              { id: 'istiod', name: 'istiod-xxx', namespace: 'istio-system' as unknown as 'default', node: 'node-1', status: 'Running', labels: { app: 'istiod' }, image: 'istio/pilot:1.22', restarts: 0 },
+              { id: 'igw', name: 'istio-ingressgateway-xxx', namespace: 'istio-system' as unknown as 'default', node: 'node-2', status: 'Running', labels: { app: 'istio-ingressgateway' }, image: 'istio/proxyv2:1.22', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default', 'istio-system'], events: ['Istio 1.22 installed'],
+          },
+        },
+        {
+          id: 'p5-m7-s2',
+          title: 'Enable sidecar injection for a namespace',
+          instruction: 'Label the default namespace to trigger automatic Envoy sidecar injection for all new Pods.',
+          command: 'kubectl label namespace default istio-injection=enabled',
+          output: ['namespace/default labeled'],
+          explanation: 'The label istio-injection=enabled tells the Istio MutatingAdmissionWebhook to intercept every new Pod creation in this namespace and inject the istio-proxy (Envoy) sidecar container automatically. Existing Pods need to be recreated to get injected.',
+          clusterState: {
+            pods: [],
+            services: [], deployments: [], namespaces: ['default', 'istio-system'], events: ['Namespace default: sidecar injection enabled'],
+          },
+          tip: 'To verify injection: deploy a Pod and run “kubectl describe pod <name>” — you should see two containers: your app and istio-proxy.',
+        },
+        {
+          id: 'p5-m7-s3',
+          title: 'Deploy the Bookinfo sample app',
+          instruction: 'Deploy Istio\'s sample app to see sidecar injection in action.',
+          command: 'kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.22/samples/bookinfo/platform/kube/bookinfo.yaml',
+          output: [
+            'service/details created',
+            'serviceaccount/bookinfo-details created',
+            'deployment.apps/details-v1 created',
+            'service/ratings created',
+            'deployment.apps/ratings-v1 created',
+            'service/reviews created',
+            'deployment.apps/reviews-v1 created',
+            'deployment.apps/reviews-v2 created',
+            'deployment.apps/reviews-v3 created',
+            'service/productpage created',
+            'deployment.apps/productpage-v1 created',
+          ],
+          explanation: 'Bookinfo is a polyglot microservices app (Python, Java, Ruby, Node.js) used to demonstrate Istio features. Each Pod gets TWO containers: the app + istio-proxy. Verify: kubectl get pods — READY should show 2/2 for each.',
+          clusterState: {
+            pods: [
+              { id: 'pp', name: 'productpage-v1-xxx', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'productpage', version: 'v1' }, image: 'istio/examples-bookinfo-productpage-v1:1.17', restarts: 0 },
+              { id: 'rv1', name: 'reviews-v1-xxx', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'reviews', version: 'v1' }, image: 'istio/examples-bookinfo-reviews-v1:1.17', restarts: 0 },
+              { id: 'rv2', name: 'reviews-v2-xxx', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'reviews', version: 'v2' }, image: 'istio/examples-bookinfo-reviews-v2:1.17', restarts: 0 },
+            ],
+            services: [{ id: 'pp-svc', name: 'productpage', namespace: 'default', type: 'ClusterIP', selector: { app: 'productpage' }, port: 9080, clusterIP: '10.96.120.1' }],
+            deployments: [{ id: 'pp-dep', name: 'productpage-v1', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'bookinfo-productpage-v1' }],
+            namespaces: ['default', 'istio-system'], events: ['Bookinfo deployed — sidecars injected'],
+          },
+        },
+        {
+          id: 'p5-m7-s4',
+          title: 'Enable strict mTLS for the namespace',
+          instruction: 'Apply a PeerAuthentication policy to enforce mutual TLS for all services in the default namespace.',
+          command: 'kubectl apply -f -',
+          yamlContent: `apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: default
+spec:
+  mtls:
+    mode: STRICT`,
+          output: ['peerauthentication.security.istio.io/default created'],
+          explanation: 'With STRICT mTLS, any pod WITHOUT a sidecar (and therefore without a valid SPIFFE certificate) cannot communicate with sidecar-injected pods. This is zero-trust networking: every service-to-service call is encrypted and both sides are authenticated — with no code changes.',
+          clusterState: {
+            pods: [
+              { id: 'pp', name: 'productpage-v1-xxx', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'productpage', version: 'v1' }, image: 'istio/examples-bookinfo-productpage-v1:1.17', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default', 'istio-system'], events: ['PeerAuthentication STRICT mTLS applied'],
+          },
+          tip: 'Test mTLS: try to curl from a pod without a sidecar — it will be rejected. A pod with a sidecar (in an injection-enabled namespace) succeeds because its sidecar presents a valid certificate.',
+        },
+        {
+          id: 'p5-m7-s5',
+          title: 'Traffic shifting: canary deployment',
+          instruction: 'Apply VirtualService and DestinationRule to send 90% of reviews traffic to v1 and 10% to v2.',
+          command: 'kubectl apply -f -',
+          yamlContent: `apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: reviews
+spec:
+  host: reviews
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: reviews
+spec:
+  hosts:
+  - reviews
+  http:
+  - route:
+    - destination:
+        host: reviews
+        subset: v1
+      weight: 90
+    - destination:
+        host: reviews
+        subset: v2
+      weight: 10`,
+          output: [
+            'destinationrule.networking.istio.io/reviews created',
+            'virtualservice.networking.istio.io/reviews created',
+          ],
+          explanation: 'This is a canary deployment: 90% of requests go to reviews-v1 (no star ratings), 10% go to reviews-v2 (black stars). Istio routes at L7 based on this config — no Kubernetes Service changes needed. To roll out fully: change both weights to 0/100, then delete the VirtualService.',
+          clusterState: {
+            pods: [
+              { id: 'rv1', name: 'reviews-v1-xxx', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'reviews', version: 'v1' }, image: 'istio/examples-bookinfo-reviews-v1:1.17', restarts: 0 },
+              { id: 'rv2', name: 'reviews-v2-xxx', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'reviews', version: 'v2' }, image: 'istio/examples-bookinfo-reviews-v2:1.17', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default', 'istio-system'], events: ['VirtualService: 90% v1, 10% v2'],
+          },
+        },
+      ],
+      quiz: [
+        {
+          id: 'p5-m7-q1',
+          question: 'How does Istio intercept all traffic in a Pod without modifying application code?',
+          options: [
+            'It modifies the Kubernetes kube-proxy to route traffic through Envoy',
+            'It injects an Envoy sidecar container into the Pod and uses iptables rules to redirect all traffic through it',
+            'It requires applications to use the Istio SDK for HTTP calls',
+            'It replaces the container runtime with one that includes Envoy',
+          ],
+          answer: 1,
+          explanation: 'Istio\'s MutatingAdmissionWebhook injects an istio-proxy (Envoy) sidecar container into every Pod. The istio-init init container sets iptables rules that redirect all inbound and outbound traffic through the sidecar. The application process is completely unaware — it still sends to localhost:port as before.',
+        },
+        {
+          id: 'p5-m7-q2',
+          question: 'What is mutual TLS (mTLS) in the context of Istio?',
+          options: [
+            'TLS encryption only from client to server (one-way)',
+            'Both client and server present X.509 certificates — each side verifies the other\'s identity before communicating',
+            'TLS termination at the ingress gateway only',
+            'Encrypting etcd data at rest using TLS keys',
+          ],
+          answer: 1,
+          explanation: 'Mutual TLS means both sides authenticate each other. In Istio, each sidecar holds a SPIFFE X.509 certificate issued by istiod\'s CA, tied to the Pod\'s ServiceAccount. When two sidecars communicate, each verifies the other\'s certificate. This provides both encryption and workload identity verification.',
+        },
+        {
+          id: 'p5-m7-q3',
+          question: 'What Istio resource controls traffic weighting for canary deployments?',
+          options: [
+            'PeerAuthentication',
+            'ServiceEntry',
+            'VirtualService with route weights',
+            'DestinationRule subset labels',
+          ],
+          answer: 2,
+          explanation: 'VirtualService defines routing rules at L7 including weighted traffic splitting. You define route entries with weight fields (must sum to 100) pointing to DestinationRule subsets. DestinationRule defines the subsets by label selector (e.g., version: v1). Both resources together enable fine-grained canary rollouts.',
+        },
+        {
+          id: 'p5-m7-q4',
+          question: 'What observability data does Istio provide automatically without any application code changes?',
+          options: [
+            'Only CPU and memory metrics from Pods',
+            'Request metrics (rate/latency/errors), distributed traces, and per-request access logs for all service-to-service communication',
+            'Only Kubernetes API server audit logs',
+            'Application business metrics and custom events',
+          ],
+          answer: 1,
+          explanation: 'Because all traffic passes through Envoy sidecars, Istio automatically exports: metrics (request rate, error rate, p99 latency per service pair) to Prometheus, distributed traces (using B3/W3C propagation headers) to Jaeger/Zipkin, and structured access logs for every request. Zero SDK changes required in any service.',
         },
       ],
     },

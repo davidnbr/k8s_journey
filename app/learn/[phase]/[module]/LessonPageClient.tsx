@@ -44,7 +44,7 @@ function TheoryContent({ text }: { text: string }) {
       } else {
         inCode = false
         elements.push(
-          <pre key={i} className="bg-slate-900 border border-slate-700 rounded-lg p-4 overflow-x-auto text-xs font-mono text-slate-300 leading-relaxed mb-4">
+          <pre key={i} className="bg-slate-900 border border-slate-700 rounded-lg p-4 overflow-x-auto text-xs font-mono text-slate-300 leading-[1.2] mb-4">
             {codeLines.join('\n')}
           </pre>
         )

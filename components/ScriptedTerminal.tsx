@@ -144,7 +144,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
               <span className="text-xs text-slate-500">pod.yaml</span>
               <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">YAML</span>
             </div>
-            <pre className="text-xs font-mono text-slate-200 leading-relaxed">
+            <pre className="text-xs font-mono text-slate-200 leading-[1.2]">
               {step.yamlContent.split('\n').map((line, i) => {
                 const isKey = /^(\s*)([\w-]+):/.test(line) && !line.trimStart().startsWith('-')
                 const isComment = line.trimStart().startsWith('#')
