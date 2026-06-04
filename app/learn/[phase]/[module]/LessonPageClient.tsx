@@ -4,11 +4,18 @@ import { use, useState, useEffect, useCallback } from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getModule, getPhase, getNextModule, getPrevModule } from '@/content/index'
+import { getModuleReview } from '@/content/reviewMatrix'
 import {
+  getCommandFamilies,
+  getCoverageGaps,
+  getExerciseTasks,
+  getExternalTools,
+  getLocalPracticeChecklist,
   getModuleKeyConcepts,
   getModuleLearningObjectives,
   getModuleMasteryChecks,
   getModulePracticePrompts,
+  getRunnableCommands,
   spacedReviewCadence,
 } from '@/content/learningDesign'
 import { markStepReached, markModuleCompleted, getModuleStatus } from '@/lib/progress'
@@ -255,7 +262,20 @@ function TheoryContent({ text }: { text: string }) {
   return <div>{elements}</div>
 }
 
-function LearningContract({ mod }: { mod: NonNullable<ReturnType<typeof getModule>> }) {
+function LearningContract({
+  phaseSlug,
+  mod,
+}: {
+  phaseSlug: string
+  mod: NonNullable<ReturnType<typeof getModule>>
+}) {
+  const review = getModuleReview(phaseSlug, mod.slug)
+  const exerciseTasks = getExerciseTasks(mod, review)
+  const commandFamilies = getCommandFamilies(mod)
+  const runnableCommands = getRunnableCommands(mod)
+  const externalTools = getExternalTools(mod)
+  const coverageGaps = getCoverageGaps(mod)
+
   const sections = [
     {
       title: 'Learning Objectives',
@@ -328,6 +348,187 @@ function LearningContract({ mod }: { mod: NonNullable<ReturnType<typeof getModul
           ))}
         </ul>
       </details>
+
+      <div className="mt-4 bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div>
+            <div className="text-[11px] text-cyan-300 font-bold uppercase tracking-widest mb-1">
+              June 2026 Review + Local Practice Runbook
+            </div>
+            <p className="text-slate-400 text-xs leading-relaxed">
+              These are the concrete commands and procedures you should run on your computer,
+              against a local throwaway minikube cluster unless the module explicitly states otherwise.
+            </p>
+          </div>
+          <span className={`text-[10px] border rounded-full px-2 py-1 ${
+            review?.reviewStatus === 'verified' && coverageGaps.length === 0
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+              : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+          }`}>
+            {review?.reviewStatus === 'verified' && coverageGaps.length === 0
+              ? 'June 2026 verified'
+              : review?.reviewStatus ?? `${coverageGaps.length} gap${coverageGaps.length > 1 ? 's' : ''}`}
+          </span>
+        </div>
+
+        {review && (
+          <div className="grid md:grid-cols-2 gap-3 mb-3">
+            <div className="border border-emerald-500/20 rounded-xl p-3 bg-emerald-500/5">
+              <h3 className="text-emerald-300 text-xs font-semibold mb-2">Validated Against</h3>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {review.verifiedAgainst.map((item) => (
+                  <span key={item} className="text-[10px] bg-emerald-500/10 text-emerald-200 border border-emerald-500/20 rounded-full px-2 py-1">
+                    {item}
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400">Checked: {review.verifiedAt}</p>
+            </div>
+
+            <div className="border border-slate-800 rounded-xl p-3 bg-slate-950/50">
+              <h3 className="text-slate-200 text-xs font-semibold mb-2">Official Sources</h3>
+              <ul className="space-y-1.5">
+                {review.sourceRefs.slice(0, 6).map((source) => (
+                  <li key={`${source.title}-${source.url}`} className="text-xs leading-relaxed">
+                    <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-blue-300 hover:text-blue-200 underline underline-offset-2">
+                      {source.title}
+                    </a>
+                    <span className="text-slate-500"> · {source.scope} · checked {source.checkedAt}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-2 gap-3 mb-3">
+          <div className="border border-slate-800 rounded-xl p-3 bg-slate-950/50">
+            <h3 className="text-slate-200 text-xs font-semibold mb-2">Before Running Commands</h3>
+            <ul className="space-y-1.5">
+              {getLocalPracticeChecklist(mod).map((item) => (
+                <li key={item} className="text-xs text-slate-400 leading-relaxed flex gap-2">
+                  <span className="text-cyan-400 mt-0.5">-</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="border border-slate-800 rounded-xl p-3 bg-slate-950/50">
+            <h3 className="text-slate-200 text-xs font-semibold mb-2">Tools and Plugins</h3>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              <span className="text-[10px] bg-blue-500/10 text-blue-300 border border-blue-500/20 rounded-full px-2 py-1">
+                kubectl
+              </span>
+              {externalTools.map((tool) => (
+                <span key={tool} className="text-[10px] bg-slate-800 text-slate-300 border border-slate-700 rounded-full px-2 py-1">
+                  {tool}
+                </span>
+              ))}
+            </div>
+            {commandFamilies.length > 0 ? (
+              <ul className="space-y-1.5">
+                {commandFamilies.map((family) => (
+                  <li key={family.name} className="text-xs text-slate-400 leading-relaxed">
+                    <span className="text-slate-200">{family.name}:</span> {family.purpose}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-slate-500">No runnable command family detected for this module.</p>
+            )}
+          </div>
+        </div>
+
+        {review && (
+          <div className="mb-3 border border-slate-800 rounded-xl p-3 bg-slate-950/50">
+            <h3 className="text-slate-200 text-xs font-semibold mb-2">Topic Coverage Reviewed</h3>
+            <div className="grid md:grid-cols-2 gap-2">
+              {Object.entries(review.coverage).map(([key, values]) => (
+                <div key={key} className="rounded-lg border border-slate-800 bg-slate-900/50 p-2">
+                  <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">{key}</div>
+                  <div className="text-xs text-slate-300 leading-relaxed">{values.join(', ')}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {coverageGaps.length > 0 && (
+          <div className="mb-3 border border-amber-500/20 bg-amber-500/5 rounded-xl p-3">
+            <h3 className="text-amber-300 text-xs font-semibold mb-1">Detected Coverage Gaps</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              This module should be improved with: {coverageGaps.join(', ')}. Do not treat the topic as complete until those are added.
+            </p>
+          </div>
+        )}
+
+        <details className="border border-slate-800 rounded-xl p-3 bg-slate-950/50">
+          <summary className="cursor-pointer text-xs font-semibold text-slate-200">
+            Commands You Will Run Locally ({runnableCommands.length})
+          </summary>
+          {runnableCommands.length > 0 ? (
+            <div className="mt-3 space-y-2">
+              {mod.labSteps.filter((step) => step.command).map((step) => (
+                <div key={step.id} className="border border-slate-800 rounded-lg overflow-hidden">
+                  <div className="bg-slate-900 px-3 py-2 text-[11px] text-slate-400">
+                    {step.title}
+                  </div>
+                  <pre className="p-3 overflow-x-auto text-[11px] leading-relaxed text-cyan-200 font-mono">
+                    {step.command}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-slate-500">No local commands are defined yet.</p>
+          )}
+        </details>
+
+        <details className="mt-3 border border-slate-800 rounded-xl p-3 bg-slate-950/50" open>
+          <summary className="cursor-pointer text-xs font-semibold text-slate-200">
+            Exercises To Run On Your Computer ({exerciseTasks.length})
+          </summary>
+          <div className="mt-3 space-y-3">
+            {exerciseTasks.map((task) => (
+              <div key={task.id} className="border border-slate-800 rounded-lg overflow-hidden">
+                <div className="bg-slate-900 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-200">{task.title}</div>
+                      <div className="text-[11px] text-slate-500">{task.goal}</div>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-widest text-cyan-300 border border-cyan-500/20 rounded-full px-2 py-1">
+                      {task.kind}
+                    </span>
+                  </div>
+                </div>
+                <div className="grid md:grid-cols-3 gap-0">
+                  <div className="p-3 border-b md:border-b-0 md:border-r border-slate-800">
+                    <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Run</div>
+                    <pre className="overflow-x-auto text-[11px] leading-relaxed text-cyan-200 font-mono whitespace-pre-wrap">
+                      {task.commands.join('\n')}
+                    </pre>
+                  </div>
+                  <div className="p-3 border-b md:border-b-0 md:border-r border-slate-800">
+                    <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Verify</div>
+                    <pre className="overflow-x-auto text-[11px] leading-relaxed text-emerald-200 font-mono whitespace-pre-wrap">
+                      {task.verify.join('\n')}
+                    </pre>
+                    <p className="text-[11px] text-slate-500 mt-2">{task.expectedOutcome}</p>
+                  </div>
+                  <div className="p-3">
+                    <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Cleanup</div>
+                    <pre className="overflow-x-auto text-[11px] leading-relaxed text-amber-200 font-mono whitespace-pre-wrap">
+                      {task.cleanup.join('\n')}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+      </div>
     </div>
   )
 }
@@ -436,7 +637,7 @@ export default function LessonPageClient({ params }: PageProps) {
                 <p className="text-slate-400 text-sm mt-1">{mod.description}</p>
               </div>
 
-              <LearningContract mod={mod} />
+              <LearningContract phaseSlug={phaseSlug} mod={mod} />
 
               <TheoryContent text={mod.theory} />
 

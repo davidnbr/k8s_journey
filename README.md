@@ -27,6 +27,19 @@ Every module follows the same evidence-backed loop:
 7. **Transfer** — repeat a similar task with a changed name, namespace, image, selector, or constraint.
 8. **Space review** — revisit the module after 1 day, 3 days, 7 days, and 21 days.
 
+Every topic must also satisfy the course coverage contract:
+
+1. **Concepts** — what the Kubernetes object, subsystem, or tool is responsible for.
+2. **Commands** — exact commands the learner runs locally, usually with `kubectl`, plus tool-specific CLIs when needed.
+3. **Architecture** — where the object fits in the control plane, node, network, storage, or delivery workflow.
+4. **Techniques** — operational patterns such as rollout, rollback, patching, scaling, canarying, debugging, isolation, or hardening.
+5. **Procedures** — ordered steps from a blank terminal to a verified outcome.
+6. **Tools and plugins** — `kubectl`, Helm, Kustomize, ArgoCD, Istio, metrics-server, Prometheus/Grafana, etc. when relevant.
+7. **Cases and scenarios** — when the topic is used, when it fails, and how to recognize the failure.
+8. **Local exercises** — commands the learner can run on their own machine against a disposable cluster.
+
+The app automatically audits each module against this contract and shows a `verified` or `gap` badge on the course overview. A module with a gap is not considered complete content.
+
 The learning methods are intentionally conservative:
 
 - **Practice testing / retrieval practice**: supported by Roediger & Karpicke and the Dunlosky et al. review.
@@ -167,6 +180,8 @@ The learning metadata is optional. If it is missing, the app generates conservat
 - Renkl, A., Atkinson, R. K., & Maier, U. H. (2000s). Worked-example fading and cognitive load research.
 - Kubernetes official documentation: https://kubernetes.io/docs/
 - Kubernetes official releases: https://kubernetes.io/releases/
+- Kubernetes kubectl reference: https://kubernetes.io/docs/reference/kubectl/
+- Helm command reference: https://helm.sh/docs/helm/
 
 ## Scripts
 

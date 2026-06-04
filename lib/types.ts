@@ -65,6 +65,53 @@ export interface QuizQuestion {
   explanation: string
 }
 
+// ─── Review & Exercise Metadata ─────────────────────────────────────────────
+
+export type ReviewStatus = 'verified' | 'needs-update' | 'blocked'
+
+export interface SourceRef {
+  title: string
+  url: string
+  checkedAt: string       // YYYY-MM
+  scope: 'concepts' | 'commands' | 'tutorial' | 'tooling' | 'release'
+}
+
+export interface ExerciseTask {
+  id: string
+  title: string
+  kind: 'guided' | 'challenge' | 'debug' | 'spaced-review'
+  goal: string
+  commands: string[]
+  verify: string[]
+  expectedOutcome: string
+  cleanup: string[]
+}
+
+export interface TopicCoverage {
+  concepts: string[]
+  commands: string[]
+  architecture: string[]
+  techniques: string[]
+  procedures: string[]
+  toolsAndPlugins: string[]
+  cases: string[]
+  scenarios: string[]
+}
+
+export interface ModuleReview {
+  moduleId: string
+  phaseSlug: string
+  moduleSlug: string
+  verifiedAt: string
+  verifiedAgainst: string[]
+  reviewStatus: ReviewStatus
+  reviewNotes: string[]
+  sourceRefs: SourceRef[]
+  coverage: TopicCoverage
+  minikubePrerequisites: string[]
+  supplementalCommands: string[]
+}
+
 // ─── Course Structure ─────────────────────────────────────────────────────────
 
 export interface Module {
@@ -78,6 +125,8 @@ export interface Module {
   keyConcepts?: string[]        // core concepts to retrieve during review
   practicePrompts?: string[]    // short exercises that force prediction, recall, or transfer
   masteryChecks?: string[]      // observable criteria for moving on
+  coverage?: TopicCoverage
+  exercises?: ExerciseTask[]
   theory: string          // markdown-like text shown before the lab
   labSteps: LabStep[]
   quiz: QuizQuestion[]

@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { phases } from '@/content/index'
-import { getPhaseLearningRole, learningPrinciples } from '@/content/learningDesign'
+import { getModuleReview } from '@/content/reviewMatrix'
+import { getCoverageGaps, getPhaseLearningRole, learningPrinciples } from '@/content/learningDesign'
 
 export default function LearnOverviewPage() {
   const [search, setSearch] = useState('')
@@ -26,6 +27,14 @@ export default function LearnOverviewPage() {
   const totalModules = phases.reduce((a, p) => a + p.modules.length, 0)
   const totalLabs = phases.reduce((a, p) => a + p.modules.reduce((b, m) => b + m.labSteps.length, 0), 0)
   const totalQuizzes = phases.reduce((a, p) => a + p.modules.reduce((b, m) => b + m.quiz.length, 0), 0)
+  const modulesWithGaps = phases.reduce(
+    (a, p) => a + p.modules.filter((m) => getCoverageGaps(m).length > 0).length,
+    0
+  )
+  const verifiedReviews = phases.reduce(
+    (a, p) => a + p.modules.filter((m) => getModuleReview(p.slug, m.slug)?.reviewStatus === 'verified').length,
+    0
+  )
 
   return (
     <div id="main-content" className="max-w-4xl mx-auto px-6 py-10">
@@ -33,6 +42,9 @@ export default function LearnOverviewPage() {
         <h1 className="text-2xl font-bold text-slate-100 mb-2">Course Overview</h1>
         <p className="text-slate-400 text-sm">
           {phases.length} phases · {totalModules} modules · {totalLabs} lab steps · {totalQuizzes} quiz questions
+        </p>
+        <p className="text-slate-500 text-xs mt-1">
+          June 2026 review: {verifiedReviews}/{totalModules} modules have official/CNCF source validation. Coverage audit: {totalModules - modulesWithGaps}/{totalModules} modules include concepts, commands, architecture/state, procedures, tools, scenarios, and local exercises.
         </p>
       </div>
 
@@ -155,6 +167,8 @@ export default function LearnOverviewPage() {
                   const modOriginalIndex = phases
                     .find((p) => p.id === phase.id)
                     ?.modules.findIndex((m) => m.id === mod.id) ?? 0
+                  const gaps = getCoverageGaps(mod)
+                  const review = getModuleReview(phase.slug, mod.slug)
                   return (
                     <Link
                       key={mod.id}
@@ -179,7 +193,22 @@ export default function LearnOverviewPage() {
                             {mod.difficulty}
                           </span>
                         </div>
-                        <span className="text-slate-600 text-xs">{mod.duration}</span>
+                        <div className="flex items-center gap-1.5">
+                          {gaps.length === 0 ? (
+                            <span className={`text-[10px] border rounded-full px-1.5 py-0.5 ${
+                              review?.reviewStatus === 'verified'
+                                ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                            }`}>
+                              {review?.reviewStatus === 'verified' ? 'June 2026 verified' : 'needs review'}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full px-1.5 py-0.5">
+                              {gaps.length} gap{gaps.length > 1 ? 's' : ''}
+                            </span>
+                          )}
+                          <span className="text-slate-600 text-xs">{mod.duration}</span>
+                        </div>
                       </div>
                       <h3 className="text-slate-200 font-semibold text-sm group-hover:text-white transition-colors mb-1">
                         {mod.title}
