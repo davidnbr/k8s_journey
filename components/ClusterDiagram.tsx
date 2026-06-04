@@ -171,7 +171,7 @@ export default function ClusterDiagram({ state }: Props) {
         <span className="text-slate-400 font-semibold text-[11px] uppercase tracking-widest">Live Cluster</span>
         <span className="text-emerald-400 text-[10px] flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-dot inline-block" />
-          v1.35
+          demo
         </span>
       </div>
 

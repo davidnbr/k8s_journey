@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { phases } from '@/content/index'
+import { getPhaseLearningRole, learningPrinciples } from '@/content/learningDesign'
 
 export default function LearnOverviewPage() {
   const [search, setSearch] = useState('')
@@ -65,20 +66,50 @@ export default function LearnOverviewPage() {
 
       {/* Learning system reminder — hide when searching */}
       {!query && (
-        <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 mb-8">
-          <h2 className="text-blue-300 text-sm font-semibold mb-2">The Learning Loop (for every module)</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+        <div className="space-y-4 mb-8">
+          <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4">
+            <h2 className="text-blue-300 text-sm font-semibold mb-2">The Learning Loop (inside every module)</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              {[
+                ['1. Preview', 'Load the mental model before details'],
+                ['2. Predict', 'Guess the state change before commands'],
+                ['3. Run + Explain', 'Use the lab and diagram together'],
+                ['4. Recall + Transfer', 'Quiz, then solve a small variant'],
+              ].map(([title, desc]) => (
+                <div key={title} className="bg-blue-500/5 rounded-lg p-2">
+                  <div className="text-blue-400 font-semibold mb-0.5">{title}</div>
+                  <div className="text-slate-400">{desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+            <h2 className="text-slate-100 text-sm font-semibold mb-2">Science-backed constraints used to order the course</h2>
+            <div className="grid md:grid-cols-2 gap-2">
+              {learningPrinciples.map((principle) => (
+                <div key={principle.name} className="bg-slate-950/60 border border-slate-800 rounded-lg p-3">
+                  <div className="text-slate-200 text-xs font-semibold mb-1">{principle.name}</div>
+                  <div className="text-slate-500 text-xs leading-relaxed">{principle.courseUse}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+            <h2 className="text-amber-300 text-sm font-semibold mb-2">How to know you should move on</h2>
+            <div className="grid md:grid-cols-3 gap-2 text-xs">
             {[
-              ['1. Preview', 'Glance at the diagram (30s)'],
-              ['2. Read Theory', 'Concept + visual explanation'],
-              ['3. Run the Lab', 'Step-by-step terminal walkthrough'],
-              ['4. Quiz Yourself', 'Active recall before the answers'],
+              ['Explain', 'You can describe the object and controller behavior without notes.'],
+              ['Operate', 'You can run the lab path from a blank terminal.'],
+              ['Debug', 'You can break one thing and identify the failing object or field.'],
             ].map(([title, desc]) => (
-              <div key={title} className="bg-blue-500/5 rounded-lg p-2">
-                <div className="text-blue-400 font-semibold mb-0.5">{title}</div>
+              <div key={title} className="bg-amber-500/5 rounded-lg p-2">
+                <div className="text-amber-400 font-semibold mb-0.5">{title}</div>
                 <div className="text-slate-400">{desc}</div>
               </div>
             ))}
+            </div>
           </div>
         </div>
       )}
@@ -106,6 +137,11 @@ export default function LearnOverviewPage() {
                     </div>
                     <h2 className="text-slate-100 font-bold text-lg">{phase.title}</h2>
                     <p className="text-slate-400 text-xs mt-1">{phase.description}</p>
+                    {!query && (
+                      <p className="text-slate-500 text-xs mt-2">
+                        Learning role: {getPhaseLearningRole(phase, originalIndex)}
+                      </p>
+                    )}
                   </div>
                   <span className="text-slate-500 text-xs bg-slate-900/60 border border-slate-700 px-2 py-1 rounded">
                     {phase.hours}

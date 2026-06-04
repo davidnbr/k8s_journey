@@ -4,6 +4,13 @@ import { use, useState, useEffect, useCallback } from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getModule, getPhase, getNextModule, getPrevModule } from '@/content/index'
+import {
+  getModuleKeyConcepts,
+  getModuleLearningObjectives,
+  getModuleMasteryChecks,
+  getModulePracticePrompts,
+  spacedReviewCadence,
+} from '@/content/learningDesign'
 import { markStepReached, markModuleCompleted, getModuleStatus } from '@/lib/progress'
 import type { ClusterState } from '@/lib/types'
 import ScriptedTerminal from '@/components/ScriptedTerminal'
@@ -248,6 +255,83 @@ function TheoryContent({ text }: { text: string }) {
   return <div>{elements}</div>
 }
 
+function LearningContract({ mod }: { mod: NonNullable<ReturnType<typeof getModule>> }) {
+  const sections = [
+    {
+      title: 'Learning Objectives',
+      eyebrow: 'What you must be able to do',
+      items: getModuleLearningObjectives(mod),
+      tone: 'border-blue-500/25 bg-blue-500/5 text-blue-300',
+    },
+    {
+      title: 'Retrieval Targets',
+      eyebrow: 'Recall these without notes',
+      items: getModuleKeyConcepts(mod),
+      tone: 'border-emerald-500/25 bg-emerald-500/5 text-emerald-300',
+    },
+    {
+      title: 'Practice Exercises',
+      eyebrow: 'Do, predict, troubleshoot',
+      items: getModulePracticePrompts(mod),
+      tone: 'border-amber-500/25 bg-amber-500/5 text-amber-300',
+    },
+    {
+      title: 'Mastery Checks',
+      eyebrow: 'Move on only when true',
+      items: getModuleMasteryChecks(mod),
+      tone: 'border-slate-600 bg-slate-900/70 text-slate-300',
+    },
+  ]
+
+  return (
+    <div className="mb-8">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+        <div className="text-[11px] text-blue-300 font-bold uppercase tracking-widest mb-1">
+          Evidence-Based Learning Loop
+        </div>
+        <p className="text-slate-300 text-sm leading-relaxed">
+          Preview the idea, predict the result, run the guided lab, explain what changed,
+          then repeat a variant from memory. This combines retrieval practice, spaced
+          review, worked examples, and transfer practice.
+        </p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-3">
+        {sections.map((section) => (
+          <section key={section.title} className={`border rounded-xl p-4 ${section.tone}`}>
+            <div className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">
+              {section.eyebrow}
+            </div>
+            <h2 className="text-sm font-bold text-slate-100 mb-2">{section.title}</h2>
+            <ul className="space-y-1.5">
+              {section.items.map((item) => (
+                <li key={item} className="text-xs text-slate-300 leading-relaxed flex gap-2">
+                  <span className="text-slate-500 mt-0.5">-</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+
+      <details className="mt-3 bg-slate-900/70 border border-slate-800 rounded-xl p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-200">
+          Spaced Review Schedule
+        </summary>
+        <ul className="mt-3 space-y-1.5">
+          {spacedReviewCadence.map((item) => (
+            <li key={item} className="text-xs text-slate-400 leading-relaxed flex gap-2">
+              <span className="text-blue-400 mt-0.5">-</span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </div>
+  )
+}
+
 export default function LessonPageClient({ params }: PageProps) {
   const { phase: phaseSlug, module: moduleSlug } = use(params)
 
@@ -351,6 +435,8 @@ export default function LessonPageClient({ params }: PageProps) {
                 <h1 className="text-2xl font-bold text-slate-100 mt-1">{mod.title}</h1>
                 <p className="text-slate-400 text-sm mt-1">{mod.description}</p>
               </div>
+
+              <LearningContract mod={mod} />
 
               <TheoryContent text={mod.theory} />
 

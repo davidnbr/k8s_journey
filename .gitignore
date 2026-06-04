@@ -161,3 +161,4 @@ vite.config.ts.timestamp-*
 
 # Custom
 current_progress/
+.antigravitycli/

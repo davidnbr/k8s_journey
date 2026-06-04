@@ -74,6 +74,10 @@ export interface Module {
   description: string
   duration: string
   difficulty: 'beginner' | 'intermediate' | 'advanced'
+  learningObjectives?: string[] // what the learner should be able to do after the module
+  keyConcepts?: string[]        // core concepts to retrieve during review
+  practicePrompts?: string[]    // short exercises that force prediction, recall, or transfer
+  masteryChecks?: string[]      // observable criteria for moving on
   theory: string          // markdown-like text shown before the lab
   labSteps: LabStep[]
   quiz: QuizQuestion[]

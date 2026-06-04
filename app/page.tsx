@@ -28,7 +28,7 @@ export default function HomePage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs px-3 py-1.5 rounded-full mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse inline-block" />
-            Kubernetes v1.35 · Updated March 2026
+            Kubernetes fundamentals · Docs checked June 2026
           </div>
 
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
@@ -42,8 +42,9 @@ export default function HomePage() {
           </h1>
 
           <p className="text-slate-400 text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
-            Interactive labs with a live cluster diagram. Scripted walkthroughs, animated
-            diagrams, and active recall quizzes — designed around how your brain actually learns.
+            A complete Kubernetes path ordered by cognitive load: mental models, primitives,
+            reliability, networking, security, production tooling, and certification drills.
+            Every module uses prediction, labs, troubleshooting, retrieval practice, and spaced review.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 mb-10">
@@ -86,15 +87,15 @@ export default function HomePage() {
       <section className="max-w-5xl mx-auto px-6 py-16">
         <h2 className="text-xl font-bold text-slate-100 mb-2 text-center">How Each Lesson Works</h2>
         <p className="text-slate-500 text-sm text-center mb-10">
-          Built on spaced repetition, active recall, and dual coding — the three most evidence-based learning techniques.
+          Built on practice testing, distributed practice, worked examples, dual coding, and transfer exercises.
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { icon: '📖', step: '1', title: 'Read Theory', desc: 'Concept + ASCII architecture diagram' },
-            { icon: '▶', step: '2', title: 'Run the Lab', desc: 'Step-by-step scripted terminal walkthrough' },
-            { icon: '🎨', step: '3', title: 'Watch the Diagram', desc: 'Cluster state animates as you run commands' },
-            { icon: '🧠', step: '4', title: 'Active Recall Quiz', desc: 'Test yourself before the answers are shown' },
+            { icon: '▶', step: '2', title: 'Predict + Run', desc: 'Guess the state change before each command' },
+            { icon: '🎨', step: '3', title: 'Explain the Diagram', desc: 'Connect kubectl output to cluster state' },
+            { icon: '🧠', step: '4', title: 'Recall + Transfer', desc: 'Quiz, review later, and solve a variant' },
           ].map((item) => (
             <div
               key={item.step}
@@ -151,7 +152,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800 py-6 text-center text-xs text-slate-600">
-        Sources: kubernetes.io · cncf.io · Kubernetes v1.35 (Timbernetes) · March 2026
+        Sources: kubernetes.io · cncf.io · learning science references in README
       </footer>
     </main>
   )
