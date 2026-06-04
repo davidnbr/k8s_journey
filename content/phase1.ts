@@ -249,6 +249,81 @@ spec:
           explanation: 'READY shows "readyContainers/totalContainers". "2/3" means 3 containers exist in the Pod but only 2 are passing their readiness probe.',
         },
       ],
+      coverage: {
+        concepts: ['Pod as smallest deployable unit', 'single IP per Pod', 'shared network namespace between containers', 'shared volumes between containers', 'Pod lifecycle phases', 'restartPolicy', 'multi-container Pod patterns'],
+        commands: ['kubectl run', 'kubectl get pods', 'kubectl get pods -o wide', 'kubectl describe pod', 'kubectl logs', 'kubectl exec -it', 'kubectl delete pod', 'kubectl apply -f', 'kubectl get pod -o yaml'],
+        architecture: ['Pod as wrapper around containers', 'pause/infra container for shared network namespace', 'Pod IP assignment via CNI', 'kubelet lifecycle management'],
+        techniques: ['imperative pod creation with kubectl run', 'declarative pod spec with YAML', 'multi-container sidecar pattern', 'pod debugging with exec and logs'],
+        procedures: ['create a pod imperatively', 'create a pod from YAML', 'inspect pod status and events', 'view pod logs', 'exec into a running pod container', 'delete a pod'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['CrashLoopBackOff — container exits immediately', 'Pending — insufficient node resources', 'ImagePullBackOff — wrong image name or tag', 'OOMKilled — container exceeded memory limit'],
+        scenarios: ['debug a crashing container without restarting the pod', 'inspect a running pod container filesystem'],
+      },
+      exercises: [
+        {
+          id: 'p1-m1-e1',
+          title: 'Create, inspect, and delete a Pod',
+          kind: 'guided',
+          goal: 'Practice the full pod lifecycle: create → inspect → log → exec → delete.',
+          commands: [
+            'kubectl run nginx-pod --image=nginx:1.27 --port=80',
+            'kubectl get pods',
+            'kubectl describe pod nginx-pod',
+            'kubectl logs nginx-pod',
+            'kubectl exec -it nginx-pod -- sh -c "ls /usr/share/nginx/html"',
+            'kubectl delete pod nginx-pod',
+          ],
+          verify: ['kubectl get pods shows nginx-pod Running', 'kubectl logs returns nginx access log or startup output', 'exec returns html directory listing'],
+          expectedOutcome: 'Pod created, inspected, logged, exec\'d into, and deleted cleanly.',
+          cleanup: ['kubectl delete pod nginx-pod --ignore-not-found'],
+        },
+        {
+          id: 'p1-m1-e2',
+          title: 'Create a Pod from a YAML manifest',
+          kind: 'challenge',
+          goal: 'Write a Pod manifest from memory with custom labels and apply it.',
+          commands: [
+            'kubectl run nginx-yaml --image=nginx:1.27 --port=80 --labels=app=web,env=review --dry-run=client -o yaml > /tmp/nginx-pod.yaml',
+            'kubectl apply -f /tmp/nginx-pod.yaml',
+            'kubectl get pod nginx-yaml --show-labels',
+            'kubectl get pod nginx-yaml -o yaml | grep -A5 labels',
+          ],
+          verify: ['Pod shows Running status', 'Labels app=web and env=review visible in output'],
+          expectedOutcome: 'Pod manifest written, applied, and labels confirmed.',
+          cleanup: ['kubectl delete pod nginx-yaml --ignore-not-found', 'rm -f /tmp/nginx-pod.yaml'],
+        },
+        {
+          id: 'p1-m1-e3',
+          title: 'Diagnose ImagePullBackOff',
+          kind: 'debug',
+          goal: 'Understand what happens when a pod uses a non-existent image and how to diagnose it.',
+          commands: [
+            'kubectl run bad-pod --image=nginx:this-tag-does-not-exist-9999',
+            'kubectl get pods bad-pod',
+            'kubectl describe pod bad-pod',
+            'kubectl get events --field-selector involvedObject.name=bad-pod',
+          ],
+          verify: ['kubectl get pods shows ErrImagePull or ImagePullBackOff', 'kubectl describe pod shows Failed to pull image in Events section'],
+          expectedOutcome: 'ImagePullBackOff diagnosed via describe and events.',
+          cleanup: ['kubectl delete pod bad-pod --ignore-not-found'],
+        },
+        {
+          id: 'p1-m1-e4',
+          title: '1-day spaced review — pod inspection commands',
+          kind: 'spaced-review',
+          goal: 'Recall pod inspection commands from memory and run them against a live pod.',
+          commands: [
+            'kubectl run review-pod --image=nginx:1.27',
+            'kubectl get pods -o wide',
+            'kubectl describe pod review-pod',
+            'kubectl logs review-pod',
+            'kubectl delete pod review-pod',
+          ],
+          verify: ['All commands run without error', 'describe output shows IP, Node, Containers, and Events sections'],
+          expectedOutcome: 'Pod lifecycle commands recalled and executed without consulting notes.',
+          cleanup: ['kubectl delete pod review-pod --ignore-not-found'],
+        },
+      ],
     },
     {
       id: 'p1-m2',
@@ -467,6 +542,87 @@ Step 5: [v2][v2][v2]       ← done ✓
           explanation: 'Kubernetes keeps the previous ReplicaSet around (scaled to 0). "rollout undo" scales the old RS back up and scales the current RS down — an instant rollback.',
         },
       ],
+      coverage: {
+        concepts: ['Deployment controller', 'ReplicaSet', 'Pod template', 'desired vs actual replicas', 'rolling update strategy', 'maxSurge and maxUnavailable', 'revision history limit'],
+        commands: ['kubectl create deployment', 'kubectl get deployments', 'kubectl describe deployment', 'kubectl scale deployment', 'kubectl set image deployment', 'kubectl rollout status', 'kubectl rollout history', 'kubectl rollout undo', 'kubectl get replicasets'],
+        architecture: ['Deployment → ReplicaSet → Pod ownership chain', 'controller reconciliation loop', 'revision tracking via ReplicaSet annotations', 'how rolling update replaces pods gradually'],
+        techniques: ['rolling update with zero downtime', 'rollback with rollout undo', 'scaling replicas up and down', 'pausing and resuming rollouts'],
+        procedures: ['create a deployment', 'scale replicas', 'update container image', 'check rollout status', 'view rollout history', 'rollback to previous revision'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['rollout stuck due to bad image — pods in ImagePullBackOff', 'scale to 0 to fully disable workload', 'rollback after bad deploy breaks the app'],
+        scenarios: ['zero-downtime image update with health checks', 'recover from a broken deployment in production'],
+      },
+      exercises: [
+        {
+          id: 'p1-m2-e1',
+          title: 'Full deployment lifecycle',
+          kind: 'guided',
+          goal: 'Create a deployment, scale it, update the image, and verify rollout status.',
+          commands: [
+            'kubectl create deployment web --image=nginx:1.26 --replicas=2',
+            'kubectl get deployments',
+            'kubectl get pods -l app=web',
+            'kubectl scale deployment web --replicas=4',
+            'kubectl get pods -l app=web',
+            'kubectl set image deployment/web nginx=nginx:1.27',
+            'kubectl rollout status deployment/web',
+            'kubectl rollout history deployment/web',
+          ],
+          verify: ['4 pods Running after scale', 'rollout status shows "successfully rolled out"', 'rollout history shows revision 2'],
+          expectedOutcome: 'Deployment created, scaled to 4, image updated to 1.27, rollout confirmed.',
+          cleanup: ['kubectl delete deployment web'],
+        },
+        {
+          id: 'p1-m2-e2',
+          title: 'Deploy, break, and rollback',
+          kind: 'challenge',
+          goal: 'Perform a full deploy → bad-update → rollback cycle from memory.',
+          commands: [
+            'kubectl create deployment app --image=nginx:1.27 --replicas=2',
+            'kubectl set image deployment/app nginx=nginx:this-image-does-not-exist',
+            'kubectl rollout status deployment/app',
+            'kubectl get pods -l app=app',
+            'kubectl rollout undo deployment/app',
+            'kubectl rollout status deployment/app',
+          ],
+          verify: ['Bad image causes pods to stay in ImagePullBackOff', 'rollout undo brings deployment back to nginx:1.27', 'All pods Running after rollback'],
+          expectedOutcome: 'Broken rollout diagnosed and rolled back successfully.',
+          cleanup: ['kubectl delete deployment app'],
+        },
+        {
+          id: 'p1-m2-e3',
+          title: 'Diagnose a stuck rollout',
+          kind: 'debug',
+          goal: 'Identify why a rollout is stuck and use describe to find the root cause.',
+          commands: [
+            'kubectl create deployment stuck --image=nginx:1.27 --replicas=3',
+            'kubectl set image deployment/stuck nginx=gcr.io/fake-project/fake-image:v1',
+            'kubectl rollout status deployment/stuck',
+            'kubectl describe deployment stuck',
+            'kubectl get pods -l app=stuck',
+            'kubectl describe pod -l app=stuck | grep -A10 Events',
+          ],
+          verify: ['rollout status shows waiting / not progressing', 'describe deployment shows unavailable replicas', 'pod events show image pull failure'],
+          expectedOutcome: 'Stuck rollout root cause identified via describe deployment and pod events.',
+          cleanup: ['kubectl delete deployment stuck'],
+        },
+        {
+          id: 'p1-m2-e4',
+          title: '3-day spaced review — rollout commands',
+          kind: 'spaced-review',
+          goal: 'Recall the full set of rollout management commands without looking them up.',
+          commands: [
+            'kubectl create deployment sr-web --image=nginx:1.27 --replicas=2',
+            'kubectl rollout status deployment/sr-web',
+            'kubectl rollout history deployment/sr-web',
+            'kubectl rollout undo deployment/sr-web',
+            'kubectl delete deployment sr-web',
+          ],
+          verify: ['All commands run without syntax errors', 'rollout history shows at least revision 1'],
+          expectedOutcome: 'Deployment rollout commands recalled and executed correctly from memory.',
+          cleanup: ['kubectl delete deployment sr-web --ignore-not-found'],
+        },
+      ],
     },
     {
       id: 'p1-m3',
@@ -661,6 +817,85 @@ Client Request (curl http://web-service:80)
           ],
           answer: 2,
           explanation: 'NodePort is useful when you don\'t have a cloud provider (no LoadBalancer) but need external access. It opens a port (30000-32767) on every node. For production external traffic, use LoadBalancer or Ingress.',
+        },
+      ],
+      coverage: {
+        concepts: ['Service types: ClusterIP/NodePort/LoadBalancer', 'label selectors and pod targeting', 'Endpoints object', 'ClusterIP virtual IP', 'DNS-based service discovery', 'headless services'],
+        commands: ['kubectl expose', 'kubectl get services', 'kubectl describe service', 'kubectl get endpoints', 'minikube service', 'kubectl port-forward svc/', 'kubectl run curl --image=curlimages/curl --restart=Never'],
+        architecture: ['kube-proxy iptables/IPVS rules for routing', 'CoreDNS service DNS: <svc>.<ns>.svc.cluster.local', 'Endpoints controller watching pods via selector', 'Service to Pod traffic flow'],
+        techniques: ['expose deployment as service', 'port-forward for local dev testing', 'minikube service URL for NodePort access', 'DNS-based service discovery between pods', 'debugging empty Endpoints'],
+        procedures: ['create ClusterIP service', 'create NodePort service', 'access service via minikube service', 'verify endpoints are populated', 'curl service from another pod by DNS name'],
+        toolsAndPlugins: ['kubectl', 'minikube', 'CoreDNS'],
+        cases: ['selector mismatch → Endpoints list is empty', 'pod missing label → not included in endpoints', 'NodePort out of valid range 30000-32767'],
+        scenarios: ['debug why a service has no endpoints', 'access an internal ClusterIP service from another pod using DNS'],
+      },
+      exercises: [
+        {
+          id: 'p1-m3-e1',
+          title: 'Expose a deployment and access it via NodePort',
+          kind: 'guided',
+          goal: 'Create a deployment, expose it as a NodePort service, and access it from outside the cluster.',
+          commands: [
+            'kubectl create deployment web --image=nginx:1.27 --replicas=2',
+            'kubectl expose deployment web --type=NodePort --port=80',
+            'kubectl get services web',
+            'kubectl get endpoints web',
+            'minikube service web --url',
+          ],
+          verify: ['kubectl get services shows web with NodePort type and a port in 30000-32767 range', 'kubectl get endpoints shows pod IPs', 'minikube service returns a URL that responds with nginx welcome page'],
+          expectedOutcome: 'Deployment exposed via NodePort, accessible from outside the cluster.',
+          cleanup: ['kubectl delete service web', 'kubectl delete deployment web'],
+        },
+        {
+          id: 'p1-m3-e2',
+          title: 'Access ClusterIP service via DNS from another pod',
+          kind: 'challenge',
+          goal: 'Verify DNS-based service discovery works between pods.',
+          commands: [
+            'kubectl create deployment backend --image=nginx:1.27',
+            'kubectl expose deployment backend --type=ClusterIP --port=80',
+            'kubectl run curl-pod --image=curlimages/curl:8.7.1 --restart=Never -- sleep 3600',
+            'kubectl exec curl-pod -- curl -s http://backend.default.svc.cluster.local',
+            'kubectl exec curl-pod -- curl -s http://backend',
+          ],
+          verify: ['curl to backend.default.svc.cluster.local returns nginx HTML', 'Short name backend also resolves within default namespace'],
+          expectedOutcome: 'DNS service discovery confirmed between pods in the same namespace.',
+          cleanup: ['kubectl delete pod curl-pod', 'kubectl delete service backend', 'kubectl delete deployment backend'],
+        },
+        {
+          id: 'p1-m3-e3',
+          title: 'Debug a service with empty endpoints',
+          kind: 'debug',
+          goal: 'Diagnose why a service has no endpoints due to a selector mismatch.',
+          commands: [
+            'kubectl create deployment target --image=nginx:1.27 --replicas=2',
+            'kubectl expose deployment target --type=ClusterIP --port=80',
+            'kubectl label pods -l app=target app-',
+            'kubectl get endpoints target',
+            'kubectl describe service target',
+            'kubectl get pods --show-labels',
+          ],
+          verify: ['kubectl get endpoints shows empty or no IPs after label removal', 'kubectl describe service shows Endpoints: <none>'],
+          expectedOutcome: 'Understand that selector mismatch causes empty endpoints and traffic drops.',
+          cleanup: ['kubectl delete service target', 'kubectl delete deployment target'],
+        },
+        {
+          id: 'p1-m3-e4',
+          title: '3-day spaced review — service commands',
+          kind: 'spaced-review',
+          goal: 'Recall service creation and inspection commands from memory.',
+          commands: [
+            'kubectl create deployment sr-svc --image=nginx:1.27',
+            'kubectl expose deployment sr-svc --type=NodePort --port=80',
+            'kubectl get services sr-svc',
+            'kubectl get endpoints sr-svc',
+            'kubectl describe service sr-svc',
+            'kubectl delete service sr-svc',
+            'kubectl delete deployment sr-svc',
+          ],
+          verify: ['Service created with correct type', 'Endpoints populated with pod IPs'],
+          expectedOutcome: 'Service commands recalled and executed correctly from memory.',
+          cleanup: ['kubectl delete service sr-svc --ignore-not-found', 'kubectl delete deployment sr-svc --ignore-not-found'],
         },
       ],
     },
@@ -955,6 +1190,128 @@ spec:
           ],
           answer: 2,
           explanation: 'A failed init container is restarted by kubelet according to the Pod\'s restartPolicy (default: Always). The Pod stays in Init:CrashLoopBackOff if it keeps failing. Main containers never start until all init containers succeed — this is the key guarantee.',
+        },
+      ],
+      coverage: {
+        concepts: ['init containers', 'sequential init execution guarantee', 'postStart lifecycle hook', 'preStop lifecycle hook', 'terminationGracePeriodSeconds', 'SIGTERM → preStop → SIGKILL flow', 'graceful shutdown'],
+        commands: ['kubectl apply -f pod-with-init.yaml', 'kubectl get pod (Init:0/1 status)', 'kubectl describe pod (Init Containers section)', 'kubectl logs pod -c init-container-name', 'kubectl wait --for=condition=Ready pod/'],
+        architecture: ['init containers run sequentially before main containers', 'lifecycle hook handlers: exec and httpGet', 'terminationGracePeriodSeconds countdown after SIGTERM', 'preStop hook blocks SIGKILL during grace period'],
+        techniques: ['dependency waiting with init containers (nc or wget loop)', 'graceful shutdown with preStop sleep', 'postStart for post-start side effects', 'multi-stage pod initialization'],
+        procedures: ['write pod spec with init container', 'view init container logs separately', 'configure preStop hook', 'verify graceful termination timing'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['init container loops waiting for dependency — pod stuck in Init:0/1', 'app starts before DB is ready — race condition without init', 'preStop hook too short — connections dropped on shutdown'],
+        scenarios: ['database migration before app start using init container', 'graceful connection draining on pod shutdown with preStop sleep'],
+      },
+      exercises: [
+        {
+          id: 'p1-m4-e1',
+          title: 'Deploy a pod with an init container',
+          kind: 'guided',
+          goal: 'Observe init container completing before main container starts.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-demo
+spec:
+  initContainers:
+  - name: init-delay
+    image: busybox:1.36
+    command: ["sh", "-c", "echo 'init starting'; sleep 5; echo 'init done'"]
+  containers:
+  - name: main
+    image: nginx:1.27
+EOF`,
+            'kubectl get pod init-demo -w',
+            'kubectl logs init-demo -c init-delay',
+            'kubectl logs init-demo',
+          ],
+          verify: ['Pod shows Init:0/1 then Running status', 'init-delay logs show "init done"', 'nginx main container running after init completes'],
+          expectedOutcome: 'Init container ran to completion before main container started.',
+          cleanup: ['kubectl delete pod init-demo --ignore-not-found'],
+        },
+        {
+          id: 'p1-m4-e2',
+          title: 'Write an init + preStop pod manifest from memory',
+          kind: 'challenge',
+          goal: 'Write a pod manifest with an init container and a preStop sleep hook without referencing docs.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lifecycle-pod
+spec:
+  initContainers:
+  - name: setup
+    image: busybox:1.36
+    command: ["sh", "-c", "echo setup > /work/data.txt"]
+    volumeMounts:
+    - name: work
+      mountPath: /work
+  containers:
+  - name: app
+    image: nginx:1.27
+    lifecycle:
+      preStop:
+        exec:
+          command: ["sh", "-c", "sleep 5"]
+    volumeMounts:
+    - name: work
+      mountPath: /work
+  volumes:
+  - name: work
+    emptyDir: {}
+EOF`,
+            'kubectl describe pod lifecycle-pod',
+            'kubectl exec lifecycle-pod -- cat /work/data.txt',
+          ],
+          verify: ['Pod Running', 'Init Containers section visible in describe', 'cat /work/data.txt returns "setup"'],
+          expectedOutcome: 'Init container wrote file, main container reads it — shared volume pattern confirmed.',
+          cleanup: ['kubectl delete pod lifecycle-pod --ignore-not-found'],
+        },
+        {
+          id: 'p1-m4-e3',
+          title: 'Diagnose Init:CrashLoopBackOff',
+          kind: 'debug',
+          goal: 'Identify why a pod is stuck in Init:CrashLoopBackOff and fix it.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: broken-init
+spec:
+  initContainers:
+  - name: bad-init
+    image: busybox:1.36
+    command: ["sh", "-c", "exit 1"]
+  containers:
+  - name: main
+    image: nginx:1.27
+EOF`,
+            'kubectl get pod broken-init',
+            'kubectl describe pod broken-init',
+            'kubectl logs broken-init -c bad-init',
+          ],
+          verify: ['Pod shows Init:CrashLoopBackOff status', 'describe shows init container exit code 1 in Events', 'main container never starts'],
+          expectedOutcome: 'Init failure diagnosed via kubectl logs -c and describe events.',
+          cleanup: ['kubectl delete pod broken-init --ignore-not-found'],
+        },
+        {
+          id: 'p1-m4-e4',
+          title: '7-day spaced review — lifecycle sequence recall',
+          kind: 'spaced-review',
+          goal: 'Recall the pod startup and shutdown sequence from memory, then verify with a live pod.',
+          commands: [
+            'kubectl apply -f /tmp/init-demo.yaml || kubectl run sr-pod --image=nginx:1.27',
+            'kubectl describe pod sr-pod',
+            'kubectl get pod sr-pod -o yaml | grep -A5 lifecycle',
+          ],
+          verify: ['Can describe the sequence: init containers → postStart → readiness → preStop → SIGTERM → SIGKILL', 'describe pod shows container states correctly'],
+          expectedOutcome: 'Pod lifecycle sequence recalled accurately without notes.',
+          cleanup: ['kubectl delete pod sr-pod --ignore-not-found'],
         },
       ],
     },
