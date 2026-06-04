@@ -230,6 +230,87 @@ kubectl config set-context --current --namespace=default
           explanation: 'kube-system is reserved for Kubernetes infrastructure: kube-apiserver, etcd, kube-scheduler, kube-controller-manager, coredns, and kube-proxy all run here.',
         },
       ],
+      coverage: {
+        concepts: ['namespace as virtual cluster boundary', 'resource isolation per namespace', 'built-in namespaces: default, kube-system, kube-public, kube-node-lease', 'cross-namespace DNS', 'ResourceQuota per namespace', 'LimitRange per namespace'],
+        commands: ['kubectl get namespaces', 'kubectl create namespace', 'kubectl delete namespace', 'kubectl get pods -n', 'kubectl get all -n', 'kubectl config set-context --current --namespace', 'kubectl api-resources --namespaced=true'],
+        architecture: ['namespace as API group scope', 'cluster-scoped vs namespace-scoped resources', 'how kube-system separation protects control plane from user workloads'],
+        techniques: ['scoping commands with -n flag', 'setting default namespace in kubeconfig context', 'listing all resources across all namespaces with -A'],
+        procedures: ['create a namespace', 'deploy workload into specific namespace', 'switch default namespace', 'list all pods across all namespaces'],
+        toolsAndPlugins: ['kubectl', 'minikube', 'kubens (optional)'],
+        cases: ['deploying to wrong namespace due to missing -n flag', 'quota exceeded blocking pod creation', 'cross-namespace service DNS required'],
+        scenarios: ['isolate dev and staging workloads on same cluster', 'debug why a pod cannot see another pod by short DNS name'],
+      },
+      exercises: [
+        {
+          id: 'p2-m1-e1',
+          title: 'Create and use namespaces',
+          kind: 'guided',
+          goal: 'Create namespaces, deploy into them, and list resources per namespace.',
+          commands: [
+            'kubectl get namespaces',
+            'kubectl create namespace dev',
+            'kubectl create namespace staging',
+            'kubectl run web --image=nginx:1.27 -n dev',
+            'kubectl get pods -n dev',
+            'kubectl get pods -n staging',
+            'kubectl get pods -A',
+          ],
+          verify: ['dev and staging namespaces visible in get namespaces', 'web pod Running in dev namespace', 'staging namespace shows no pods', '-A flag shows pods across all namespaces'],
+          expectedOutcome: 'Namespace isolation confirmed: pods in dev not visible in staging.',
+          cleanup: ['kubectl delete namespace dev', 'kubectl delete namespace staging'],
+        },
+        {
+          id: 'p2-m1-e2',
+          title: 'Set default namespace and test cross-namespace DNS',
+          kind: 'challenge',
+          goal: 'Switch default namespace in context and resolve a service across namespace boundary.',
+          commands: [
+            'kubectl create namespace app-ns',
+            'kubectl create deployment backend --image=nginx:1.27 -n app-ns',
+            'kubectl expose deployment backend --port=80 -n app-ns',
+            'kubectl config set-context --current --namespace=app-ns',
+            'kubectl get pods',
+            'kubectl run curl-pod --image=curlimages/curl:8.7.1 --restart=Never -n default -- sleep 3600',
+            'kubectl exec curl-pod -n default -- curl -s http://backend.app-ns.svc.cluster.local',
+            'kubectl config set-context --current --namespace=default',
+          ],
+          verify: ['Context switch makes app-ns the default', 'Cross-namespace DNS curl returns nginx page'],
+          expectedOutcome: 'Default namespace switched; cross-namespace DNS confirmed.',
+          cleanup: ['kubectl delete pod curl-pod -n default --ignore-not-found', 'kubectl delete namespace app-ns'],
+        },
+        {
+          id: 'p2-m1-e3',
+          title: 'Debug missing pod due to wrong namespace',
+          kind: 'debug',
+          goal: 'Reproduce and diagnose the classic "pod not found" error caused by namespace mismatch.',
+          commands: [
+            'kubectl create namespace hidden-ns',
+            'kubectl run hidden-pod --image=nginx:1.27 -n hidden-ns',
+            'kubectl get pods',
+            'kubectl get pods -n hidden-ns',
+            'kubectl get pods -A | grep hidden-pod',
+          ],
+          verify: ['kubectl get pods (without -n) returns No resources found in default namespace', 'kubectl get pods -n hidden-ns returns the pod', '-A flag finds it'],
+          expectedOutcome: 'Understand how namespace scoping hides resources and how -A and -n fix it.',
+          cleanup: ['kubectl delete namespace hidden-ns'],
+        },
+        {
+          id: 'p2-m1-e4',
+          title: '1-day spaced review — namespace commands',
+          kind: 'spaced-review',
+          goal: 'Recall namespace management commands from memory.',
+          commands: [
+            'kubectl get namespaces',
+            'kubectl create namespace spaced-ns',
+            'kubectl get pods -n spaced-ns',
+            'kubectl get all -A | head -20',
+            'kubectl delete namespace spaced-ns',
+          ],
+          verify: ['All commands run without error', 'Namespace created and deleted cleanly'],
+          expectedOutcome: 'Namespace commands recalled and executed without notes.',
+          cleanup: ['kubectl delete namespace spaced-ns --ignore-not-found'],
+        },
+      ],
     },
 
     // ─── Module 2: Labels & Selectors ───────────────────────────────────────
@@ -477,6 +558,87 @@ kubectl get pods -l 'env notin (staging)'
           ],
           answer: 2,
           explanation: 'If you remove or change a label so a Pod no longer matches its Deployment\'s selector, the ReplicaSet controller sees it as "missing" and creates a new Pod. The original Pod becomes an unmanaged orphan still consuming resources.',
+        },
+      ],
+      coverage: {
+        concepts: ['labels as key-value metadata', 'label selectors: equality-based and set-based', 'annotations vs labels', 'how Services use selectors to find pods', 'how Deployments own ReplicaSets via matchLabels'],
+        commands: ['kubectl label pod', 'kubectl label pod --overwrite', 'kubectl label pod key-', 'kubectl get pods -l', 'kubectl get pods --show-labels', 'kubectl get pods -l "key in (v1,v2)"'],
+        architecture: ['Service selector → Endpoints controller → pod IP list', 'Deployment matchLabels ties controller to pod template', 'label selector immutability on Services and Deployments'],
+        techniques: ['filtering resources with -l selector', 'labeling nodes for scheduling affinity', 'canary routing via label selectors', 'debugging orphaned pods via label mismatch'],
+        procedures: ['add label to running pod', 'remove label from pod', 'filter pods by label', 'update service selector to match new label'],
+        toolsAndPlugins: ['kubectl'],
+        cases: ['pod orphaned after label removed — controller creates replacement', 'service misroutes traffic due to stale selector', 'cannot update selector on existing Deployment — immutable field error'],
+        scenarios: ['identify all pods in a release with label filtering', 'quarantine a misbehaving pod by removing its service selector label'],
+      },
+      exercises: [
+        {
+          id: 'p2-m2-e1',
+          title: 'Label pods and filter with selectors',
+          kind: 'guided',
+          goal: 'Apply labels to pods and filter resources using equality and set-based selectors.',
+          commands: [
+            'kubectl run app-v1 --image=nginx:1.26 --labels=app=web,version=v1',
+            'kubectl run app-v2 --image=nginx:1.27 --labels=app=web,version=v2',
+            'kubectl get pods --show-labels',
+            'kubectl get pods -l app=web',
+            'kubectl get pods -l version=v1',
+            'kubectl get pods -l "version in (v1,v2)"',
+            'kubectl get pods -l version!=v1',
+          ],
+          verify: ['Both pods visible with show-labels', '-l app=web returns both pods', '-l version=v1 returns only app-v1'],
+          expectedOutcome: 'Labels applied and selector filtering works as expected.',
+          cleanup: ['kubectl delete pod app-v1 app-v2 --ignore-not-found'],
+        },
+        {
+          id: 'p2-m2-e2',
+          title: 'Quarantine a pod by removing its service label',
+          kind: 'challenge',
+          goal: 'Remove a pod from service rotation by stripping its selector label, observe the replacement pod created.',
+          commands: [
+            'kubectl create deployment web --image=nginx:1.27 --replicas=2',
+            'kubectl expose deployment web --type=ClusterIP --port=80',
+            'kubectl get pods -l app=web --show-labels',
+            'POD=$(kubectl get pods -l app=web -o jsonpath=\'{.items[0].metadata.name}\')',
+            'kubectl label pod $POD app-',
+            'kubectl get pods --show-labels',
+            'kubectl get endpoints web',
+          ],
+          verify: ['Stripped pod no longer in endpoints', 'Deployment creates a replacement pod', 'Endpoints show only pods with app=web label'],
+          expectedOutcome: 'Pod quarantined from service traffic; replacement pod auto-created by ReplicaSet.',
+          cleanup: ['kubectl delete deployment web', 'kubectl delete service web', 'kubectl delete pod $POD --ignore-not-found'],
+        },
+        {
+          id: 'p2-m2-e3',
+          title: 'Debug service with wrong label selector',
+          kind: 'debug',
+          goal: 'Diagnose why a service has no endpoints because selector does not match pod labels.',
+          commands: [
+            'kubectl run backend --image=nginx:1.27 --labels=app=backend,tier=api',
+            'kubectl expose pod backend --type=ClusterIP --port=80 --selector=app=wrong-label',
+            'kubectl get endpoints backend',
+            'kubectl describe service backend',
+            'kubectl get pods --show-labels',
+          ],
+          verify: ['Endpoints shows <none> because selector mismatch', 'describe service shows Selector: app=wrong-label', 'pod has app=backend label not matching'],
+          expectedOutcome: 'Selector mismatch identified as root cause of empty endpoints.',
+          cleanup: ['kubectl delete pod backend --ignore-not-found', 'kubectl delete service backend --ignore-not-found'],
+        },
+        {
+          id: 'p2-m2-e4',
+          title: '3-day spaced review — label commands',
+          kind: 'spaced-review',
+          goal: 'Recall label management and selector filtering commands from memory.',
+          commands: [
+            'kubectl run sr-pod --image=nginx:1.27 --labels=app=review,env=test',
+            'kubectl get pods --show-labels',
+            'kubectl get pods -l app=review',
+            'kubectl label pod sr-pod env=prod --overwrite',
+            'kubectl label pod sr-pod env-',
+            'kubectl delete pod sr-pod',
+          ],
+          verify: ['Labels applied and overwritten correctly', 'Label removal confirmed with show-labels'],
+          expectedOutcome: 'Label commands recalled and executed from memory.',
+          cleanup: ['kubectl delete pod sr-pod --ignore-not-found'],
         },
       ],
     },
@@ -771,6 +933,120 @@ spec:
           explanation: 'ConfigMap keys become filenames exactly as-is when volume-mounted. The key "database.url" becomes a file named "database.url". Dots and hyphens are valid in filenames and are preserved.',
         },
       ],
+      coverage: {
+        concepts: ['ConfigMap as key-value store for non-sensitive config', 'envFrom vs env valueFrom', 'volume-mounted ConfigMap as files', 'hot-reload of volume-mounted ConfigMap (eventual consistency)', 'env vars from ConfigMap are NOT hot-reloaded'],
+        commands: ['kubectl create configmap --from-literal', 'kubectl create configmap --from-file', 'kubectl get configmap', 'kubectl describe configmap', 'kubectl get configmap -o yaml'],
+        architecture: ['ConfigMap stored in etcd as plaintext', 'kubelet syncs volume-mounted ConfigMap on watch event', 'env var injection happens at pod start — no runtime update'],
+        techniques: ['inject config as environment variables', 'mount config as files in volume', 'use envFrom to inject all keys as env vars', 'reference specific keys with valueFrom.configMapKeyRef'],
+        procedures: ['create ConfigMap from literals', 'create ConfigMap from file', 'mount ConfigMap as volume', 'inject ConfigMap keys as env vars', 'verify mounted config inside container'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['stale env var after ConfigMap update — pod restart required', 'volume-mounted file eventually updates without restart', 'missing ConfigMap key causes pod to fail with CreateContainerConfigError'],
+        scenarios: ['inject nginx.conf via ConfigMap volume mount', 'inject feature flags as env vars and update without image rebuild'],
+      },
+      exercises: [
+        {
+          id: 'p2-m3-e1',
+          title: 'Create ConfigMap and inject as env vars',
+          kind: 'guided',
+          goal: 'Create a ConfigMap from literals and inject its values into a pod as environment variables.',
+          commands: [
+            'kubectl create configmap app-config --from-literal=LOG_LEVEL=debug --from-literal=PORT=8080',
+            'kubectl get configmap app-config',
+            'kubectl describe configmap app-config',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: config-pod
+spec:
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sh", "-c", "echo LOG_LEVEL=$LOG_LEVEL; echo PORT=$PORT; sleep 3600"]
+    envFrom:
+    - configMapRef:
+        name: app-config
+EOF`,
+            'kubectl logs config-pod',
+          ],
+          verify: ['kubectl logs shows LOG_LEVEL=debug and PORT=8080', 'ConfigMap keys injected as environment variables'],
+          expectedOutcome: 'ConfigMap created and all keys injected as env vars confirmed.',
+          cleanup: ['kubectl delete pod config-pod --ignore-not-found', 'kubectl delete configmap app-config'],
+        },
+        {
+          id: 'p2-m3-e2',
+          title: 'Mount ConfigMap as a volume file',
+          kind: 'challenge',
+          goal: 'Mount a ConfigMap key as a file inside a container and verify hot-reload behavior.',
+          commands: [
+            'kubectl create configmap nginx-config --from-literal=index.html="<h1>Hello ConfigMap</h1>"',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-cm
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.27
+    volumeMounts:
+    - name: config-vol
+      mountPath: /usr/share/nginx/html
+  volumes:
+  - name: config-vol
+    configMap:
+      name: nginx-config
+EOF`,
+            'kubectl exec nginx-cm -- cat /usr/share/nginx/html/index.html',
+            'kubectl patch configmap nginx-config --patch \'{"data":{"index.html":"<h1>Updated</h1>"}}\'',
+            'sleep 15 && kubectl exec nginx-cm -- cat /usr/share/nginx/html/index.html',
+          ],
+          verify: ['Initial file shows Hello ConfigMap', 'After patch and wait, file shows Updated (hot-reload confirmed)'],
+          expectedOutcome: 'Volume-mounted ConfigMap hot-reloads without pod restart.',
+          cleanup: ['kubectl delete pod nginx-cm --ignore-not-found', 'kubectl delete configmap nginx-config'],
+        },
+        {
+          id: 'p2-m3-e3',
+          title: 'Diagnose CreateContainerConfigError from missing ConfigMap',
+          kind: 'debug',
+          goal: 'Understand what happens when a pod references a ConfigMap that does not exist.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: missing-cm-pod
+spec:
+  containers:
+  - name: app
+    image: nginx:1.27
+    envFrom:
+    - configMapRef:
+        name: this-configmap-does-not-exist
+EOF`,
+            'kubectl get pod missing-cm-pod',
+            'kubectl describe pod missing-cm-pod',
+          ],
+          verify: ['Pod stays in Pending or shows CreateContainerConfigError', 'describe shows ConfigMap not found in Events section'],
+          expectedOutcome: 'Missing ConfigMap reference diagnosed via kubectl describe events.',
+          cleanup: ['kubectl delete pod missing-cm-pod --ignore-not-found'],
+        },
+        {
+          id: 'p2-m3-e4',
+          title: '3-day spaced review — ConfigMap commands',
+          kind: 'spaced-review',
+          goal: 'Recall ConfigMap creation and injection commands from memory.',
+          commands: [
+            'kubectl create configmap sr-config --from-literal=KEY=value',
+            'kubectl get configmap sr-config -o yaml',
+            'kubectl describe configmap sr-config',
+            'kubectl delete configmap sr-config',
+          ],
+          verify: ['ConfigMap created with correct key', 'get -o yaml shows data section with KEY=value'],
+          expectedOutcome: 'ConfigMap commands recalled and executed without notes.',
+          cleanup: ['kubectl delete configmap sr-config --ignore-not-found'],
+        },
+      ],
     },
 
     // ─── Module 4: Secrets ───────────────────────────────────────────────────
@@ -1027,6 +1303,129 @@ spec:
           ],
           answer: 1,
           explanation: 'Secret YAML contains base64-encoded values that are trivially decodable. Committing them exposes credentials in git history permanently. The production pattern is to store secrets in dedicated secret management systems (Vault, AWS/GCP/Azure secret stores) and sync them into Kubernetes using tools like External Secrets Operator.',
+        },
+      ],
+      coverage: {
+        concepts: ['Secret as base64-encoded key-value store', 'Secret types: Opaque, kubernetes.io/tls, kubernetes.io/dockerconfigjson', 'base64 encoding is not encryption', 'EncryptionConfiguration for at-rest encryption', 'RBAC restricting Secret access', 'tmpfs volume mount for secrets'],
+        commands: ['kubectl create secret generic --from-literal', 'kubectl create secret tls', 'kubectl create secret docker-registry', 'kubectl get secret', 'kubectl describe secret (no values)', 'kubectl get secret -o yaml', 'kubectl get secret -o jsonpath'],
+        architecture: ['Secrets stored in etcd — base64 encoded by default', 'kubelet mounts secrets as tmpfs (RAM-backed) volumes', 'RBAC controls who can get/list/watch secrets', 'imagePullSecret for private registry auth'],
+        techniques: ['inject secret as env var with secretKeyRef', 'mount secret as volume files', 'use imagePullSecrets for private image registries', 'decode secret value with kubectl + base64'],
+        procedures: ['create Opaque secret', 'inject secret key as env var', 'mount secret as read-only volume', 'decode secret value for debugging'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['secret value leaked in pod env var list via kubectl describe pod', 'secret too large for etcd key limit', 'imagePullBackOff due to missing imagePullSecret'],
+        scenarios: ['inject database password safely without committing to git', 'rotate a secret without pod restart using volume mount'],
+      },
+      exercises: [
+        {
+          id: 'p2-m4-e1',
+          title: 'Create a secret and inject as env var',
+          kind: 'guided',
+          goal: 'Create an Opaque secret and inject a key into a pod as an environment variable.',
+          commands: [
+            'kubectl create secret generic db-secret --from-literal=DB_PASSWORD=s3cr3t --from-literal=DB_USER=admin',
+            'kubectl get secret db-secret',
+            'kubectl describe secret db-secret',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secret-pod
+spec:
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sh", "-c", "echo user=$DB_USER; sleep 3600"]
+    env:
+    - name: DB_USER
+      valueFrom:
+        secretKeyRef:
+          name: db-secret
+          key: DB_USER
+EOF`,
+            'kubectl logs secret-pod',
+            'kubectl get secret db-secret -o jsonpath=\'{.data.DB_PASSWORD}\' | base64 -d',
+          ],
+          verify: ['kubectl logs shows user=admin', 'describe secret does not show values', 'jsonpath decode returns s3cr3t'],
+          expectedOutcome: 'Secret injected as env var; describe hides values; manual decode works.',
+          cleanup: ['kubectl delete pod secret-pod --ignore-not-found', 'kubectl delete secret db-secret'],
+        },
+        {
+          id: 'p2-m4-e2',
+          title: 'Mount secret as volume files',
+          kind: 'challenge',
+          goal: 'Mount a secret as read-only files inside a container and verify tmpfs backing.',
+          commands: [
+            'kubectl create secret generic tls-like --from-literal=tls.crt=CERT_DATA --from-literal=tls.key=KEY_DATA',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secret-vol-pod
+spec:
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sh", "-c", "ls /etc/secrets; cat /etc/secrets/tls.crt; sleep 3600"]
+    volumeMounts:
+    - name: secret-vol
+      mountPath: /etc/secrets
+      readOnly: true
+  volumes:
+  - name: secret-vol
+    secret:
+      secretName: tls-like
+EOF`,
+            'kubectl logs secret-vol-pod',
+            'kubectl exec secret-vol-pod -- df /etc/secrets',
+          ],
+          verify: ['logs show tls.crt and tls.key listed', 'df shows tmpfs mount for /etc/secrets'],
+          expectedOutcome: 'Secret mounted as tmpfs volume; files visible and read-only.',
+          cleanup: ['kubectl delete pod secret-vol-pod --ignore-not-found', 'kubectl delete secret tls-like'],
+        },
+        {
+          id: 'p2-m4-e3',
+          title: 'Diagnose missing secret causing pod failure',
+          kind: 'debug',
+          goal: 'Observe and diagnose the pod error when a referenced secret does not exist.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: missing-secret-pod
+spec:
+  containers:
+  - name: app
+    image: nginx:1.27
+    env:
+    - name: TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: this-secret-does-not-exist
+          key: token
+EOF`,
+            'kubectl get pod missing-secret-pod',
+            'kubectl describe pod missing-secret-pod',
+          ],
+          verify: ['Pod stays in Pending or CreateContainerConfigError', 'Events show secret not found'],
+          expectedOutcome: 'Missing secret reference diagnosed via describe events.',
+          cleanup: ['kubectl delete pod missing-secret-pod --ignore-not-found'],
+        },
+        {
+          id: 'p2-m4-e4',
+          title: '7-day spaced review — secret commands',
+          kind: 'spaced-review',
+          goal: 'Recall secret creation and inspection commands from memory.',
+          commands: [
+            'kubectl create secret generic sr-secret --from-literal=KEY=value',
+            'kubectl get secret sr-secret',
+            'kubectl describe secret sr-secret',
+            'kubectl get secret sr-secret -o jsonpath=\'{.data.KEY}\' | base64 -d',
+            'kubectl delete secret sr-secret',
+          ],
+          verify: ['describe does not show plaintext value', 'jsonpath + base64 -d returns value'],
+          expectedOutcome: 'Secret commands recalled correctly; base64 decode verified.',
+          cleanup: ['kubectl delete secret sr-secret --ignore-not-found'],
         },
       ],
     },
@@ -1390,6 +1789,127 @@ spec:
           explanation: 'During a rolling update, Kubernetes waits for new pods to become Ready (readiness probe passing) before removing old pods. Without a readiness probe, new pods are considered ready the moment they reach Running state — potentially before the app has finished initialising.',
         },
       ],
+      coverage: {
+        concepts: ['liveness probe: restart unhealthy container', 'readiness probe: remove from service endpoints', 'startup probe: disable liveness during slow init', 'probe types: httpGet/tcpSocket/exec/gRPC', 'initialDelaySeconds, periodSeconds, failureThreshold, successThreshold', 'timeoutSeconds'],
+        commands: ['kubectl describe pod (Liveness/Readiness in containers section)', 'kubectl get events (probe failure events)', 'kubectl get pod -w (watch Ready column change)'],
+        architecture: ['kubelet executes probes directly on the node', 'readiness failure removes pod from Endpoints object', 'liveness failure triggers container restart (not pod delete)', 'startup probe disables liveness until first success'],
+        techniques: ['httpGet probe for HTTP APIs', 'tcpSocket probe for non-HTTP services', 'exec probe for custom health check logic', 'tuning failureThreshold for slow-start apps', 'startup probe to protect slow initializers from liveness kills'],
+        procedures: ['add liveness probe to a deployment', 'add readiness probe to a deployment', 'observe probe failure events', 'tune probe timing parameters'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['missing readiness probe → pod added to endpoints before app is ready (traffic errors on deploy)', 'liveness probe too aggressive → CrashLoopBackOff on slow app', 'startup probe missing → liveness kills slow-starting app before it finishes init'],
+        scenarios: ['rolling update with readiness probe ensuring zero downtime', 'diagnose pod repeatedly restarting due to misconfigured liveness probe'],
+      },
+      exercises: [
+        {
+          id: 'p2-m5-e1',
+          title: 'Add liveness and readiness probes to a deployment',
+          kind: 'guided',
+          goal: 'Deploy nginx with both probes configured and observe pod readiness gating.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: probed-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: probed-web
+  template:
+    metadata:
+      labels:
+        app: probed-web
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27
+        ports:
+        - containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          failureThreshold: 2
+EOF`,
+            'kubectl get pods -l app=probed-web -w',
+            'kubectl describe pod -l app=probed-web | grep -A10 Liveness',
+          ],
+          verify: ['Pods reach Running and Ready 1/1 status', 'describe shows Liveness and Readiness probe config'],
+          expectedOutcome: 'Both probes configured and pods enter Ready state correctly.',
+          cleanup: ['kubectl delete deployment probed-web'],
+        },
+        {
+          id: 'p2-m5-e2',
+          title: 'Force a liveness probe failure and observe restart',
+          kind: 'challenge',
+          goal: 'Trigger a liveness probe failure by deleting the served content and watch the container restart.',
+          commands: [
+            'kubectl create deployment liveness-test --image=nginx:1.27',
+            `kubectl patch deployment liveness-test --patch '{"spec":{"template":{"spec":{"containers":[{"name":"nginx","livenessProbe":{"httpGet":{"path":"/","port":80},"initialDelaySeconds":5,"periodSeconds":5,"failureThreshold":2}}]}}}}'`,
+            'kubectl exec -it $(kubectl get pod -l app=liveness-test -o jsonpath=\'{.items[0].metadata.name}\') -- rm /usr/share/nginx/html/index.html',
+            'kubectl get pod -l app=liveness-test -w',
+            'kubectl describe pod -l app=liveness-test | grep Restart',
+          ],
+          verify: ['Pod restarts after liveness probe fails (RESTARTS counter increments)', 'Events show Liveness probe failed'],
+          expectedOutcome: 'Liveness probe failure triggers container restart as expected.',
+          cleanup: ['kubectl delete deployment liveness-test'],
+        },
+        {
+          id: 'p2-m5-e3',
+          title: 'Diagnose CrashLoopBackOff from aggressive liveness probe',
+          kind: 'debug',
+          goal: 'Observe what happens when a liveness probe is too aggressive for a slow-starting app.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: aggressive-probe
+spec:
+  containers:
+  - name: slow-app
+    image: busybox:1.36
+    command: ["sh", "-c", "sleep 30 && echo ready && sleep 3600"]
+    livenessProbe:
+      exec:
+        command: ["cat", "/tmp/healthy"]
+      initialDelaySeconds: 2
+      periodSeconds: 3
+      failureThreshold: 2
+EOF`,
+            'kubectl get pod aggressive-probe -w',
+            'kubectl describe pod aggressive-probe',
+            'kubectl get events --field-selector involvedObject.name=aggressive-probe',
+          ],
+          verify: ['Pod enters CrashLoopBackOff', 'Events show "Liveness probe failed" before app was ready'],
+          expectedOutcome: 'Understand why startup probe or higher initialDelaySeconds is needed for slow apps.',
+          cleanup: ['kubectl delete pod aggressive-probe --ignore-not-found'],
+        },
+        {
+          id: 'p2-m5-e4',
+          title: '7-day spaced review — probe types and parameters',
+          kind: 'spaced-review',
+          goal: 'Recall the 3 probe types and 5 key timing parameters from memory.',
+          commands: [
+            'kubectl explain pod.spec.containers.livenessProbe',
+            'kubectl explain pod.spec.containers.readinessProbe',
+            'kubectl explain pod.spec.containers.startupProbe',
+          ],
+          verify: ['explain output shows httpGet, tcpSocket, exec fields', 'initialDelaySeconds, periodSeconds, failureThreshold visible'],
+          expectedOutcome: 'Probe types and timing parameters recalled accurately.',
+          cleanup: [],
+        },
+      ],
     },
 
     // ─── Module 6: Resource Requests & Limits ───────────────────────────────
@@ -1654,6 +2174,121 @@ spec:
           ],
           answer: 1,
           explanation: 'The scheduler uses Requests, not Limits. It sums up the requests of all pods on each node and compares to the node\'s allocatable capacity. This is why setting requests accurately is critical: too low and pods get scheduled onto already-crowded nodes; too high and pods can\'t be scheduled at all.',
+        },
+      ],
+      coverage: {
+        concepts: ['CPU requests and limits (millicores)', 'memory requests and limits (Mi/Gi)', 'QoS classes: Guaranteed/Burstable/BestEffort', 'OOMKilled when memory limit exceeded', 'CPU throttling when limit exceeded (not killed)', 'LimitRange defaults', 'ResourceQuota per namespace'],
+        commands: ['kubectl top nodes', 'kubectl top pods', 'kubectl describe node (Allocatable section)', 'kubectl describe pod (Resources section)', 'kubectl get limitrange', 'kubectl get resourcequota'],
+        architecture: ['scheduler uses requests for bin-packing decisions', 'kubelet enforces limits via Linux cgroups', 'CPU limit enforced by CFS bandwidth (throttle)', 'memory limit enforced by OOM killer (kill)'],
+        techniques: ['setting requests equal to expected usage', 'setting limits at 2-3x requests for burst headroom', 'using kubectl top to measure actual usage', 'VPA (Vertical Pod Autoscaler) for auto-sizing'],
+        procedures: ['add resource requests and limits to a container', 'check node allocatable capacity', 'observe OOMKilled event', 'create LimitRange for namespace defaults'],
+        toolsAndPlugins: ['kubectl', 'minikube', 'metrics-server (minikube addon)'],
+        cases: ['pod OOMKilled repeatedly — memory limit too low', 'pod Pending — requests exceed all node capacity', 'CPU throttling causing latency spikes under load'],
+        scenarios: ['right-size a workload using kubectl top data', 'prevent noisy neighbor from starving other pods with limits'],
+      },
+      exercises: [
+        {
+          id: 'p2-m6-e1',
+          title: 'Set resource requests and limits, check node allocatable',
+          kind: 'guided',
+          goal: 'Deploy a pod with explicit requests and limits and verify them in describe output.',
+          commands: [
+            'minikube addons enable metrics-server',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: resource-pod
+spec:
+  containers:
+  - name: app
+    image: nginx:1.27
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "64Mi"
+      limits:
+        cpu: "250m"
+        memory: "128Mi"
+EOF`,
+            'kubectl describe pod resource-pod | grep -A8 Requests',
+            'kubectl describe node minikube | grep -A10 Allocatable',
+            'kubectl top node',
+            'kubectl top pod resource-pod',
+          ],
+          verify: ['describe pod shows requests cpu:100m memory:64Mi and limits cpu:250m memory:128Mi', 'kubectl top pod shows actual usage', 'Node allocatable shows remaining capacity'],
+          expectedOutcome: 'Resource requests/limits confirmed in pod spec; actual usage measured.',
+          cleanup: ['kubectl delete pod resource-pod --ignore-not-found'],
+        },
+        {
+          id: 'p2-m6-e2',
+          title: 'Trigger and diagnose OOMKilled',
+          kind: 'challenge',
+          goal: 'Set a very low memory limit and verify the container gets OOMKilled when it exceeds it.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: oom-pod
+spec:
+  containers:
+  - name: mem-hog
+    image: busybox:1.36
+    command: ["sh", "-c", "dd if=/dev/zero bs=1M count=50 | cat > /dev/null"]
+    resources:
+      limits:
+        memory: "10Mi"
+EOF`,
+            'kubectl get pod oom-pod -w',
+            'kubectl describe pod oom-pod',
+          ],
+          verify: ['Pod shows OOMKilled in Last State or reason field', 'describe shows memory limit of 10Mi in resources'],
+          expectedOutcome: 'OOMKilled triggered and diagnosed via kubectl describe.',
+          cleanup: ['kubectl delete pod oom-pod --ignore-not-found'],
+        },
+        {
+          id: 'p2-m6-e3',
+          title: 'Diagnose Pending pod due to excessive requests',
+          kind: 'debug',
+          goal: 'Create a pod with requests that exceed node capacity and diagnose the scheduling failure.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: oversized-pod
+spec:
+  containers:
+  - name: app
+    image: nginx:1.27
+    resources:
+      requests:
+        cpu: "9999m"
+        memory: "99Gi"
+EOF`,
+            'kubectl get pod oversized-pod',
+            'kubectl describe pod oversized-pod',
+            'kubectl get events --field-selector involvedObject.name=oversized-pod',
+          ],
+          verify: ['Pod stays in Pending status', 'Events show Insufficient cpu or Insufficient memory', 'describe shows FailedScheduling in events'],
+          expectedOutcome: 'Unschedulable pod diagnosed: requests exceed all available node capacity.',
+          cleanup: ['kubectl delete pod oversized-pod --ignore-not-found'],
+        },
+        {
+          id: 'p2-m6-e4',
+          title: '7-day spaced review — resource commands',
+          kind: 'spaced-review',
+          goal: 'Recall QoS classes and resource inspection commands from memory.',
+          commands: [
+            'kubectl top nodes',
+            'kubectl top pods -A',
+            'kubectl describe node minikube | grep -A5 Allocatable',
+            'kubectl explain pod.spec.containers.resources',
+          ],
+          verify: ['kubectl top returns usage data (metrics-server must be enabled)', 'explain shows requests and limits fields'],
+          expectedOutcome: 'Resource commands recalled; QoS class definitions recalled without notes.',
+          cleanup: [],
         },
       ],
     },
