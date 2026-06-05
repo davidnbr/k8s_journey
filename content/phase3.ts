@@ -367,6 +367,166 @@ spec:
           explanation: 'With reclaimPolicy: Retain, deleting the PVC moves the PV to Released state but does NOT delete the PV or the underlying data. An administrator must manually inspect the data, clean it up if needed, and then delete the PV object before it can be reused.',
         },
       ],
+      coverage: {
+        concepts: ['emptyDir for ephemeral shared storage', 'PersistentVolume (PV) as cluster resource', 'PersistentVolumeClaim (PVC) as namespace claim', 'StorageClass for dynamic provisioning', 'access modes: ReadWriteOnce/ReadOnlyMany/ReadWriteMany', 'reclaimPolicy: Retain/Delete'],
+        commands: ['kubectl get pv', 'kubectl get pvc', 'kubectl get storageclass', 'kubectl describe pv', 'kubectl describe pvc', 'kubectl apply -f pvc.yaml'],
+        architecture: ['PV cluster-scoped, PVC namespace-scoped', 'StorageClass provisioner creates PV on demand', 'PVC binding: capacity + accessMode + storageClass matching', 'kubelet mounts PV onto node before pod starts'],
+        techniques: ['dynamic provisioning via StorageClass', 'static PV provisioning', 'mounting PVC in pod volumeMounts', 'verifying data persistence across pod delete/recreate'],
+        procedures: ['create PVC with StorageClass', 'mount PVC in pod', 'write data, delete pod, recreate pod, verify data persists', 'inspect PV reclaimPolicy after PVC delete'],
+        toolsAndPlugins: ['kubectl', 'minikube', 'minikube storage-provisioner addon'],
+        cases: ['PVC stays Pending — no matching StorageClass or capacity', 'pod Pending — PVC not bound yet', 'data deleted silently with reclaimPolicy: Delete after PVC removed'],
+        scenarios: ['persist data across pod restarts on minikube', 'debug PVC stuck in Pending: wrong StorageClass name'],
+      },
+      exercises: [
+        {
+          id: 'p3-m1-e1',
+          title: 'Create PVC, mount it, and verify data persistence',
+          kind: 'guided',
+          goal: 'Persist data across pod delete and recreate using a PVC.',
+          commands: [
+            'kubectl get storageclass',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+EOF`,
+            'kubectl get pvc data-pvc',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: storage-pod
+spec:
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sh", "-c", "echo persistent > /data/file.txt && sleep 3600"]
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: data-pvc
+EOF`,
+            'kubectl exec storage-pod -- cat /data/file.txt',
+            'kubectl delete pod storage-pod',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: storage-pod-2
+spec:
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sh", "-c", "sleep 3600"]
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: data-pvc
+EOF`,
+            'kubectl exec storage-pod-2 -- cat /data/file.txt',
+          ],
+          verify: ['PVC reaches Bound status', 'First pod writes file', 'Second pod reads same file — data persisted'],
+          expectedOutcome: 'Data persisted on PVC across pod delete and recreate.',
+          cleanup: ['kubectl delete pod storage-pod storage-pod-2 --ignore-not-found', 'kubectl delete pvc data-pvc'],
+        },
+        {
+          id: 'p3-m1-e2',
+          title: 'Write PVC and pod manifest from memory',
+          kind: 'challenge',
+          goal: 'Write a complete PVC and pod manifest without referencing docs.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: challenge-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: challenge-pod
+spec:
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sh", "-c", "echo hello > /mnt/data.txt && sleep 3600"]
+    volumeMounts:
+    - name: vol
+      mountPath: /mnt
+  volumes:
+  - name: vol
+    persistentVolumeClaim:
+      claimName: challenge-pvc
+EOF`,
+            'kubectl get pvc challenge-pvc',
+            'kubectl exec challenge-pod -- cat /mnt/data.txt',
+          ],
+          verify: ['PVC bound', 'Pod running', 'cat returns hello'],
+          expectedOutcome: 'PVC and pod written from memory and working correctly.',
+          cleanup: ['kubectl delete pod challenge-pod --ignore-not-found', 'kubectl delete pvc challenge-pvc'],
+        },
+        {
+          id: 'p3-m1-e3',
+          title: 'Diagnose PVC stuck in Pending',
+          kind: 'debug',
+          goal: 'Create a PVC with a nonexistent StorageClass and diagnose why it stays Pending.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: broken-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: this-storageclass-does-not-exist
+  resources:
+    requests:
+      storage: 100Mi
+EOF`,
+            'kubectl get pvc broken-pvc',
+            'kubectl describe pvc broken-pvc',
+            'kubectl get storageclass',
+          ],
+          verify: ['PVC stays in Pending', 'describe shows no provisioner event or StorageClass not found'],
+          expectedOutcome: 'StorageClass mismatch identified as root cause of Pending PVC.',
+          cleanup: ['kubectl delete pvc broken-pvc'],
+        },
+        {
+          id: 'p3-m1-e4',
+          title: '3-day spaced review — PV/PVC commands',
+          kind: 'spaced-review',
+          goal: 'Recall storage inspection commands from memory.',
+          commands: [
+            'kubectl get storageclass',
+            'kubectl get pv',
+            'kubectl get pvc -A',
+            'kubectl explain persistentvolumeclaim.spec.accessModes',
+          ],
+          verify: ['minikube standard StorageClass visible', 'explain shows access mode options'],
+          expectedOutcome: 'PV/PVC commands recalled without notes.',
+          cleanup: [],
+        },
+      ],
     },
 
     // ─── Module 2: StatefulSets ──────────────────────────────────────────────
@@ -676,6 +836,149 @@ spec:
           explanation: 'volumeClaimTemplates acts as a PVC factory: it creates data-pod-0, data-pod-1, data-pod-2 — one unique PVC per Pod. A regular volumes.persistentVolumeClaim entry references one existing PVC that all Pods would share (which breaks isolation for databases).',
         },
       ],
+      coverage: {
+        concepts: ['StatefulSet ordinal pod identity (pod-0, pod-1)', 'stable network identity via headless service', 'per-pod storage via volumeClaimTemplates', 'ordered pod creation: 0→1→2', 'ordered deletion: 2→1→0', 'PodManagementPolicy: OrderedReady vs Parallel'],
+        commands: ['kubectl get statefulsets', 'kubectl describe statefulset', 'kubectl scale statefulset', 'kubectl get pods -l (ordinal names visible)', 'kubectl get pvc (one per pod)', 'kubectl delete pod <ss>-0'],
+        architecture: ['StatefulSet controller: ordinal → pod name → PVC name binding', 'headless service (clusterIP: None) for per-pod DNS', 'volumeClaimTemplate creates data-<ss>-<n> PVC per pod', 'ordered scale-up/down ensures safe primary election'],
+        techniques: ['headless service for stable pod DNS', 'volumeClaimTemplates for isolated per-pod storage', 'ordered startup for database primary election', 'manual PVC cleanup required after StatefulSet delete'],
+        procedures: ['create headless service', 'create StatefulSet with volumeClaimTemplates', 'verify per-pod DNS names', 'scale StatefulSet up and down', 'verify PVC per pod exists'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['StatefulSet pod stuck Pending — volumeClaimTemplate PVC stuck', 'pod-0 deleted — replacement gets same name and reattaches same PVC', 'leftover PVCs after StatefulSet deleted — manual cleanup needed'],
+        scenarios: ['3-replica database with separate storage per replica', 'verify stable DNS name pod-0.<headless-svc> survives pod restart'],
+      },
+      exercises: [
+        {
+          id: 'p3-m2-e1',
+          title: 'Deploy a StatefulSet with per-pod storage',
+          kind: 'guided',
+          goal: 'Create a headless service and StatefulSet, verify ordered startup and per-pod PVCs.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-headless
+spec:
+  clusterIP: None
+  selector:
+    app: web-ss
+  ports:
+  - port: 80
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web-ss
+spec:
+  serviceName: web-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web-ss
+  template:
+    metadata:
+      labels:
+        app: web-ss
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27
+        volumeMounts:
+        - name: data
+          mountPath: /data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ReadWriteOnce]
+      resources:
+        requests:
+          storage: 10Mi
+EOF`,
+            'kubectl get pods -l app=web-ss -w',
+            'kubectl get pvc | grep web-ss',
+            'kubectl exec web-ss-0 -- hostname',
+          ],
+          verify: ['Pods created in order: web-ss-0 → web-ss-1 → web-ss-2', '3 PVCs created: data-web-ss-0, data-web-ss-1, data-web-ss-2', 'exec hostname returns web-ss-0'],
+          expectedOutcome: 'Ordered startup and per-pod PVCs confirmed.',
+          cleanup: ['kubectl delete statefulset web-ss', 'kubectl delete service web-headless', 'kubectl delete pvc -l app=web-ss'],
+        },
+        {
+          id: 'p3-m2-e2',
+          title: 'Verify pod identity survives restart',
+          kind: 'challenge',
+          goal: 'Delete pod-0 and confirm replacement uses same name, hostname, and PVC.',
+          commands: [
+            'kubectl delete pod web-ss-0',
+            'kubectl get pods -l app=web-ss -w',
+            'kubectl exec web-ss-0 -- hostname',
+            'kubectl get pvc | grep data-web-ss-0',
+          ],
+          verify: ['Replacement pod gets exact name web-ss-0', 'hostname still returns web-ss-0', 'PVC data-web-ss-0 still Bound to same pod'],
+          expectedOutcome: 'Stable identity — name, DNS, and storage — survives pod restart.',
+          cleanup: [],
+        },
+        {
+          id: 'p3-m2-e3',
+          title: 'Debug StatefulSet pod stuck in Pending',
+          kind: 'debug',
+          goal: 'Identify why a StatefulSet pod stays Pending due to PVC not binding.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: broken-ss
+spec:
+  serviceName: broken-ss
+  replicas: 1
+  selector:
+    matchLabels:
+      app: broken-ss
+  template:
+    metadata:
+      labels:
+        app: broken-ss
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.27
+        volumeMounts:
+        - name: data
+          mountPath: /data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ReadWriteOnce]
+      storageClassName: nonexistent-sc
+      resources:
+        requests:
+          storage: 10Mi
+EOF`,
+            'kubectl get pods -l app=broken-ss',
+            'kubectl get pvc | grep broken-ss',
+            'kubectl describe pvc data-broken-ss-0',
+          ],
+          verify: ['Pod stays Pending', 'PVC data-broken-ss-0 stays Pending', 'describe pvc shows StorageClass not found'],
+          expectedOutcome: 'Trace StatefulSet Pending to PVC Pending to StorageClass mismatch.',
+          cleanup: ['kubectl delete statefulset broken-ss --ignore-not-found', 'kubectl delete pvc data-broken-ss-0 --ignore-not-found'],
+        },
+        {
+          id: 'p3-m2-e4',
+          title: '7-day spaced review — StatefulSet identity',
+          kind: 'spaced-review',
+          goal: 'Recall StatefulSet stable identity guarantees from memory.',
+          commands: [
+            'kubectl explain statefulset.spec.volumeClaimTemplates',
+            'kubectl explain statefulset.spec.serviceName',
+            'kubectl explain statefulset.spec.podManagementPolicy',
+          ],
+          verify: ['explain returns field descriptions', 'Can state: ordinal name, per-pod PVC, headless service purpose'],
+          expectedOutcome: 'StatefulSet guarantees recalled accurately without notes.',
+          cleanup: [],
+        },
+      ],
     },
 
     // ─── Module 3: DaemonSets ────────────────────────────────────────────────
@@ -927,6 +1230,114 @@ spec:
           ],
           answer: 1,
           explanation: 'Log collectors (Fluentd, Filebeat) and node metrics exporters (Prometheus node-exporter) are the canonical DaemonSet use cases — they need to run on every node to collect data from that node\'s filesystem and hardware. Network plugins (Calico, Cilium) are another classic example.',
+        },
+      ],
+      coverage: {
+        concepts: ['DaemonSet: one pod per eligible node', 'updateStrategy: RollingUpdate vs OnDelete', 'tolerations for tainted/master nodes', 'nodeSelector and nodeAffinity for targeting subsets', 'DaemonSet vs Deployment for node-local workloads'],
+        commands: ['kubectl get daemonsets', 'kubectl describe daemonset', 'kubectl get pods -o wide (verify one per node)', 'kubectl rollout status daemonset', 'kubectl rollout history daemonset', 'kubectl get ds -A'],
+        architecture: ['DaemonSet controller watches node list', 'pod created automatically on new node', 'pod removed automatically when node removed', 'system DaemonSets use tolerations to bypass NoSchedule taints'],
+        techniques: ['nodeSelector to target subset of nodes', 'toleration to schedule on master/control-plane nodes', 'OnDelete strategy for controlled per-node rollout', 'hostPath volume for node-local log access'],
+        procedures: ['create DaemonSet', 'verify one pod per node with -o wide', 'update DaemonSet image', 'watch rolling update status'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['DaemonSet pod not on control-plane node — needs toleration', 'new node added — DaemonSet pod automatically scheduled', 'OnDelete: new template not applied until you manually delete the old pod'],
+        scenarios: ['deploy a log agent to all nodes', 'update log agent version with OnDelete for safe per-node rollout'],
+      },
+      exercises: [
+        {
+          id: 'p3-m3-e1',
+          title: 'Create a DaemonSet and verify one pod per node',
+          kind: 'guided',
+          goal: 'Deploy a DaemonSet and confirm it runs exactly one pod per node.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: log-agent
+spec:
+  selector:
+    matchLabels:
+      app: log-agent
+  template:
+    metadata:
+      labels:
+        app: log-agent
+    spec:
+      containers:
+      - name: agent
+        image: busybox:1.36
+        command: ["sh", "-c", "while true; do echo $(hostname) $(date); sleep 10; done"]
+EOF`,
+            'kubectl get daemonsets log-agent',
+            'kubectl get pods -l app=log-agent -o wide',
+            'kubectl logs -l app=log-agent',
+          ],
+          verify: ['DESIRED and CURRENT counts match node count', 'Each pod on a different node (NODE column)', 'logs show hostname output'],
+          expectedOutcome: 'DaemonSet running one pod per node confirmed.',
+          cleanup: ['kubectl delete daemonset log-agent'],
+        },
+        {
+          id: 'p3-m3-e2',
+          title: 'Update DaemonSet image with RollingUpdate',
+          kind: 'challenge',
+          goal: 'Update the DaemonSet container image and watch the rolling update complete.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: log-agent-v2
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: log-agent-v2
+  template:
+    metadata:
+      labels:
+        app: log-agent-v2
+    spec:
+      containers:
+      - name: agent
+        image: busybox:1.35
+        command: ["sh", "-c", "while true; do echo v1; sleep 10; done"]
+EOF`,
+            'kubectl set image daemonset/log-agent-v2 agent=busybox:1.36',
+            'kubectl rollout status daemonset/log-agent-v2',
+            'kubectl rollout history daemonset/log-agent-v2',
+          ],
+          verify: ['rollout status shows successfully rolled out', 'rollout history shows revision 2'],
+          expectedOutcome: 'DaemonSet image updated via rolling update across all nodes.',
+          cleanup: ['kubectl delete daemonset log-agent-v2'],
+        },
+        {
+          id: 'p3-m3-e3',
+          title: 'Inspect system DaemonSets in kube-system',
+          kind: 'debug',
+          goal: 'Identify which kube-system DaemonSets exist and what tolerations they use to run on control-plane nodes.',
+          commands: [
+            'kubectl get daemonsets -n kube-system',
+            'kubectl describe daemonset kube-proxy -n kube-system | grep -A10 Tolerations',
+            'kubectl get pods -n kube-system -o wide | grep kube-proxy',
+          ],
+          verify: ['kube-proxy DaemonSet visible in kube-system', 'Tolerations include node-role.kubernetes.io/control-plane or similar', 'kube-proxy pod running on the minikube node'],
+          expectedOutcome: 'Understand how system DaemonSets use tolerations to run on all nodes including control-plane.',
+          cleanup: [],
+        },
+        {
+          id: 'p3-m3-e4',
+          title: '3-day spaced review — DaemonSet commands',
+          kind: 'spaced-review',
+          goal: 'Recall DaemonSet management commands from memory.',
+          commands: [
+            'kubectl get daemonsets -A',
+            'kubectl get pods -A -o wide | grep -i daemon',
+            'kubectl explain daemonset.spec.updateStrategy',
+          ],
+          verify: ['System DaemonSets visible in kube-system', 'updateStrategy types listed in explain output'],
+          expectedOutcome: 'DaemonSet commands recalled without notes.',
+          cleanup: [],
         },
       ],
     },
@@ -1330,6 +1741,107 @@ spec:
           explanation: 'TLS termination at the Ingress means the IngressController handles the HTTPS connection from the client, decrypts it, and forwards plain HTTP to the backend Services. Backend Services do not need TLS certificates or HTTPS configuration. This simplifies backend development and centralises certificate management.',
         },
       ],
+      coverage: {
+        concepts: ['Ingress resource vs IngressController', 'path-based routing rules', 'host-based virtual hosting', 'TLS termination at IngressController', 'pathType: Prefix/Exact/ImplementationSpecific', 'IngressClass', 'controller-specific annotations'],
+        commands: ['minikube addons enable ingress', 'kubectl get ingress', 'kubectl describe ingress', 'kubectl get ingressclass', 'curl -H "Host: myapp.local" http://$(minikube ip)', 'kubectl apply -f ingress.yaml'],
+        architecture: ['IngressController as reverse proxy (nginx/traefik)', 'Ingress resource as declarative routing config', 'TLS termination: HTTPS→HTTP to backend', 'IngressController reads Service endpoints directly or via ClusterIP'],
+        techniques: ['path-based routing to multiple services', 'host-based virtual hosting with multiple rules', 'TLS Secret of type kubernetes.io/tls', 'rewrite-target annotation for path stripping', 'minikube ingress addon setup'],
+        procedures: ['enable ingress addon in minikube', 'create Ingress with path rules', 'test routing with curl and Host header', 'add TLS to existing Ingress'],
+        toolsAndPlugins: ['kubectl', 'minikube', 'nginx IngressController'],
+        cases: ['Ingress ADDRESS stays empty — controller pod not running', 'path not routing — pathType mismatch (Prefix vs Exact)', 'TLS not working — Secret missing tls.crt or tls.key'],
+        scenarios: ['route /api and /web to different backend services on same host', 'add HTTPS termination to an existing HTTP Ingress'],
+      },
+      exercises: [
+        {
+          id: 'p3-m4-e1',
+          title: 'Deploy two services and route via Ingress',
+          kind: 'guided',
+          goal: 'Route /web and /api paths to two different backend services using a single Ingress.',
+          commands: [
+            'minikube addons enable ingress',
+            'kubectl create deployment web --image=nginx:1.27',
+            'kubectl expose deployment web --port=80',
+            'kubectl create deployment api --image=nginx:1.26',
+            'kubectl expose deployment api --port=80',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: myapp.local
+    http:
+      paths:
+      - path: /web
+        pathType: Prefix
+        backend:
+          service:
+            name: web
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api
+            port:
+              number: 80
+EOF`,
+            'kubectl get ingress app-ingress',
+            'curl -H "Host: myapp.local" http://$(minikube ip)/web',
+          ],
+          verify: ['Ingress shows ADDRESS populated', 'curl /web returns nginx response', 'kubectl describe ingress shows both path rules'],
+          expectedOutcome: 'Path-based routing working via nginx IngressController.',
+          cleanup: ['kubectl delete ingress app-ingress', 'kubectl delete service web api', 'kubectl delete deployment web api'],
+        },
+        {
+          id: 'p3-m4-e2',
+          title: 'Add TLS to an Ingress',
+          kind: 'challenge',
+          goal: 'Generate a self-signed TLS Secret and attach it to the Ingress.',
+          commands: [
+            'openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /tmp/tls.key -out /tmp/tls.crt -subj "/CN=myapp.local"',
+            'kubectl create secret tls myapp-tls --cert=/tmp/tls.crt --key=/tmp/tls.key',
+            `kubectl patch ingress app-ingress --type=json -p='[{"op":"add","path":"/spec/tls","value":[{"hosts":["myapp.local"],"secretName":"myapp-tls"}]}]'`,
+            'kubectl describe ingress app-ingress | grep -A5 TLS',
+          ],
+          verify: ['TLS section visible in describe ingress', 'Secret myapp-tls created with tls.crt and tls.key'],
+          expectedOutcome: 'TLS termination configured on Ingress with self-signed cert.',
+          cleanup: ['kubectl delete ingress app-ingress --ignore-not-found', 'kubectl delete secret myapp-tls --ignore-not-found', 'kubectl delete service web api --ignore-not-found', 'kubectl delete deployment web api --ignore-not-found'],
+        },
+        {
+          id: 'p3-m4-e3',
+          title: 'Diagnose Ingress ADDRESS not populating',
+          kind: 'debug',
+          goal: 'Identify why an Ingress ADDRESS field is empty and trace the cause.',
+          commands: [
+            'kubectl get ingress',
+            'kubectl describe ingress',
+            'kubectl get pods -n ingress-nginx',
+            'kubectl get pods -n kube-system | grep ingress',
+          ],
+          verify: ['Ingress shows no ADDRESS when controller is not running', 'kubectl get pods in ingress-nginx namespace shows controller pod status'],
+          expectedOutcome: 'Empty Ingress ADDRESS traced to IngressController pod state.',
+          cleanup: [],
+        },
+        {
+          id: 'p3-m4-e4',
+          title: '7-day spaced review — Ingress routing',
+          kind: 'spaced-review',
+          goal: 'Recall Ingress resource structure and controller relationship from memory.',
+          commands: [
+            'kubectl get ingressclass',
+            'kubectl explain ingress.spec.rules',
+            'kubectl explain ingress.spec.tls',
+          ],
+          verify: ['IngressClass shows nginx controller', 'explain output shows rules and tls structure'],
+          expectedOutcome: 'Ingress structure and routing concepts recalled without notes.',
+          cleanup: [],
+        },
+      ],
     },
 
     // ─── Module 5: NetworkPolicies ───────────────────────────────────────────
@@ -1625,6 +2137,127 @@ spec:
           ],
           answer: 1,
           explanation: 'kindnet (the default CNI for kind clusters) does not enforce NetworkPolicies. The resources are accepted by the Kubernetes API but have no effect on actual traffic. To enforce NetworkPolicies in a kind cluster, you must install Calico or Cilium as the CNI plugin instead of kindnet.',
+        },
+      ],
+      coverage: {
+        concepts: ['NetworkPolicy as namespace-scoped firewall', 'default allow-all behavior with no policies', 'ingress rules: who can send TO selected pods', 'egress rules: where selected pods can send TO', 'podSelector, namespaceSelector, ipBlock', 'default deny-all ingress pattern', 'CNI plugin requirement for enforcement'],
+        commands: ['kubectl apply -f netpol.yaml', 'kubectl get networkpolicies', 'kubectl describe networkpolicy', 'kubectl exec -- wget -T2 http://<svc> (test connectivity)', 'kubectl run test-pod --image=busybox --restart=Never -- sleep 3600'],
+        architecture: ['NetworkPolicy enforced by CNI plugin (Calico/Cilium/Weave)', 'policy selects pods via podSelector', 'allow rules are additive — no explicit deny needed', 'missing CNI support = policies accepted by API but not enforced'],
+        techniques: ['default deny-all ingress with empty podSelector', 'allow only specific namespace traffic with namespaceSelector', 'allow only specific pod with podSelector in from/to', 'allow external CIDR with ipBlock', 'test connectivity before and after applying policy'],
+        procedures: ['apply default deny-all ingress policy', 'apply allow policy for specific source', 'verify allowed traffic passes', 'verify blocked traffic fails', 'label namespace for namespaceSelector'],
+        toolsAndPlugins: ['kubectl', 'minikube with calico addon or cilium CNI'],
+        cases: ['default minikube CNI does not enforce NetworkPolicy — policies have no effect', 'namespaceSelector requires namespace label — bare name not used', 'egress policy blocking DNS port 53 breaks service discovery'],
+        scenarios: ['isolate a namespace — deny all ingress, then selectively allow frontend → backend', 'debug why pod cannot reach a service after NetworkPolicy applied'],
+      },
+      exercises: [
+        {
+          id: 'p3-m5-e1',
+          title: 'Apply default-deny and verify isolation',
+          kind: 'guided',
+          goal: 'Apply a default-deny-all-ingress policy and confirm traffic is blocked, then allow specific traffic.',
+          commands: [
+            'kubectl create namespace netpol-test',
+            'kubectl run backend --image=nginx:1.27 -n netpol-test --labels=app=backend',
+            'kubectl expose pod backend --port=80 -n netpol-test',
+            'kubectl run client --image=busybox:1.36 -n netpol-test --restart=Never -- sleep 3600',
+            'kubectl exec client -n netpol-test -- wget -T2 -O- http://backend',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: netpol-test
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+EOF`,
+            'kubectl exec client -n netpol-test -- wget -T2 -O- http://backend',
+          ],
+          verify: ['Before policy: wget returns nginx page', 'After deny-all: wget times out with connection refused or timeout'],
+          expectedOutcome: 'Default-deny ingress blocks all traffic to backend pod.',
+          cleanup: ['kubectl delete namespace netpol-test'],
+        },
+        {
+          id: 'p3-m5-e2',
+          title: 'Allow only frontend pod to reach backend',
+          kind: 'challenge',
+          goal: 'Write a NetworkPolicy that allows only pods with label role=frontend to reach backend pods.',
+          commands: [
+            'kubectl create namespace isolation-test',
+            'kubectl run backend --image=nginx:1.27 -n isolation-test --labels=app=backend',
+            'kubectl expose pod backend --port=80 -n isolation-test',
+            'kubectl run frontend --image=busybox:1.36 -n isolation-test --labels=role=frontend --restart=Never -- sleep 3600',
+            'kubectl run other --image=busybox:1.36 -n isolation-test --labels=role=other --restart=Never -- sleep 3600',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend
+  namespace: isolation-test
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          role: frontend
+EOF`,
+            'kubectl exec frontend -n isolation-test -- wget -T2 -O- http://backend',
+            'kubectl exec other -n isolation-test -- wget -T2 -O- http://backend',
+          ],
+          verify: ['frontend pod reaches backend successfully', 'other pod times out — blocked by NetworkPolicy'],
+          expectedOutcome: 'Selective ingress allow — only matching pod label passes.',
+          cleanup: ['kubectl delete namespace isolation-test'],
+        },
+        {
+          id: 'p3-m5-e3',
+          title: 'Diagnose unexpected traffic block after NetworkPolicy',
+          kind: 'debug',
+          goal: 'Debug why a pod cannot reach a service after a NetworkPolicy was applied, and fix it.',
+          commands: [
+            'kubectl create namespace debug-netpol',
+            'kubectl run app --image=nginx:1.27 -n debug-netpol --labels=app=app',
+            'kubectl expose pod app --port=80 -n debug-netpol',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: block-all
+  namespace: debug-netpol
+spec:
+  podSelector:
+    matchLabels:
+      app: app
+  policyTypes:
+  - Ingress
+EOF`,
+            'kubectl run checker --image=busybox:1.36 -n debug-netpol --restart=Never -- sleep 3600',
+            'kubectl exec checker -n debug-netpol -- wget -T2 http://app',
+            'kubectl get networkpolicies -n debug-netpol',
+            'kubectl describe networkpolicy block-all -n debug-netpol',
+          ],
+          verify: ['wget fails after policy applied', 'describe shows empty ingress rules (deny-all effect)', 'kubectl get networkpolicies shows the policy'],
+          expectedOutcome: 'Block-all policy identified as cause; describe shows no ingress allow rules.',
+          cleanup: ['kubectl delete namespace debug-netpol'],
+        },
+        {
+          id: 'p3-m5-e4',
+          title: '7-day spaced review — NetworkPolicy structure',
+          kind: 'spaced-review',
+          goal: 'Recall NetworkPolicy fields and enforcement requirements from memory.',
+          commands: [
+            'kubectl explain networkpolicy.spec.ingress',
+            'kubectl explain networkpolicy.spec.egress',
+            'kubectl explain networkpolicy.spec.podSelector',
+          ],
+          verify: ['explain returns from/to/ports fields', 'Can state: CNI plugin required, default allow-all without policies'],
+          expectedOutcome: 'NetworkPolicy structure and CNI enforcement requirement recalled without notes.',
+          cleanup: [],
         },
       ],
     },
