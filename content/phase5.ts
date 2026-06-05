@@ -358,6 +358,80 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
           explanation: 'Helm v2 required Tiller, a server-side pod running in kube-system with cluster-admin permissions. Any workload that could reach Tiller could issue arbitrary Kubernetes API calls â€” a major privilege escalation risk. Helm v3 is entirely client-side: it uses your kubeconfig credentials directly, so permissions are limited to what your own account allows.',
         },
       ],
+      coverage: {
+        concepts: ['chart: package of Kubernetes manifests', 'Chart.yaml: chart metadata', 'values.yaml: default config values', 'templates/: Go template YAML files', 'release: named installation of a chart', 'revision: each upgrade increments revision', 'values override: defaults → -f file → --set'],
+        commands: ['helm repo add', 'helm repo update', 'helm search repo', 'helm install', 'helm upgrade', 'helm rollback', 'helm list', 'helm uninstall', 'helm template --dry-run', 'helm get values', 'helm status', 'helm history'],
+        architecture: ['Helm v3 client-side only — no Tiller', 'release state stored as Secrets in target namespace', 'Go templates render values.yaml into final YAML', 'chart dependencies declared in Chart.yaml'],
+        techniques: ['dry-run with --dry-run --debug before install', 'override values with --set and -f custom-values.yaml', 'inspect rendered output with helm template', 'rollback to previous revision with helm rollback', 'upgrade in place with helm upgrade --install'],
+        procedures: ['add chart repository', 'search for chart version', 'install with custom values', 'upgrade release with new values', 'view history and rollback on failure', 'uninstall release'],
+        toolsAndPlugins: ['helm', 'kubectl', 'minikube'],
+        cases: ['helm install fails — CRD or API version incompatibility', 'release in failed state — helm rollback or helm upgrade --force', 'wrong values applied — debug with helm get values and helm template'],
+        scenarios: ['install nginx-ingress controller from Artifact Hub', 'upgrade a release with new image tag, verify, rollback if broken'],
+      },
+      exercises: [
+        {
+          id: 'p5-m1-e1',
+          title: 'Install a Helm chart and inspect the release',
+          kind: 'guided',
+          goal: 'Add a Helm repo, install a chart, and inspect release state.',
+          commands: [
+            'helm version',
+            'helm repo add bitnami https://charts.bitnami.com/bitnami',
+            'helm repo update',
+            'helm search repo bitnami/nginx --versions | head -5',
+            'helm install my-nginx bitnami/nginx --set service.type=NodePort',
+            'helm list',
+            'helm status my-nginx',
+            'helm get values my-nginx',
+          ],
+          verify: ['helm list shows my-nginx with STATUS deployed', 'helm status shows deployed resources', 'helm get values shows service.type=NodePort'],
+          expectedOutcome: 'Chart installed, release state inspected.',
+          cleanup: ['helm uninstall my-nginx'],
+        },
+        {
+          id: 'p5-m1-e2',
+          title: 'Upgrade and rollback a Helm release',
+          kind: 'challenge',
+          goal: 'Upgrade a release with a new value, then rollback to the previous revision.',
+          commands: [
+            'helm install sr-nginx bitnami/nginx --set replicaCount=1',
+            'helm upgrade sr-nginx bitnami/nginx --set replicaCount=3',
+            'helm history sr-nginx',
+            'helm rollback sr-nginx 1',
+            'helm history sr-nginx',
+          ],
+          verify: ['history shows revision 1 then 2', 'rollback creates revision 3 reverting to revision 1 values'],
+          expectedOutcome: 'Upgrade and rollback cycle completed.',
+          cleanup: ['helm uninstall sr-nginx'],
+        },
+        {
+          id: 'p5-m1-e3',
+          title: 'Inspect Helm rendering before deploy',
+          kind: 'debug',
+          goal: 'Use dry-run and template to see what Helm would apply without deploying.',
+          commands: [
+            'helm install debug-nginx bitnami/nginx --set service.type=NodePort --dry-run --debug 2>&1 | head -50',
+            'helm template my-release bitnami/nginx --set service.type=NodePort | grep -A5 “kind: Service”',
+          ],
+          verify: ['dry-run shows rendered YAML without applying', 'helm template shows Service manifest with NodePort type'],
+          expectedOutcome: 'Dry-run and template inspection workflow confirmed.',
+          cleanup: [],
+        },
+        {
+          id: 'p5-m1-e4',
+          title: '7-day spaced review — Helm commands',
+          kind: 'spaced-review',
+          goal: 'Recall Helm lifecycle commands from memory.',
+          commands: [
+            'helm list -A',
+            'helm repo list',
+            'helm search repo nginx | head -5',
+          ],
+          verify: ['All commands run without error', 'repo list shows added repos'],
+          expectedOutcome: 'Helm commands recalled without notes.',
+          cleanup: [],
+        },
+      ],
     },
 
     // â”€â”€â”€ Module 2: Kustomize â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -712,6 +786,116 @@ commonLabels:
           explanation: 'Kustomize shines for first-party applications where you own all the YAML and primarily need environment-specific overrides. The base/overlay model is clean, requires no template syntax, and kubectl apply -k fits naturally into CI pipelines. Choose Helm when you need chart versioning, want to share the package publicly, or have complex conditional logic that Go templates handle better than YAML patches.',
         },
       ],
+      coverage: {
+        concepts: ['base: reusable YAML manifests', 'overlay: environment-specific patches', 'kustomization.yaml: entry point', 'strategic merge patch', 'JSON patch (RFC 6902)', 'commonLabels and namePrefix transformers', 'images transformer for tag overrides'],
+        commands: ['kubectl apply -k <dir>', 'kubectl diff -k <dir>', 'kubectl kustomize <dir>', 'kustomize build <dir>'],
+        architecture: ['kustomize reads kustomization.yaml, merges base + patches, renders final YAML', 'no template engine — pure YAML manipulation via patches', 'kubectl -k is built-in since kubectl 1.14', 'overlays reference base via relative path in resources field'],
+        techniques: ['base/overlay directory structure', 'image tag override with images field', 'replica patch with patchesStrategicMerge', 'commonLabels to tag all resources', 'namePrefix/nameSuffix to isolate environments'],
+        procedures: ['create base kustomization.yaml with deployment and service', 'create dev overlay with different replica count', 'create prod overlay with different image tag', 'apply overlay with kubectl apply -k', 'preview with kubectl kustomize'],
+        toolsAndPlugins: ['kubectl', 'kustomize', 'minikube'],
+        cases: ['kustomization.yaml missing resources list causes empty render', 'strategic merge patch wrong field path silently ignored', 'wrong overlay references cause unexpected merge behavior'],
+        scenarios: ['manage dev and prod environments with different replicas and image tags', 'add commonLabels to all resources without editing each manifest'],
+      },
+      exercises: [
+        {
+          id: 'p5-m2-e1',
+          title: 'Create a base and two overlays with Kustomize',
+          kind: 'guided',
+          goal: 'Build a base deployment and apply dev vs prod overlays with different replica counts.',
+          commands: [
+            'mkdir -p /tmp/kustomize-demo/base /tmp/kustomize-demo/overlays/dev /tmp/kustomize-demo/overlays/prod',
+            `cat <<'EOF' > /tmp/kustomize-demo/base/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.26
+EOF`,
+            `cat <<'EOF' > /tmp/kustomize-demo/base/kustomization.yaml
+resources:
+- deployment.yaml
+EOF`,
+            `cat <<'EOF' > /tmp/kustomize-demo/overlays/prod/kustomization.yaml
+resources:
+- ../../base
+images:
+- name: nginx
+  newTag: "1.27"
+replicas:
+- name: web
+  count: 3
+EOF`,
+            'kubectl kustomize /tmp/kustomize-demo/overlays/prod',
+            'kubectl apply -k /tmp/kustomize-demo/overlays/prod',
+            'kubectl get deployment web',
+          ],
+          verify: ['kubectl kustomize shows replicas: 3 and image nginx:1.27', 'kubectl get deployment shows 3 replicas after apply'],
+          expectedOutcome: 'Base and overlay pattern working; image and replica overrides confirmed.',
+          cleanup: ['kubectl delete -k /tmp/kustomize-demo/overlays/prod --ignore-not-found', 'rm -rf /tmp/kustomize-demo'],
+        },
+        {
+          id: 'p5-m2-e2',
+          title: 'Add commonLabels to all resources via overlay',
+          kind: 'challenge',
+          goal: 'Add env: production label to all resources in the prod overlay without editing each manifest.',
+          commands: [
+            `cat <<'EOF' > /tmp/kustomize-demo/overlays/prod/kustomization.yaml
+resources:
+- ../../base
+commonLabels:
+  env: production
+images:
+- name: nginx
+  newTag: "1.27"
+replicas:
+- name: web
+  count: 3
+EOF`,
+            'kubectl kustomize /tmp/kustomize-demo/overlays/prod | grep -A3 labels',
+          ],
+          verify: ['rendered output shows env: production on Deployment metadata and pod template labels'],
+          expectedOutcome: 'commonLabels applied to all resources via overlay transformer.',
+          cleanup: [],
+        },
+        {
+          id: 'p5-m2-e3',
+          title: 'Diagnose kustomize rendering with kubectl kustomize',
+          kind: 'debug',
+          goal: 'Use kubectl kustomize to preview changes before applying and catch a misconfigured patch.',
+          commands: [
+            'kubectl kustomize /tmp/kustomize-demo/base',
+            'kubectl diff -k /tmp/kustomize-demo/overlays/prod 2>&1 || true',
+          ],
+          verify: ['kustomize base renders default deployment', 'diff shows what would change vs live cluster'],
+          expectedOutcome: 'kubectl kustomize and diff used to inspect changes before apply.',
+          cleanup: ['rm -rf /tmp/kustomize-demo'],
+        },
+        {
+          id: 'p5-m2-e4',
+          title: '3-day spaced review — Kustomize commands',
+          kind: 'spaced-review',
+          goal: 'Recall Kustomize commands and base/overlay pattern from memory.',
+          commands: [
+            'kubectl kustomize --help | head -15',
+            'kubectl explain kustomization 2>/dev/null || echo "kustomization is a file format, not a CRD"',
+          ],
+          verify: ['kubectl kustomize --help shows build and apply options', 'Can state: base/overlay structure, kustomization.yaml fields'],
+          expectedOutcome: 'Kustomize workflow recalled without notes.',
+          cleanup: [],
+        },
+      ],
     },
 
     // ─── Module 3: CRDs ──────────────────────────────────────────────────────
@@ -1030,6 +1214,169 @@ spec:
           ],
           answer: 1,
           explanation: 'cert-manager introduces a Certificate CRD â€” create a Certificate CR and the cert-manager controller talks to Let\'s Encrypt (or another CA) and creates a TLS Secret. Argo CD introduces an Application CRD â€” create an Application CR pointing at a Git repo and the Argo CD controller syncs the repo contents to the cluster. Both are classic Operators: CRD defines desired state, controller makes it real.',
+        },
+      ],
+      coverage: {
+        concepts: ['CRD: registers new API resource type with API server', 'CR (Custom Resource): instance of a CRD', 'controller/operator: reconciles CRs to desired state', 'Operator pattern: CRD + controller = declarative extension', 'OpenAPI v3 validation schema in CRD', 'finalizers for clean-up before CR delete'],
+        commands: ['kubectl apply -f crd.yaml', 'kubectl get crds', 'kubectl explain <custom-resource>', 'kubectl get <custom-resource>', 'kubectl describe <custom-resource>', 'kubectl delete crd <name>'],
+        architecture: ['CRD registers new API group/version/resource with API server', 'CR stored in etcd like any built-in resource', 'controller watches CR events via informers', 'reconciliation loop: observe CR state → compute diff → apply changes'],
+        techniques: ['apply CRD first, then CR instance', 'kubectl explain for CRD-defined fields', 'inspect controller logs for reconciliation errors', 'use finalizers to prevent orphaned external resources'],
+        procedures: ['create CRD with schema', 'create CR instance', 'inspect with kubectl get/describe/explain', 'observe controller reconciling CR', 'delete CRD and see all CRs removed'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['CR rejected — OpenAPI validation schema fails', 'CR applied but nothing happens — controller not deployed', 'CRD deleted — all CRs cascade deleted', 'finalizer blocks CR delete — controller must remove finalizer'],
+        scenarios: ['apply a CRD and create a CR to understand the pattern', 'observe what happens to CRs when CRD is deleted'],
+      },
+      exercises: [
+        {
+          id: 'p5-m3-e1',
+          title: 'Create a CRD and instantiate a custom resource',
+          kind: 'guided',
+          goal: 'Register a custom resource type and create an instance to understand the CRD lifecycle.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databases.example.com
+spec:
+  group: example.com
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              engine:
+                type: string
+              version:
+                type: string
+              replicas:
+                type: integer
+  scope: Namespaced
+  names:
+    plural: databases
+    singular: database
+    kind: Database
+EOF`,
+            'kubectl get crds databases.example.com',
+            'kubectl explain database.spec',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: example.com/v1
+kind: Database
+metadata:
+  name: my-postgres
+spec:
+  engine: postgres
+  version: “16”
+  replicas: 3
+EOF`,
+            'kubectl get databases',
+            'kubectl describe database my-postgres',
+          ],
+          verify: ['CRD registered: kubectl get crds shows databases.example.com', 'kubectl explain database.spec shows engine/version/replicas fields', 'CR created and visible via kubectl get databases'],
+          expectedOutcome: 'CRD registered, CR instance created, kubectl explain works for custom type.',
+          cleanup: ['kubectl delete database my-postgres', 'kubectl delete crd databases.example.com'],
+        },
+        {
+          id: 'p5-m3-e2',
+          title: 'Observe CRD cascade delete',
+          kind: 'challenge',
+          goal: 'Confirm all CR instances are deleted when the CRD is removed.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: widgets.example.com
+spec:
+  group: example.com
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+  scope: Namespaced
+  names:
+    plural: widgets
+    singular: widget
+    kind: Widget
+EOF`,
+            'kubectl apply -f - <<\'EOF\'\napiVersion: example.com/v1\nkind: Widget\nmetadata:\n  name: test-widget\nEOF',
+            'kubectl get widgets',
+            'kubectl delete crd widgets.example.com',
+            'kubectl get widgets 2>&1 || echo “CRD gone — resource type no longer exists”',
+          ],
+          verify: ['kubectl get widgets returns error after CRD delete', 'Cascade delete confirmed'],
+          expectedOutcome: 'Understand that deleting a CRD removes all instances — destructive operation.',
+          cleanup: [],
+        },
+        {
+          id: 'p5-m3-e3',
+          title: 'Diagnose CR rejected by schema validation',
+          kind: 'debug',
+          goal: 'Observe what happens when a CR violates the CRD OpenAPI validation schema.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: validators.example.com
+spec:
+  group: example.com
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        required: [spec]
+        properties:
+          spec:
+            type: object
+            required: [count]
+            properties:
+              count:
+                type: integer
+                minimum: 1
+  scope: Namespaced
+  names:
+    plural: validators
+    singular: validator
+    kind: Validator
+EOF`,
+            `cat <<'EOF' | kubectl apply -f - 2>&1 || true
+apiVersion: example.com/v1
+kind: Validator
+metadata:
+  name: bad-instance
+spec:
+  count: -5
+EOF`,
+          ],
+          verify: ['kubectl apply returns validation error mentioning count minimum 1'],
+          expectedOutcome: 'OpenAPI schema validation rejects invalid CR at admission.',
+          cleanup: ['kubectl delete crd validators.example.com --ignore-not-found'],
+        },
+        {
+          id: 'p5-m3-e4',
+          title: '7-day spaced review — CRD concepts',
+          kind: 'spaced-review',
+          goal: 'Recall CRD and Operator pattern from memory.',
+          commands: [
+            'kubectl get crds',
+            'kubectl api-resources | grep -v “^NAME” | awk \'{print $3}\' | sort -u | head -20',
+          ],
+          verify: ['kubectl get crds shows any installed CRDs', 'Can state: CRD = schema, CR = instance, controller = actor'],
+          expectedOutcome: 'CRD/Operator pattern recalled without notes.',
+          cleanup: [],
         },
       ],
     },
@@ -1397,6 +1744,81 @@ For tracing to work across microservice hops, applications must propagate the tr
           ],
           answer: 2,
           explanation: 'Distributed tracing is specifically designed for this. A trace captures the complete request flow: Service A called Service B (12ms), which called the database (340ms â€” the bottleneck), which returned to Service B (2ms), which returned to Service A. Metrics can tell you the p99 latency is high; traces tell you exactly which hop in the chain is responsible. OpenTelemetry is the standard instrumentation SDK; Jaeger and Grafana Tempo are popular backends.',
+        },
+      ],
+      coverage: {
+        concepts: ['three pillars: metrics, logs, traces', 'metrics: counters, gauges, histograms, summaries', 'Prometheus scrape model via /metrics endpoint', 'log aggregation via stdout/stderr → Loki/Elasticsearch', 'distributed tracing: spans, trace ID propagation', 'OpenTelemetry as standard instrumentation SDK'],
+        commands: ['minikube addons enable metrics-server', 'kubectl top pods', 'kubectl top nodes', 'kubectl logs -f -l app=web', 'kubectl logs --previous', 'helm install prometheus prometheus-community/kube-prometheus-stack', 'kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring'],
+        architecture: ['Prometheus scrapes /metrics every 15s via ServiceMonitor CRDs', 'Grafana queries Prometheus for dashboards and alerts', 'kubelet exports cAdvisor metrics per container', 'logs written to stdout/stderr, aggregated by node-level log agent'],
+        techniques: ['enable metrics-server addon for kubectl top', 'port-forward to access Grafana locally', 'filter logs across all replicas with -l selector', 'get previous container logs after crash with --previous', 'use kubectl top to identify CPU/memory hogs'],
+        procedures: ['enable metrics-server in minikube', 'check pod and node resource usage', 'stream logs from all replicas', 'install kube-prometheus-stack via Helm', 'access Grafana dashboard via port-forward'],
+        toolsAndPlugins: ['kubectl', 'minikube', 'Prometheus', 'Grafana', 'metrics-server', 'OpenTelemetry', 'Loki'],
+        cases: ['kubectl top fails — metrics-server not running or not ready', 'logs lost after pod restart — use --previous or central log aggregation', 'HPA broken — metrics-server required for CPU metrics'],
+        scenarios: ['identify the highest-CPU pod in a namespace', 'get logs from all replicas of a deployment simultaneously'],
+      },
+      exercises: [
+        {
+          id: 'p5-m4-e1',
+          title: 'Enable metrics-server and inspect resource usage',
+          kind: 'guided',
+          goal: 'Enable metrics-server, create a workload, and observe resource usage with kubectl top.',
+          commands: [
+            'minikube addons enable metrics-server',
+            'kubectl create deployment load-app --image=nginx:1.27 --replicas=3',
+            'kubectl top nodes',
+            'kubectl top pods',
+            'kubectl top pods -l app=load-app',
+            'kubectl top pods -A --sort-by=cpu | head -10',
+          ],
+          verify: ['kubectl top nodes shows CPU% and MEMORY%', 'kubectl top pods shows per-pod resource usage', 'sorted output shows top CPU consumers'],
+          expectedOutcome: 'metrics-server working; resource usage visible per pod and node.',
+          cleanup: ['kubectl delete deployment load-app'],
+        },
+        {
+          id: 'p5-m4-e2',
+          title: 'Stream and filter logs across replicas',
+          kind: 'challenge',
+          goal: 'Stream logs from all replicas simultaneously using label selectors.',
+          commands: [
+            'kubectl create deployment log-app --image=nginx:1.27 --replicas=3',
+            'kubectl logs -l app=log-app -f --max-log-requests=3',
+            'kubectl logs -l app=log-app --tail=5',
+            'kubectl run crasher --image=busybox:1.36 --restart=Never -- sh -c “echo crash; exit 1”',
+            'kubectl logs crasher --previous',
+          ],
+          verify: ['logs -l streams from all 3 pods', '--previous returns logs from the terminated container'],
+          expectedOutcome: 'Multi-replica log streaming and previous-container log retrieval confirmed.',
+          cleanup: ['kubectl delete deployment log-app', 'kubectl delete pod crasher --ignore-not-found'],
+        },
+        {
+          id: 'p5-m4-e3',
+          title: 'Diagnose missing metrics causing kubectl top failure',
+          kind: 'debug',
+          goal: 'Understand what metrics-server provides and diagnose its absence.',
+          commands: [
+            'minikube addons disable metrics-server',
+            'kubectl top pods 2>&1 || true',
+            'kubectl top nodes 2>&1 || true',
+            'kubectl get apiservice v1beta1.metrics.k8s.io 2>&1 || true',
+            'minikube addons enable metrics-server',
+          ],
+          verify: ['kubectl top shows “error: Metrics API not available” when disabled', 'Re-enabling metrics-server restores kubectl top functionality'],
+          expectedOutcome: 'Metrics API absence diagnosed; metrics-server role understood.',
+          cleanup: [],
+        },
+        {
+          id: 'p5-m4-e4',
+          title: '7-day spaced review — observability commands',
+          kind: 'spaced-review',
+          goal: 'Recall the three observability pillars and key kubectl observability commands from memory.',
+          commands: [
+            'kubectl top nodes',
+            'kubectl top pods -A | head -10',
+            'kubectl logs -l app=<any-running-app> --tail=5 2>/dev/null || kubectl get pods --no-headers | head -1 | awk \'{print $1}\' | xargs kubectl logs --tail=5',
+          ],
+          verify: ['kubectl top works', 'logs retrievable from running pod'],
+          expectedOutcome: 'Three pillars and observability commands recalled without notes.',
+          cleanup: [],
         },
       ],
     },
@@ -1771,6 +2193,126 @@ spec:
           explanation: 'Kubernetes only supports upgrading one minor version at a time (the N-2 rule means a 1.33 kubelet can talk to a 1.35 API server, but skipping directly is not tested and not supported). Always upgrade the control plane (API server, scheduler, controller-manager) before upgrading nodes — the API server must be at the newer version first. After each step, verify that workloads are healthy before proceeding to the next minor version.',
         },
       ],
+      coverage: {
+        concepts: ['resource requests and limits on every container', 'liveness + readiness + startup probes', 'PodDisruptionBudget for availability during disruptions', 'least-privilege ServiceAccount per workload', 'NetworkPolicy for namespace isolation', 'non-root container user', 'image tag pinning (no :latest)', 'upgrade path: one minor version at a time'],
+        commands: ['kubectl auth can-i --list --as=system:serviceaccount:ns:sa', 'kubectl get all -A', 'kubectl describe pod (check all sections)', 'kubectl top pods -A', 'kubectl get pdb -A', 'kubectl get events -A --sort-by=.lastTimestamp', 'kubectl get pods -A | grep -v Running'],
+        architecture: ['production readiness as cross-cutting concern from all phases', 'admission controllers enforce baseline security policies', 'Pod Security Standards: baseline/restricted', 'kubelet eviction order: BestEffort → Burstable → Guaranteed'],
+        techniques: ['audit deployment completeness with describe', 'use auth can-i --list for SA permission audit', 'check for unhealthy pods with kubectl get pods -A | grep -v Running', 'verify PDB covers critical workloads', 'check no :latest image tags in production'],
+        procedures: ['audit namespace for production readiness', 'verify resource limits on all containers', 'confirm probes configured', 'check SA is not default over-privileged SA', 'verify PDB in place for critical workloads'],
+        toolsAndPlugins: ['kubectl', 'minikube', 'Polaris (optional audit tool)'],
+        cases: ['default SA has cluster-admin — blast radius of compromise is total', 'missing resource limits causes noisy-neighbor starvation', 'missing readiness probe sends traffic to unready pod during deploy'],
+        scenarios: ['production audit of new deployment before going live', 'pre-upgrade workload health verification'],
+      },
+      exercises: [
+        {
+          id: 'p5-m5-e1',
+          title: 'Audit a deployment for production readiness',
+          kind: 'guided',
+          goal: 'Check a deployment against the production checklist using kubectl commands.',
+          commands: [
+            'kubectl create deployment prod-check --image=nginx:1.27 --replicas=2',
+            'kubectl describe deployment prod-check | grep -A5 Containers',
+            'kubectl get pods -l app=prod-check -o yaml | grep -E "resources|liveness|readiness|serviceAccount"',
+            'kubectl auth can-i --list --as=system:serviceaccount:default:default -n default | head -20',
+            'kubectl get pdb -n default',
+          ],
+          verify: ['describe shows no resource limits set (gap identified)', 'no probes configured (gap identified)', 'default SA has broad permissions (gap identified)', 'no PDB for this deployment (gap identified)'],
+          expectedOutcome: 'All production readiness gaps identified via kubectl audit commands.',
+          cleanup: ['kubectl delete deployment prod-check'],
+        },
+        {
+          id: 'p5-m5-e2',
+          title: 'Apply production hardening to a deployment',
+          kind: 'challenge',
+          goal: 'Fix all production gaps: add resources, probes, dedicated SA, and PDB.',
+          commands: [
+            'kubectl create serviceaccount prod-sa',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hardened-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hardened-app
+  template:
+    metadata:
+      labels:
+        app: hardened-app
+    spec:
+      serviceAccountName: prod-sa
+      containers:
+      - name: nginx
+        image: nginx:1.27
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 250m
+            memory: 128Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 5
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hardened-app-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: hardened-app
+EOF`,
+            'kubectl describe deployment hardened-app | grep -A10 Containers',
+            'kubectl get pdb hardened-app-pdb',
+          ],
+          verify: ['deployment shows resources, livenessProbe, readinessProbe in describe', 'PDB created with minAvailable: 1', 'serviceAccountName shows prod-sa not default'],
+          expectedOutcome: 'All production readiness requirements satisfied.',
+          cleanup: ['kubectl delete deployment hardened-app', 'kubectl delete pdb hardened-app-pdb', 'kubectl delete serviceaccount prod-sa'],
+        },
+        {
+          id: 'p5-m5-e3',
+          title: 'Diagnose unhealthy cluster state',
+          kind: 'debug',
+          goal: 'Use kubectl to find all non-Running pods and identify root causes.',
+          commands: [
+            'kubectl get pods -A | grep -v -E "Running|Completed"',
+            'kubectl get events -A --sort-by=.lastTimestamp | tail -20',
+            'kubectl get nodes',
+            'kubectl top nodes',
+          ],
+          verify: ['Command shows any unhealthy pods across all namespaces', 'Events show recent failure reasons'],
+          expectedOutcome: 'Cluster-wide health scan commands confirmed.',
+          cleanup: [],
+        },
+        {
+          id: 'p5-m5-e4',
+          title: '7-day spaced review — production checklist recall',
+          kind: 'spaced-review',
+          goal: 'Recite the production readiness checklist from memory, then verify each item.',
+          commands: [
+            'kubectl get pods -A | grep -v -E "Running|Completed|Terminating" || echo "all pods healthy"',
+            'kubectl get pdb -A',
+            'kubectl top pods -A | sort -k3 -rh | head -5',
+          ],
+          verify: ['Can list 8+ production checklist items from memory', 'Cluster health checks run without error'],
+          expectedOutcome: 'Production readiness checklist internalized.',
+          cleanup: [],
+        },
+      ],
     },
 
     // ─── Module 6: GitOps ───────────────────────────────────────────────────
@@ -2046,6 +2588,98 @@ spec:
           ],
           answer: 1,
           explanation: 'The App of Apps pattern has a root ArgoCD Application that points to a directory of other Application manifests in Git. This bootstraps an entire cluster: one ArgoCD sync deploys all your teams\' applications. It\'s the standard pattern for fleet management at scale.',
+        },
+      ],
+      coverage: {
+        concepts: ['GitOps: Git as single source of truth', 'declarative desired state vs imperative kubectl apply', 'ArgoCD Application CRD', 'sync policy: manual vs automated', 'self-healing: ArgoCD reverts out-of-band changes', 'App of Apps pattern for fleet management', 'Flux as alternative GitOps engine', 'drift detection and remediation'],
+        commands: ['kubectl get applications -n argocd', 'kubectl get app <name> -n argocd -o yaml', 'argocd app sync <name>', 'argocd app diff <name>', 'argocd app history <name>', 'argocd app rollback <name> <revision>', 'kubectl describe application <name> -n argocd'],
+        architecture: ['ArgoCD controller watches Git repo + cluster state', 'Application controller reconciles every 3 minutes by default', 'Repo server renders manifests (Helm/Kustomize/plain YAML)', 'ArgoCD stores no secrets — pulls from Git', 'multi-cluster: one ArgoCD instance manages N clusters'],
+        techniques: ['use argocd app diff before sync to preview changes', 'automated sync with selfHeal + prune for full GitOps', 'App of Apps for bootstrapping clusters', 'use syncPolicy.retry for transient failures', 'annotate resources with argocd.argoproj.io/sync-wave for ordering'],
+        procedures: ['install ArgoCD into cluster', 'create Application pointing to Git repo path', 'verify sync status and health', 'trigger manual sync', 'rollback to previous revision via history'],
+        toolsAndPlugins: ['ArgoCD', 'Flux v2', 'Helm', 'Kustomize', 'kubectl'],
+        cases: ['out-of-band kubectl edit gets reverted on next sync (self-healing)', 'merge to main triggers automated deploy with no manual kubectl', 'rollback = revert Git commit, ArgoCD syncs old state'],
+        scenarios: ['bootstrap new cluster from Git using App of Apps', 'audit what changed between two Git revisions before deploying'],
+      },
+      exercises: [
+        {
+          id: 'p5-m6-e1',
+          title: 'Install ArgoCD and create your first Application',
+          kind: 'guided',
+          goal: 'Install ArgoCD into a cluster and create an Application pointing to the official guestbook example.',
+          commands: [
+            'kubectl create namespace argocd',
+            'kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml',
+            'kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=120s',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+EOF`,
+            'kubectl get application guestbook -n argocd',
+            'kubectl get application guestbook -n argocd -o jsonpath="{.status.sync.status}"',
+          ],
+          verify: ['ArgoCD server deployment becomes available', 'Application guestbook created in argocd namespace', 'sync status shows OutOfSync (not yet synced)'],
+          expectedOutcome: 'ArgoCD installed and Application CRD created pointing to Git source.',
+          cleanup: ['kubectl delete application guestbook -n argocd', 'kubectl delete namespace guestbook --ignore-not-found'],
+        },
+        {
+          id: 'p5-m6-e2',
+          title: 'Sync and observe self-healing',
+          kind: 'challenge',
+          goal: 'Sync the guestbook app, then manually delete a resource and observe ArgoCD self-heal it.',
+          commands: [
+            'kubectl patch application guestbook -n argocd --type merge -p \'{"spec":{"syncPolicy":{"automated":{"selfHeal":true,"prune":true}}}}\'',
+            'kubectl get application guestbook -n argocd -o jsonpath="{.status.sync.status}"',
+            'kubectl wait --for=jsonpath=.status.sync.status=Synced application/guestbook -n argocd --timeout=60s',
+            'kubectl get all -n guestbook',
+            'kubectl delete deployment guestbook-ui -n guestbook',
+            'sleep 10 && kubectl get deployment guestbook-ui -n guestbook',
+          ],
+          verify: ['After enabling automated selfHeal, app transitions to Synced', 'After deleting deployment, ArgoCD recreates it within ~10s'],
+          expectedOutcome: 'Self-healing demonstrated: manual deletion reversed automatically.',
+          cleanup: ['kubectl patch application guestbook -n argocd --type merge -p \'{"spec":{"syncPolicy":{"automated":null}}}\''],
+        },
+        {
+          id: 'p5-m6-e3',
+          title: 'Debug sync failure: missing CRD',
+          kind: 'debug',
+          goal: 'Identify why an Application stays OutOfSync by reading ArgoCD conditions.',
+          commands: [
+            'kubectl get applications -n argocd',
+            'kubectl describe application guestbook -n argocd | grep -A20 Conditions',
+            'kubectl get application guestbook -n argocd -o jsonpath="{.status.conditions}" | python3 -m json.tool',
+            'kubectl get application guestbook -n argocd -o jsonpath="{.status.operationState.message}"',
+          ],
+          verify: ['Can read sync error message from application conditions', 'Can identify whether failure is source (Git), render (Helm/Kustomize), or apply (missing CRD)'],
+          expectedOutcome: 'GitOps sync failure diagnosis workflow confirmed.',
+          cleanup: [],
+        },
+        {
+          id: 'p5-m6-e4',
+          title: '7-day spaced review — GitOps core concepts',
+          kind: 'spaced-review',
+          goal: 'Recall GitOps principles and ArgoCD architecture from memory.',
+          commands: [
+            'kubectl get applications -A',
+            'kubectl get application guestbook -n argocd -o jsonpath="{.status.sync.status}" 2>/dev/null || echo "app not present"',
+          ],
+          verify: ['Can explain: what self-healing means and how it works', 'Can explain: difference between Synced/OutOfSync/Degraded health states', 'Can describe App of Apps pattern use case'],
+          expectedOutcome: 'GitOps mental model solidified.',
+          cleanup: [],
         },
       ],
     },
@@ -2352,6 +2986,160 @@ spec:
           ],
           answer: 1,
           explanation: 'Because all traffic passes through Envoy sidecars, Istio automatically exports: metrics (request rate, error rate, p99 latency per service pair) to Prometheus, distributed traces (using B3/W3C propagation headers) to Jaeger/Zipkin, and structured access logs for every request. Zero SDK changes required in any service.',
+        },
+      ],
+      coverage: {
+        concepts: ['service mesh: sidecar proxy pattern', 'mutual TLS (mTLS) for zero-trust service identity', 'VirtualService for traffic routing rules', 'DestinationRule for load balancing and connection pool', 'circuit breaking via outlier detection', 'traffic shifting for canary deployments', 'Envoy sidecar injection via namespace label', 'control plane (istiod) vs data plane (Envoy proxies)'],
+        commands: ['kubectl label namespace default istio-injection=enabled', 'kubectl get pods -o yaml | grep istio-proxy', 'istioctl analyze', 'istioctl proxy-status', 'kubectl get virtualservice,destinationrule,gateway -A', 'kubectl describe peerauthentication -A', 'istioctl proxy-config cluster <pod> -n <ns>'],
+        architecture: ['Envoy sidecar intercepts all inbound/outbound traffic transparently via iptables', 'istiod issues X.509 certs for mTLS identity (SPIFFE SVIDs)', 'VirtualService attaches to hosts, routes traffic based on HTTP headers/weights', 'DestinationRule defines subsets mapped to pod labels for canary routing'],
+        techniques: ['use istioctl analyze to find mesh config errors', 'traffic shift canary: 90/10 weight split in VirtualService', 'enforce STRICT mTLS via PeerAuthentication', 'use fault injection to test resilience without changing app code', 'header-based routing for A/B testing'],
+        procedures: ['install Istio with istioctl install', 'enable sidecar injection on namespace', 'apply VirtualService + DestinationRule for canary', 'verify mTLS with istioctl authn tls-check', 'check Envoy config with istioctl proxy-config'],
+        toolsAndPlugins: ['Istio', 'istioctl', 'Envoy', 'Kiali (mesh visualization)', 'Prometheus', 'Jaeger'],
+        cases: ['mTLS between services rejects traffic from pods without valid cert', 'circuit breaker opens after 3 consecutive 503s, preventing cascade failure', 'canary 10% weight routes subset of prod traffic to new version'],
+        scenarios: ['enforce zero-trust mTLS across entire namespace without app changes', 'canary deploy new service version with automatic rollback on error rate spike'],
+      },
+      exercises: [
+        {
+          id: 'p5-m7-e1',
+          title: 'Install Istio and enable sidecar injection',
+          kind: 'guided',
+          goal: 'Install Istio, enable injection on default namespace, and verify sidecars injected.',
+          commands: [
+            'curl -L https://istio.io/downloadIstio | sh -',
+            'export PATH="$HOME/.istioctl/bin:$PATH" 2>/dev/null || echo "set PATH manually"',
+            'istioctl install --set profile=demo -y',
+            'kubectl label namespace default istio-injection=enabled',
+            'kubectl get namespace default --show-labels',
+            'kubectl create deployment istio-test --image=nginx:1.27 --replicas=1',
+            'kubectl get pods -l app=istio-test -o jsonpath="{.items[0].spec.containers[*].name}"',
+          ],
+          verify: ['default namespace has label istio-injection=enabled', 'pod shows 2 containers: nginx and istio-proxy'],
+          expectedOutcome: 'Istio installed, sidecar injected automatically on new pod.',
+          cleanup: ['kubectl delete deployment istio-test', 'kubectl label namespace default istio-injection-'],
+        },
+        {
+          id: 'p5-m7-e2',
+          title: 'Canary deployment with VirtualService weight split',
+          kind: 'challenge',
+          goal: 'Route 90% traffic to v1 and 10% to v2 using Istio VirtualService.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: myapp
+        version: v1
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: myapp
+        version: v2
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp
+spec:
+  selector:
+    app: myapp
+  ports:
+  - port: 80
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: myapp
+spec:
+  host: myapp
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: myapp
+spec:
+  hosts:
+  - myapp
+  http:
+  - route:
+    - destination:
+        host: myapp
+        subset: v1
+      weight: 90
+    - destination:
+        host: myapp
+        subset: v2
+      weight: 10
+EOF`,
+            'kubectl get virtualservice myapp',
+            'kubectl get destinationrule myapp',
+          ],
+          verify: ['VirtualService created with 90/10 weight split', 'DestinationRule created with v1 and v2 subsets'],
+          expectedOutcome: 'Canary routing configured: 90% to v1, 10% to v2.',
+          cleanup: ['kubectl delete deployment myapp-v1 myapp-v2', 'kubectl delete service myapp', 'kubectl delete virtualservice myapp', 'kubectl delete destinationrule myapp'],
+        },
+        {
+          id: 'p5-m7-e3',
+          title: 'Debug mTLS misconfiguration',
+          kind: 'debug',
+          goal: 'Use istioctl to diagnose why a service is rejecting connections.',
+          commands: [
+            'istioctl analyze -n default',
+            'istioctl proxy-status',
+            'kubectl get peerauthentication -A',
+            'kubectl get destinationrule -A -o yaml | grep -A5 tls',
+          ],
+          verify: ['istioctl analyze output shows any mesh config warnings', 'proxy-status shows all proxies in sync'],
+          expectedOutcome: 'Mesh analysis commands confirmed for debugging mTLS issues.',
+          cleanup: [],
+        },
+        {
+          id: 'p5-m7-e4',
+          title: '7-day spaced review — service mesh fundamentals',
+          kind: 'spaced-review',
+          goal: 'Recall Istio architecture and key resources from memory.',
+          commands: [
+            'kubectl get virtualservice,destinationrule,gateway -A 2>/dev/null || echo "Istio not installed"',
+            'kubectl get pods -A | grep istio-proxy | wc -l',
+          ],
+          verify: ['Can explain: how Envoy intercepts traffic without app changes', 'Can explain: difference between VirtualService and DestinationRule', 'Can describe: what mTLS identity is based on in Istio (SPIFFE/X.509)'],
+          expectedOutcome: 'Service mesh mental model solidified.',
+          cleanup: [],
         },
       ],
     },

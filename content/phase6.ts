@@ -304,6 +304,77 @@ The **OTel Collector** pipeline consists of:
           explanation: 'The kube-controller-manager runs the controller loops, including the EndpointSlice controller, which monitors changes to Pods and Services and updates the corresponding EndpointSlice resources.',
         },
       ],
+      coverage: {
+        concepts: ['KCNA: vendor-neutral Kubernetes fundamentals certification', 'container fundamentals: images, namespaces, cgroups', 'Kubernetes architecture: control plane vs worker node components', 'Cloud Native landscape: CNCF projects and categories', 'service mesh, observability, GitOps as ecosystem pillars', 'Kubernetes API: declarative model, resources, objects', 'container orchestration problem: why Kubernetes exists'],
+        commands: ['kubectl get nodes', 'kubectl cluster-info', 'kubectl api-resources', 'kubectl explain pod.spec', 'kubectl get componentstatuses'],
+        architecture: ['control plane: API server, etcd, scheduler, controller-manager', 'worker node: kubelet, kube-proxy, container runtime', 'etcd as consistent distributed key-value store for all cluster state', 'CNCF ecosystem layers: runtime, orchestration, provisioning, observability'],
+        techniques: ['use kubectl explain to explore API without docs', 'memorize control plane component responsibilities for KCNA MCQs', 'map CNCF projects to landscape categories'],
+        procedures: ['review KCNA exam domains: Kubernetes Fundamentals (46%), Container Orchestration (22%), Cloud Native Architecture (16%), Cloud Native Observability (8%), Cloud Native Application Delivery (8%)', 'practice with kubectl explain and api-resources for API fluency'],
+        toolsAndPlugins: ['kubectl', 'CNCF landscape', 'containerd', 'etcd'],
+        cases: ['KCNA multiple choice: identify which component handles scheduling decisions', 'KCNA: identify correct CNCF project category for a given tool'],
+        scenarios: ['KCNA exam prep: quick recall of all control plane component roles', 'identify which Kubernetes object type solves a given problem'],
+      },
+      exercises: [
+        {
+          id: 'p6-m1-e1',
+          title: 'Explore cluster architecture with kubectl',
+          kind: 'guided',
+          goal: 'Use kubectl to inspect all control plane and node components, mapping each to its KCNA role.',
+          commands: [
+            'kubectl get nodes -o wide',
+            'kubectl cluster-info',
+            'kubectl get pods -n kube-system',
+            'kubectl describe node $(kubectl get nodes -o jsonpath="{.items[0].metadata.name}") | grep -A5 "Conditions:"',
+            'kubectl api-resources | grep -E "NAME|^pods|^deploy|^service|^node"',
+          ],
+          verify: ['kube-system shows apiserver, etcd, scheduler, controller-manager pods', 'Node conditions show Ready=True', 'api-resources lists core resources'],
+          expectedOutcome: 'All control plane components identified and mapped to their roles.',
+          cleanup: [],
+        },
+        {
+          id: 'p6-m1-e2',
+          title: 'KCNA domain drill — API and object recall',
+          kind: 'challenge',
+          goal: 'Use kubectl explain to explore object specs from memory, simulating KCNA API knowledge questions.',
+          commands: [
+            'kubectl explain pod.spec.containers.resources',
+            'kubectl explain deployment.spec.strategy',
+            'kubectl explain service.spec.type',
+            'kubectl explain networkpolicy.spec',
+            'kubectl api-resources --namespaced=false | head -20',
+          ],
+          verify: ['Can use kubectl explain without docs', 'Non-namespaced resources identified (Node, ClusterRole, PV, etc.)'],
+          expectedOutcome: 'kubectl explain workflow confirmed for KCNA API fluency.',
+          cleanup: [],
+        },
+        {
+          id: 'p6-m1-e3',
+          title: 'Debug: which component is unhealthy?',
+          kind: 'debug',
+          goal: 'Simulate diagnosing a control plane component failure by inspecting system pod logs.',
+          commands: [
+            'kubectl get pods -n kube-system | grep -E "scheduler|controller|etcd|apiserver"',
+            'kubectl logs -n kube-system -l component=kube-scheduler --tail=10 2>/dev/null || echo "no scheduler logs"',
+            'kubectl get events -n kube-system --sort-by=.lastTimestamp | tail -10',
+          ],
+          verify: ['Control plane pods all Running', 'No error events in kube-system'],
+          expectedOutcome: 'Control plane health check commands confirmed.',
+          cleanup: [],
+        },
+        {
+          id: 'p6-m1-e4',
+          title: '7-day spaced review — KCNA domain coverage',
+          kind: 'spaced-review',
+          goal: 'Recall KCNA exam domains and component roles from memory without reference.',
+          commands: [
+            'kubectl get pods -n kube-system -o wide',
+            'kubectl get nodes',
+          ],
+          verify: ['Can list 5 KCNA exam domains with approximate weights', 'Can name all 4 control plane components and their roles', 'Can explain difference between kube-proxy and kubelet'],
+          expectedOutcome: 'KCNA architecture knowledge solidified.',
+          cleanup: [],
+        },
+      ],
     },
     // ─── Module 2: CKA ───────────────────────────────────────────────────────
     {
@@ -644,6 +715,84 @@ spec:
           ],
           answer: 1,
           explanation: '`kubectl auth can-i --list` is the standard administrative tool to run a self-query of allowed API verbs, resource types, and namespaces.',
+        },
+      ],
+      coverage: {
+        concepts: ['CKA: hands-on administrator exam, 2 hours, 15-20 tasks', 'cluster installation with kubeadm', 'etcd backup and restore', 'node troubleshooting: kubelet, container runtime, certificates', 'RBAC: ClusterRole, ClusterRoleBinding, impersonation', 'persistent storage: PV/PVC/StorageClass', 'network troubleshooting: CNI, DNS (CoreDNS), Services', 'upgrade cluster one minor version at a time with kubeadm'],
+        commands: ['kubeadm init', 'kubeadm join', 'kubeadm upgrade apply', 'ETCDCTL_API=3 etcdctl snapshot save', 'ETCDCTL_API=3 etcdctl snapshot restore', 'kubectl drain <node> --ignore-daemonsets', 'kubectl uncordon <node>', 'kubectl certificate approve', 'openssl x509 -in /etc/kubernetes/pki/apiserver.crt -noout -dates', 'journalctl -u kubelet -f'],
+        architecture: ['kubeadm sets up PKI, static pods, kubelet config, bootstrap tokens', 'etcd stores all cluster state — backup = snapshot of etcd data dir', 'CoreDNS runs as Deployment in kube-system, resolves cluster DNS', 'CNI plugin (Calico/Flannel) installs as DaemonSet, provides pod networking'],
+        techniques: ['use kubectl drain before node maintenance', 'always verify etcd backup with etcdctl snapshot status', 'check kubelet status with systemctl/journalctl on node', 'use --as flag to test RBAC permissions as a SA', 'check cert expiry with openssl before troubleshooting auth failures'],
+        procedures: ['kubeadm cluster init + worker join', 'etcd backup: set ETCDCTL_API=3, provide --cacert --cert --key --endpoints', 'etcd restore: restore to new dir, update etcd static pod manifest dataDir', 'cluster upgrade: apt update kubeadm, kubeadm upgrade apply, drain node, apt update kubelet kubectl, uncordon'],
+        toolsAndPlugins: ['kubectl', 'kubeadm', 'etcdctl', 'openssl', 'systemctl', 'journalctl', 'crictl'],
+        cases: ['node NotReady: check kubelet service status and cert expiry', 'pod stuck Pending: check events for PVC, resource, taint issues', 'DNS not resolving: check CoreDNS pods and ConfigMap in kube-system'],
+        scenarios: ['CKA exam task: backup etcd to /tmp/etcd-backup.db and verify', 'CKA exam task: create SA with role allowing pod list/get in a namespace'],
+      },
+      exercises: [
+        {
+          id: 'p6-m2-e1',
+          title: 'Simulate etcd backup and verify',
+          kind: 'guided',
+          goal: 'Run an etcd snapshot backup and verify integrity, simulating a CKA exam task.',
+          commands: [
+            'kubectl get pods -n kube-system -l component=etcd',
+            `ETCDCTL_API=3 etcdctl snapshot save /tmp/etcd-backup.db \\
+  --cacert=/etc/kubernetes/pki/etcd/ca.crt \\
+  --cert=/etc/kubernetes/pki/etcd/server.crt \\
+  --key=/etc/kubernetes/pki/etcd/server.key \\
+  --endpoints=https://127.0.0.1:2379 2>/dev/null || echo "etcd not reachable (run on control plane node)"`,
+            'ls -lh /tmp/etcd-backup.db 2>/dev/null || echo "backup file not created"',
+            'ETCDCTL_API=3 etcdctl snapshot status /tmp/etcd-backup.db 2>/dev/null || echo "verify manually on control plane"',
+          ],
+          verify: ['etcd pod found in kube-system', 'snapshot save command documented with correct flags', 'snapshot status shows revision and hash'],
+          expectedOutcome: 'etcd backup procedure confirmed and memorized.',
+          cleanup: ['rm -f /tmp/etcd-backup.db'],
+        },
+        {
+          id: 'p6-m2-e2',
+          title: 'Node maintenance: drain, cordon, uncordon',
+          kind: 'challenge',
+          goal: 'Drain a node, verify pods evicted, then uncordon and confirm scheduling resumes.',
+          commands: [
+            'kubectl get nodes',
+            'NODE=$(kubectl get nodes --no-headers | grep -v master | head -1 | awk "{print \\$1}")',
+            'kubectl cordon $NODE 2>/dev/null || echo "set NODE manually: export NODE=<node-name>"',
+            'kubectl get node $NODE',
+            'kubectl drain $NODE --ignore-daemonsets --delete-emptydir-data --force 2>/dev/null || echo "drain: check node name"',
+            'kubectl get pods -A -o wide | grep $NODE',
+            'kubectl uncordon $NODE 2>/dev/null || echo "uncordon: check node name"',
+            'kubectl get node $NODE',
+          ],
+          verify: ['cordon sets node to SchedulingDisabled', 'drain evicts non-daemonset pods', 'uncordon restores Ready,SchedulingEnabled'],
+          expectedOutcome: 'Node drain/uncordon maintenance workflow confirmed.',
+          cleanup: ['kubectl uncordon $(kubectl get nodes --no-headers | grep SchedulingDisabled | awk "{print \\$1}") 2>/dev/null || true'],
+        },
+        {
+          id: 'p6-m2-e3',
+          title: 'Debug NotReady node',
+          kind: 'debug',
+          goal: 'Identify what would cause a node to show NotReady and the investigation sequence.',
+          commands: [
+            'kubectl get nodes',
+            'kubectl describe node $(kubectl get nodes -o jsonpath="{.items[0].metadata.name}") | grep -A10 Conditions',
+            'kubectl get events -A --field-selector reason=NodeNotReady 2>/dev/null || echo "no NodeNotReady events"',
+            'kubectl get pods -n kube-system | grep -v Running',
+          ],
+          verify: ['Node conditions inspected', 'Investigation sequence: describe → events → kubelet logs (systemctl/journalctl on node) → cert expiry (openssl)'],
+          expectedOutcome: 'NotReady node debug procedure memorized for CKA exam.',
+          cleanup: [],
+        },
+        {
+          id: 'p6-m2-e4',
+          title: '7-day spaced review — CKA core procedures',
+          kind: 'spaced-review',
+          goal: 'Recall etcd backup flags and upgrade procedure steps from memory.',
+          commands: [
+            'kubectl get nodes',
+            'kubectl get pods -n kube-system | grep -v Running',
+          ],
+          verify: ['Can recite etcdctl snapshot save flags: --cacert --cert --key --endpoints', 'Can describe 4-step cluster upgrade process', 'Can list 3 most common CKA troubleshooting areas'],
+          expectedOutcome: 'CKA administrator procedures internalized.',
+          cleanup: [],
         },
       ],
     },
@@ -1096,6 +1245,109 @@ spec:
           ],
           answer: 1,
           explanation: 'The Adapter pattern standardizes outputs from heterogeneous application containers (e.g., transforming a custom log format to standard JSON before a collector reads it).',
+        },
+      ],
+      coverage: {
+        concepts: ['CKAD: developer-focused exam, 2 hours, 15-20 tasks', 'multi-container pod patterns: sidecar, adapter, ambassador', 'init containers for pre-flight setup', 'blue-green and canary deployment strategies', 'ConfigMap and Secret as env vars and volume mounts', 'liveness, readiness, and startup probes', 'Jobs and CronJobs for batch workloads', 'resource requests/limits and HPA'],
+        commands: ['kubectl run', 'kubectl create deployment --dry-run=client -o yaml', 'kubectl set image deployment/<name>', 'kubectl rollout status deployment/<name>', 'kubectl rollout undo deployment/<name>', 'kubectl create configmap --from-literal', 'kubectl create secret generic --from-literal', 'kubectl autoscale deployment', 'kubectl create job', 'kubectl create cronjob'],
+        architecture: ['sidecar: helper in same pod shares network + volumes', 'adapter: normalizes app output for external consumers', 'ambassador: proxies external connections (e.g., DB proxy)', 'blue-green: two full deployments, flip Service selector', 'canary: same Deployment + label-based partial traffic split'],
+        techniques: ['use --dry-run=client -o yaml to generate manifests fast in exam', 'use kubectl set image for imperative rollouts', 'use kubectl rollout undo for instant rollback', 'pipe kubectl create to file, edit, then apply for complex objects', 'alias k=kubectl and set completion in exam terminal'],
+        procedures: ['CKAD exam setup: alias k=kubectl; source <(kubectl completion bash); complete -F __start_kubectl k', 'canary deploy: create v2 deployment with 1 replica alongside v1 3 replicas (25% canary)', 'blue-green: create green deployment, verify, patch service selector to green', 'inject config: create ConfigMap, reference in env.valueFrom.configMapKeyRef'],
+        toolsAndPlugins: ['kubectl', 'vim', 'bash completion', 'kubectl explain'],
+        cases: ['CKAD task: add sidecar to existing pod that logs to shared emptyDir volume', 'CKAD task: create CronJob that runs every 5 minutes and cleans up temp files', 'CKAD task: expose deployment with ClusterIP service on port 8080'],
+        scenarios: ['CKAD exam: 45-second manifest generation with dry-run pipeline', 'CKAD exam: rolling update then rollback in under 2 minutes'],
+      },
+      exercises: [
+        {
+          id: 'p6-m3-e1',
+          title: 'CKAD speed drill — imperative manifest generation',
+          kind: 'guided',
+          goal: 'Practice the --dry-run=client -o yaml pipeline to generate manifests fast, as required in the CKAD exam.',
+          commands: [
+            'kubectl create deployment speed-test --image=nginx:1.27 --replicas=3 --dry-run=client -o yaml',
+            'kubectl create configmap app-config --from-literal=ENV=production --from-literal=PORT=8080 --dry-run=client -o yaml',
+            'kubectl create secret generic app-secret --from-literal=DB_PASSWORD=s3cr3t --dry-run=client -o yaml',
+            'kubectl create job one-off --image=busybox -- /bin/sh -c "echo hello" --dry-run=client -o yaml',
+            'kubectl create cronjob heartbeat --image=busybox --schedule="*/5 * * * *" -- /bin/sh -c "date" --dry-run=client -o yaml',
+          ],
+          verify: ['Each command produces valid YAML without creating resources', 'Job spec shows correct command array', 'CronJob spec shows schedule field'],
+          expectedOutcome: 'Imperative generation pipeline memorized for exam speed.',
+          cleanup: [],
+        },
+        {
+          id: 'p6-m3-e2',
+          title: 'Blue-green deployment switch',
+          kind: 'challenge',
+          goal: 'Deploy v1 and v2, verify v2 works, then flip the Service selector to complete the blue-green switch.',
+          commands: [
+            'kubectl create deployment blue --image=nginx:1.25 --replicas=2',
+            'kubectl label deployment blue version=v1',
+            'kubectl expose deployment blue --port=80 --name=myapp-svc',
+            'kubectl create deployment green --image=nginx:1.27 --replicas=2',
+            'kubectl label deployment green version=v2',
+            'kubectl rollout status deployment green',
+            'kubectl patch service myapp-svc -p \'{"spec":{"selector":{"app":"green"}}}\'',
+            'kubectl get endpoints myapp-svc',
+          ],
+          verify: ['Service initially points to blue pods', 'After patch, endpoints change to green pod IPs', 'Blue deployment still running (instant rollback available)'],
+          expectedOutcome: 'Blue-green switch with zero-downtime confirmed.',
+          cleanup: ['kubectl delete deployment blue green', 'kubectl delete service myapp-svc'],
+        },
+        {
+          id: 'p6-m3-e3',
+          title: 'Debug: pod not receiving traffic after deployment',
+          kind: 'debug',
+          goal: 'Diagnose why a Service has no endpoints despite pods running.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: broken-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: broken-app
+  template:
+    metadata:
+      labels:
+        app: broken-app-typo
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: broken-svc
+spec:
+  selector:
+    app: broken-app
+  ports:
+  - port: 80
+EOF`,
+            'kubectl get endpoints broken-svc',
+            'kubectl get pods -l app=broken-app',
+            'kubectl get pods -l app=broken-app-typo',
+            'kubectl describe service broken-svc | grep -A5 Selector',
+          ],
+          verify: ['Service shows no endpoints (label mismatch identified)', 'Pod label is broken-app-typo but service selects broken-app'],
+          expectedOutcome: 'Label mismatch diagnosis technique confirmed.',
+          cleanup: ['kubectl delete deployment broken-app', 'kubectl delete service broken-svc'],
+        },
+        {
+          id: 'p6-m3-e4',
+          title: '7-day spaced review — CKAD exam techniques',
+          kind: 'spaced-review',
+          goal: 'Recall CKAD speed techniques and multi-container patterns from memory.',
+          commands: [
+            'kubectl create deployment recall-test --image=nginx:1.27 --dry-run=client -o yaml | head -20',
+          ],
+          verify: ['Can recite --dry-run=client -o yaml pipeline from memory', 'Can describe 3 multi-container patterns (sidecar/adapter/ambassador)', 'Can explain difference between blue-green and canary strategies'],
+          expectedOutcome: 'CKAD developer techniques and exam approach internalized.',
+          cleanup: [],
         },
       ],
     },
