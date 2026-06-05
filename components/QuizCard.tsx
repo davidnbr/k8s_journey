@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { QuizQuestion } from '@/lib/types'
 
 interface Props {
@@ -39,6 +39,29 @@ export default function QuizCard({ questions, onComplete }: Props) {
       onComplete()
     }
   }
+
+  // Keyboard shortcuts: A-D or 1-4 to select, Enter to confirm/advance
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (finished) return
+      // Don't fire if user is typing in an input elsewhere
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const keyIndex =
+        ['a', 'b', 'c', 'd'].indexOf(e.key.toLowerCase()) !== -1
+          ? ['a', 'b', 'c', 'd'].indexOf(e.key.toLowerCase())
+          : ['1', '2', '3', '4'].indexOf(e.key)
+      if (keyIndex >= 0 && keyIndex < q.options.length && !revealed) {
+        handleSelect(keyIndex)
+        return
+      }
+      if (e.key === 'Enter') {
+        if (!revealed && selected !== null) handleReveal()
+        else if (revealed) handleNext()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [finished, revealed, selected, current, q.options.length])
 
   if (finished) {
     const pct = Math.round((score / questions.length) * 100)
@@ -168,7 +191,7 @@ export default function QuizCard({ questions, onComplete }: Props) {
             className={`text-xs font-semibold px-4 py-2 rounded-lg transition-all ${
               selected !== null
                 ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                : 'bg-slate-800 text-slate-400 cursor-not-allowed'
             }`}
           >
             Check Answer

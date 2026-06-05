@@ -22,6 +22,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
   const [inputError, setInputError] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const terminalRef = useRef<HTMLDivElement>(null)
+
   const step = steps[currentStep]
   const isLastStep = currentStep === steps.length - 1
 
@@ -38,7 +39,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
     setInputError(false)
   }, [currentStep])
 
-  // Auto-focus input when entering challenge mode or advancing in challenge mode
+  // Auto-focus input when entering challenge mode or advancing
   useEffect(() => {
     if (challengeMode && phase === 'ready' && step.command) {
       inputRef.current?.focus()
@@ -55,7 +56,6 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
   const runCommand = useCallback(() => {
     if (phase !== 'ready') return
     if (!step.command) {
-      // YAML step — no command to type, just advance state
       onStateChange(step.clusterState)
       setPhase('done')
       return
@@ -72,7 +72,6 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
       if (i < cmd.length) {
         setTimeout(typeNext, 28 + Math.random() * 18)
       } else {
-        // Typing done — show output after brief pause
         setTimeout(() => {
           setPhase('output')
           setVisibleLines(0)
@@ -82,6 +81,15 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
     }
     setTimeout(typeNext, 150)
   }, [phase, step, onStateChange])
+
+  const handleChallengeSubmit = useCallback(() => {
+    if (userInput.trim() === step.command?.trim()) {
+      setUserInput('')
+      runCommand()
+    } else {
+      setInputError(true)
+    }
+  }, [userInput, step.command, runCommand])
 
   // Animate output lines one by one
   useEffect(() => {
@@ -97,15 +105,11 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
 
   const advance = useCallback(() => {
     if (phase !== 'done') return
-
-    // Commit this step to history
     if (step.command) {
       setHistory((h) => [...h, { cmd: step.command!, output: step.output ?? [] }])
     }
-
     setTypedCmd('')
     setVisibleLines(0)
-
     if (isLastStep) {
       onComplete()
     } else {
@@ -114,14 +118,14 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
     }
   }, [phase, step, isLastStep, onComplete])
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setCurrentStep(0)
     setPhase('ready')
     setTypedCmd('')
     setVisibleLines(0)
     setHistory([])
     onStateChange(steps[0].clusterState)
-  }
+  }, [steps, onStateChange])
 
   const outputLines = step.output ?? []
 
@@ -130,16 +134,19 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
       {/* Step progress bar */}
       <div className="flex items-center gap-2 px-4 py-2 bg-slate-900 border-b border-slate-700">
         <span className="text-slate-400 text-xs">Lab</span>
-        <div className="flex gap-1 flex-1">
+        <div
+          role="progressbar"
+          aria-valuenow={currentStep + 1}
+          aria-valuemin={1}
+          aria-valuemax={steps.length}
+          aria-label={`Step ${currentStep + 1} of ${steps.length}`}
+          className="flex gap-1 flex-1"
+        >
           {steps.map((s, i) => (
             <div
               key={s.id}
               className={`h-1 flex-1 rounded-full transition-all duration-500 ${
-                i < currentStep
-                  ? 'bg-emerald-500'
-                  : i === currentStep
-                  ? 'bg-blue-500'
-                  : 'bg-slate-700'
+                i < currentStep ? 'bg-emerald-500' : i === currentStep ? 'bg-blue-500' : 'bg-slate-700'
               }`}
             />
           ))}
@@ -149,6 +156,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
         </span>
         <button
           onClick={() => { setChallengeMode(m => !m); setUserInput(''); setInputError(false) }}
+          aria-pressed={challengeMode}
           className={`text-[10px] px-2 py-1 rounded border transition-all ${
             challengeMode
               ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
@@ -249,22 +257,14 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
         {phase === 'ready' && step.command && (
           challengeMode ? (
             <div className="flex items-center gap-2">
-              <span className="text-emerald-400 select-none">$</span>
+              <span className="text-emerald-400 select-none" aria-hidden="true">$</span>
               <input
                 ref={inputRef}
                 type="text"
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    if (userInput.trim() === step.command!.trim()) {
-                      setUserInput('')
-                      runCommand()
-                    } else {
-                      setInputError(true)
-                    }
-                  }
-                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleChallengeSubmit() }}
+                aria-label="Enter kubectl command"
                 className={`bg-transparent font-mono text-sm outline-none flex-1 ml-2 ${
                   inputError ? 'text-red-400' : 'text-slate-100'
                 }`}
@@ -274,7 +274,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
               />
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-slate-600">
+            <div className="flex items-center gap-2 text-slate-600" aria-hidden="true">
               <span className="text-emerald-700 select-none">$</span>
               <span className="animate-blink text-slate-700">▌</span>
             </div>
@@ -288,7 +288,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
           <p className="text-slate-300 text-xs leading-relaxed">{step.explanation}</p>
           {step.tip && (
             <div className="mt-2 flex items-start gap-2">
-              <span className="text-yellow-400 text-xs">💡</span>
+              <span className="text-yellow-400 text-xs" aria-hidden="true">💡</span>
               <p className="text-yellow-300/80 text-xs leading-relaxed">{step.tip}</p>
             </div>
           )}
@@ -309,22 +309,15 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
             <>
               <button
                 onClick={runCommand}
-                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                className="text-xs font-semibold px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
               >
-                Show hint
+                Run for me
               </button>
               <button
-                onClick={() => {
-                  if (userInput.trim() === step.command!.trim()) {
-                    setUserInput('')
-                    runCommand()
-                  } else {
-                    setInputError(true)
-                  }
-                }}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                onClick={handleChallengeSubmit}
+                className="text-xs font-semibold px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors"
               >
-                Run
+                Run ↵
               </button>
             </>
           )}
@@ -334,7 +327,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
               onClick={runCommand}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
             >
-              <span>▶</span>
+              <span aria-hidden="true">▶</span>
               {step.command ? 'Run Command' : 'Apply YAML'}
             </button>
           )}
@@ -344,7 +337,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
               onClick={runCommand}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
             >
-              <span>▶</span>
+              <span aria-hidden="true">▶</span>
               Apply YAML
             </button>
           )}
@@ -352,15 +345,17 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
           {phase === 'typing' && (
             <button
               disabled
+              aria-busy="true"
               className="flex items-center gap-2 bg-slate-700 text-slate-400 text-xs px-4 py-2 rounded-lg cursor-not-allowed"
             >
-              <span className="animate-spin inline-block">⟳</span> Running…
+              <span className="animate-spin inline-block" aria-hidden="true">⟳</span> Running…
             </button>
           )}
 
           {phase === 'output' && (
             <button
               disabled
+              aria-busy="true"
               className="flex items-center gap-2 bg-slate-700 text-slate-400 text-xs px-4 py-2 rounded-lg cursor-not-allowed"
             >
               Loading output…

@@ -24,12 +24,22 @@ interface PageProps {
   params: Promise<{ phase: string; module: string }>
 }
 
+// Strip executable HTML — defence-in-depth for authored content
+function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/\son\w+\s*=[^\s>]*/gi, '')
+}
+
 // Inline formatting: bold, code, links
 function formatInline(text: string): string {
-  return text
+  const html = text
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline underline-offset-2">$1</a>')
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>')
     .replace(/`(.+?)`/g, '<code class="bg-slate-800 text-blue-300 text-xs px-1.5 py-0.5 rounded font-mono">$1</code>')
+  return sanitizeHtml(html)
 }
 
 // Render theory markdown-ish text to JSX
@@ -284,11 +294,32 @@ function PracticeTab({
   const masteryChecks = getModuleMasteryChecks(mod)
   const exerciseTasks = mod.exercises?.length ? mod.exercises : getExerciseTasks(mod, review)
 
-  const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set())
-  const [doneExercises, setDoneExercises] = useState<Set<string>>(new Set())
+  const masteryKey = `k8s-practice-mastery:${phaseSlug}:${mod.slug}`
+  const doneKey = `k8s-practice-done:${phaseSlug}:${mod.slug}`
+
+  const [checkedItems, setCheckedItems] = useState<Set<number>>(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem(masteryKey) : null
+      return stored ? new Set<number>(JSON.parse(stored)) : new Set()
+    } catch { return new Set() }
+  })
+  const [doneExercises, setDoneExercises] = useState<Set<string>>(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem(doneKey) : null
+      return stored ? new Set<string>(JSON.parse(stored)) : new Set()
+    } catch { return new Set() }
+  })
   const [revealedSolutions, setRevealedSolutions] = useState<Set<string>>(new Set())
 
-  const allChecked = checkedItems.size === masteryChecks.length
+  useEffect(() => {
+    try { localStorage.setItem(masteryKey, JSON.stringify([...checkedItems])) } catch { /* ignore */ }
+  }, [checkedItems, masteryKey])
+
+  useEffect(() => {
+    try { localStorage.setItem(doneKey, JSON.stringify([...doneExercises])) } catch { /* ignore */ }
+  }, [doneExercises, doneKey])
+
+  const allChecked = masteryChecks.length > 0 && checkedItems.size === masteryChecks.length
 
   const toggleCheck = (index: number) => {
     setCheckedItems((prev) => {
@@ -321,7 +352,7 @@ function PracticeTab({
   return (
     <div className="space-y-8 pb-8">
       {/* Mastery checklist */}
-      <section>
+      {masteryChecks.length > 0 && <section>
         <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">
           Mastery checks · tick only when you can do it from memory
         </h2>
@@ -345,10 +376,10 @@ function PracticeTab({
             )
           })}
         </ul>
-        {allChecked && masteryChecks.length > 0 && (
+        {allChecked && (
           <p className="mt-2 text-xs text-emerald-400 pl-1">All done — move on.</p>
         )}
-      </section>
+      </section>}
 
       {/* Challenge exercises */}
       {exerciseTasks.length > 0 && (
@@ -521,7 +552,7 @@ export default function LessonPageClient({ params }: PageProps) {
       </div>
 
       {/* Tabs */}
-      <div className="flex-shrink-0 flex gap-1 px-6 pt-4 pb-0">
+      <div className="flex-shrink-0 flex gap-1 px-6 pt-4 pb-0 overflow-x-auto scrollbar-none">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -594,8 +625,8 @@ export default function LessonPageClient({ params }: PageProps) {
                 onComplete={handleLabComplete}
               />
             </div>
-            {/* Diagram (right) */}
-            <div className="p-4 border-l border-slate-800 overflow-hidden flex flex-col">
+            {/* Diagram (right) — hidden on small screens */}
+            <div className="hidden lg:flex flex-col p-4 border-l border-slate-800 overflow-hidden">
               <div className="text-xs text-slate-500 uppercase tracking-widest mb-2 font-semibold">
                 Live Cluster State
               </div>
