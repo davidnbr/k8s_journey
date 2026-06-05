@@ -335,6 +335,93 @@ roleRef:
           explanation: 'kubectl get pods (without a name) uses the "list" verb. kubectl get pods <name> uses the "get" verb. To safely allow both, always grant both "get" and "list" together. "watch" is needed for kubectl get pods --watch. There is no "read" or "view" verb in Kubernetes RBAC.',
         },
       ],
+      coverage: {
+        concepts: ['RBAC: Role, ClusterRole, RoleBinding, ClusterRoleBinding', 'ServiceAccount as pod identity', 'subjects: User, Group, ServiceAccount', 'verbs: get/list/watch/create/update/patch/delete', 'least privilege principle', 'kubectl auth can-i for permission checks'],
+        commands: ['kubectl create serviceaccount', 'kubectl create role', 'kubectl create clusterrole', 'kubectl create rolebinding', 'kubectl create clusterrolebinding', 'kubectl auth can-i', 'kubectl auth can-i --as=system:serviceaccount:ns:sa', 'kubectl get rolebindings -A'],
+        architecture: ['Role is namespace-scoped, ClusterRole is cluster-scoped', 'RoleBinding grants Role or ClusterRole within namespace', 'ClusterRoleBinding grants ClusterRole cluster-wide', 'ServiceAccount token auto-mounted at /var/run/secrets/kubernetes.io/serviceaccount'],
+        techniques: ['least-privilege SA per workload', 'impersonation with --as for testing permissions', 'audit RBAC with kubectl auth can-i --list', 'bind ClusterRole with RoleBinding for namespace-scoped access'],
+        procedures: ['create ServiceAccount', 'create Role with specific verbs', 'bind Role to ServiceAccount', 'verify permissions with auth can-i', 'check what SA can do with --list'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['pod using default SA has too many permissions', 'ServiceAccount missing binding → 403 Forbidden on API call', 'ClusterRoleBinding grants unintended cluster-wide access'],
+        scenarios: ['create read-only SA for a monitoring pod', 'debug 403 errors from pod making API calls'],
+      },
+      exercises: [
+        {
+          id: 'p4-m1-e1',
+          title: 'Create a least-privilege ServiceAccount',
+          kind: 'guided',
+          goal: 'Create a ServiceAccount with read-only pod access in one namespace.',
+          commands: [
+            'kubectl create serviceaccount pod-reader -n default',
+            'kubectl create role pod-reader-role --verb=get,list,watch --resource=pods -n default',
+            'kubectl create rolebinding pod-reader-binding --role=pod-reader-role --serviceaccount=default:pod-reader -n default',
+            'kubectl auth can-i list pods --as=system:serviceaccount:default:pod-reader',
+            'kubectl auth can-i delete pods --as=system:serviceaccount:default:pod-reader',
+            'kubectl auth can-i list deployments --as=system:serviceaccount:default:pod-reader',
+          ],
+          verify: ['auth can-i list pods returns yes', 'auth can-i delete pods returns no', 'auth can-i list deployments returns no'],
+          expectedOutcome: 'Read-only pod SA created; least privilege confirmed with auth can-i.',
+          cleanup: ['kubectl delete rolebinding pod-reader-binding', 'kubectl delete role pod-reader-role', 'kubectl delete serviceaccount pod-reader'],
+        },
+        {
+          id: 'p4-m1-e2',
+          title: 'Test SA permissions with impersonation',
+          kind: 'challenge',
+          goal: 'Use --as to impersonate a ServiceAccount and verify all its permissions.',
+          commands: [
+            'kubectl create serviceaccount auditor -n default',
+            'kubectl create clusterrole read-only-auditor --verb=get,list --resource=pods,services,deployments,configmaps',
+            'kubectl create clusterrolebinding auditor-binding --clusterrole=read-only-auditor --serviceaccount=default:auditor',
+            'kubectl auth can-i --list --as=system:serviceaccount:default:auditor -n default',
+            'kubectl auth can-i create pods --as=system:serviceaccount:default:auditor',
+            'kubectl auth can-i get secrets --as=system:serviceaccount:default:auditor',
+          ],
+          verify: ['--list shows get/list for pods/services/deployments/configmaps', 'create pods returns no', 'get secrets returns no'],
+          expectedOutcome: 'SA permissions fully audited with --as impersonation and --list.',
+          cleanup: ['kubectl delete clusterrolebinding auditor-binding', 'kubectl delete clusterrole read-only-auditor', 'kubectl delete serviceaccount auditor'],
+        },
+        {
+          id: 'p4-m1-e3',
+          title: 'Debug 403 Forbidden from pod API call',
+          kind: 'debug',
+          goal: 'Reproduce and diagnose a 403 error from a pod making Kubernetes API calls.',
+          commands: [
+            'kubectl create serviceaccount no-perms -n default',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api-caller
+spec:
+  serviceAccountName: no-perms
+  containers:
+  - name: caller
+    image: bitnami/kubectl:latest
+    command: ["sh", "-c", "kubectl get pods; sleep 3600"]
+EOF`,
+            'kubectl logs api-caller',
+            'kubectl auth can-i list pods --as=system:serviceaccount:default:no-perms',
+          ],
+          verify: ['kubectl logs shows 403 Forbidden error', 'auth can-i returns no'],
+          expectedOutcome: '403 traced to missing RoleBinding for the pod ServiceAccount.',
+          cleanup: ['kubectl delete pod api-caller --ignore-not-found', 'kubectl delete serviceaccount no-perms'],
+        },
+        {
+          id: 'p4-m1-e4',
+          title: '7-day spaced review — RBAC structure recall',
+          kind: 'spaced-review',
+          goal: 'Recall the 4 RBAC objects and their relationships from memory.',
+          commands: [
+            'kubectl explain role.rules',
+            'kubectl explain rolebinding.subjects',
+            'kubectl explain clusterrolebinding.roleRef',
+            'kubectl get clusterroles | grep system:node',
+          ],
+          verify: ['explain returns verbs, resources fields', 'Can state: Role→namespace, ClusterRole→cluster, RoleBinding→namespace grant, ClusterRoleBinding→cluster grant'],
+          expectedOutcome: 'RBAC objects and relationships recalled without notes.',
+          cleanup: [],
+        },
+      ],
     },
 
     // ─── Module 2: Jobs & CronJobs ───────────────────────────────────────────
@@ -607,6 +694,79 @@ spec:
           explanation: 'ttlSecondsAfterFinished enables the TTL controller to automatically clean up finished Jobs (both Completed and Failed). 300 seconds after the Job reaches a terminal state, the Job object and its Pods are deleted. Without this, finished Jobs accumulate and waste etcd storage. activeDeadlineSeconds is the field that limits maximum runtime.',
         },
       ],
+      coverage: {
+        concepts: ['Job: run pod to completion', 'completions and parallelism', 'backoffLimit for retry count', 'activeDeadlineSeconds for timeout', 'ttlSecondsAfterFinished for cleanup', 'CronJob schedule syntax', 'concurrencyPolicy: Allow/Forbid/Replace', 'successfulJobsHistoryLimit / failedJobsHistoryLimit'],
+        commands: ['kubectl create job', 'kubectl get jobs', 'kubectl describe job', 'kubectl logs job/<name>', 'kubectl create cronjob', 'kubectl get cronjobs', 'kubectl create job --from=cronjob/<name> (manual trigger)'],
+        architecture: ['Job controller creates pods until completions reached', 'CronJob controller creates Job objects on schedule', 'failed pod retried up to backoffLimit', 'TTL controller cleans up finished jobs after ttlSecondsAfterFinished'],
+        techniques: ['parallel job execution with parallelism field', 'manual cronjob trigger with kubectl create job --from', 'suspend a CronJob', 'inspect job completion status'],
+        procedures: ['create a one-shot Job', 'create a CronJob with schedule', 'manually trigger a CronJob', 'inspect Job logs', 'clean up finished Jobs'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['Job stuck — pod failing and backoffLimit not reached yet', 'CronJob missed schedule due to concurrencyPolicy: Forbid', 'Job pods accumulating — ttlSecondsAfterFinished not set'],
+        scenarios: ['run a database migration as a one-shot Job', 'schedule nightly report as CronJob with Forbid concurrency'],
+      },
+      exercises: [
+        {
+          id: 'p4-m2-e1',
+          title: 'Create and inspect a one-shot Job',
+          kind: 'guided',
+          goal: 'Run a batch job to completion and inspect its status and logs.',
+          commands: [
+            'kubectl create job hello --image=busybox:1.36 -- sh -c "echo hello from job; date"',
+            'kubectl get jobs',
+            'kubectl describe job hello',
+            'kubectl get pods -l job-name=hello',
+            'kubectl logs -l job-name=hello',
+          ],
+          verify: ['Job shows COMPLETIONS 1/1', 'Pod shows Completed status', 'logs show hello from job output'],
+          expectedOutcome: 'Job ran to completion; logs confirmed.',
+          cleanup: ['kubectl delete job hello'],
+        },
+        {
+          id: 'p4-m2-e2',
+          title: 'Create a CronJob and manually trigger it',
+          kind: 'challenge',
+          goal: 'Create a CronJob and run it immediately without waiting for the schedule.',
+          commands: [
+            'kubectl create cronjob reporter --image=busybox:1.36 --schedule="0 * * * *" -- sh -c "echo report at $(date)"',
+            'kubectl get cronjobs',
+            'kubectl create job reporter-now --from=cronjob/reporter',
+            'kubectl get jobs',
+            'kubectl logs -l job-name=reporter-now',
+          ],
+          verify: ['CronJob created with schedule 0 * * * *', 'Manual job reporter-now completes', 'logs show report output'],
+          expectedOutcome: 'CronJob created; manual trigger works without waiting for schedule.',
+          cleanup: ['kubectl delete cronjob reporter', 'kubectl delete job reporter-now'],
+        },
+        {
+          id: 'p4-m2-e3',
+          title: 'Diagnose a failed Job stuck in retry loop',
+          kind: 'debug',
+          goal: 'Observe a Job failing and retrying up to backoffLimit, then diagnose the failure.',
+          commands: [
+            'kubectl create job failing-job --image=busybox:1.36 -- sh -c "exit 1"',
+            'kubectl get pods -l job-name=failing-job -w',
+            'kubectl describe job failing-job',
+            'kubectl logs -l job-name=failing-job --tail=5',
+          ],
+          verify: ['Job shows BackoffLimitExceeded condition after retries', 'Pods show Completed with non-zero exit code', 'describe shows Failed status and retry count'],
+          expectedOutcome: 'Job retry loop diagnosed; BackoffLimitExceeded identified as terminal failure.',
+          cleanup: ['kubectl delete job failing-job'],
+        },
+        {
+          id: 'p4-m2-e4',
+          title: '3-day spaced review — Job/CronJob commands',
+          kind: 'spaced-review',
+          goal: 'Recall Job and CronJob creation and inspection commands from memory.',
+          commands: [
+            'kubectl explain job.spec.backoffLimit',
+            'kubectl explain job.spec.ttlSecondsAfterFinished',
+            'kubectl explain cronjob.spec.concurrencyPolicy',
+          ],
+          verify: ['explain returns field descriptions', 'Can state: completions, parallelism, backoffLimit, ttlSecondsAfterFinished purposes'],
+          expectedOutcome: 'Job/CronJob fields recalled without notes.',
+          cleanup: [],
+        },
+      ],
     },
 
     // ─── Module 3: HPA ───────────────────────────────────────────────────────
@@ -873,6 +1033,82 @@ The \`autoscaling/v2\` API version adds support for complex scaling conditions:
           ],
           answer: 1,
           explanation: 'metrics-server collects CPU and memory usage from each node\'s kubelet and exposes them via the Kubernetes Metrics API (metrics.k8s.io). HPA queries this API every 15 seconds. metrics-server is not installed by default in all distributions — run kubectl top pods to verify it is working.',
+        },
+      ],
+      coverage: {
+        concepts: ['HPA: automatic replica scaling based on metrics', 'targetCPUUtilizationPercentage', 'minReplicas and maxReplicas bounds', 'scale-up stabilization window (fast)', 'scale-down stabilization window (5 min default)', 'metrics-server as data source', 'custom and external metrics via Metrics API'],
+        commands: ['minikube addons enable metrics-server', 'kubectl autoscale deployment', 'kubectl get hpa', 'kubectl describe hpa', 'kubectl top pods', 'kubectl top nodes', 'kubectl run load generator (wrk/curl loop)'],
+        architecture: ['HPA controller polls Metrics API every 15s', 'metrics-server aggregates kubelet cAdvisor stats', 'HPA algorithm: desiredReplicas = ceil(currentReplicas × currentMetric/targetMetric)', 'stabilization window prevents flapping'],
+        techniques: ['set CPU requests for HPA to work (required)', 'use kubectl autoscale for quick HPA setup', 'generate load to trigger scale-up', 'watch HPA scale event with kubectl get hpa -w'],
+        procedures: ['enable metrics-server addon', 'create HPA for a deployment', 'verify HPA target metrics', 'generate load and observe scale-up', 'remove load and observe scale-down'],
+        toolsAndPlugins: ['kubectl', 'minikube', 'metrics-server'],
+        cases: ['HPA shows unknown/missing metrics — metrics-server not running', 'HPA not scaling — CPU requests not set on deployment', 'HPA flapping — stabilization window too short'],
+        scenarios: ['auto-scale web deployment from 2 to 10 replicas under load', 'debug HPA stuck at minimum replicas despite high CPU'],
+      },
+      exercises: [
+        {
+          id: 'p4-m3-e1',
+          title: 'Create HPA and observe scaling',
+          kind: 'guided',
+          goal: 'Set up HPA on a deployment and verify it reacts to CPU load.',
+          commands: [
+            'minikube addons enable metrics-server',
+            'kubectl create deployment php-apache --image=registry.k8s.io/hpa-example',
+            'kubectl set resources deployment php-apache --requests=cpu=200m',
+            'kubectl expose deployment php-apache --port=80',
+            'kubectl autoscale deployment php-apache --cpu-percent=50 --min=1 --max=10',
+            'kubectl get hpa php-apache -w',
+            'kubectl run load-gen --image=busybox:1.36 --restart=Never -- sh -c "while true; do wget -q -O- http://php-apache; done"',
+          ],
+          verify: ['HPA shows TARGETS with actual CPU% after metrics-server warms up', 'Replica count increases above 1 under load'],
+          expectedOutcome: 'HPA scales deployment up under CPU load.',
+          cleanup: ['kubectl delete pod load-gen --ignore-not-found', 'kubectl delete hpa php-apache', 'kubectl delete service php-apache', 'kubectl delete deployment php-apache'],
+        },
+        {
+          id: 'p4-m3-e2',
+          title: 'Scale from memory and verify HPA spec',
+          kind: 'challenge',
+          goal: 'Write kubectl autoscale and HPA inspection commands from memory.',
+          commands: [
+            'kubectl create deployment sr-hpa --image=nginx:1.27',
+            'kubectl set resources deployment sr-hpa --requests=cpu=100m',
+            'kubectl autoscale deployment sr-hpa --cpu-percent=60 --min=2 --max=8',
+            'kubectl get hpa sr-hpa',
+            'kubectl describe hpa sr-hpa',
+          ],
+          verify: ['HPA shows minReplicas=2, maxReplicas=8', 'describe shows CPU target 60%', 'Current replicas at minimum (2) with no load'],
+          expectedOutcome: 'HPA created and spec verified from memory.',
+          cleanup: ['kubectl delete hpa sr-hpa', 'kubectl delete deployment sr-hpa'],
+        },
+        {
+          id: 'p4-m3-e3',
+          title: 'Diagnose HPA showing unknown metrics',
+          kind: 'debug',
+          goal: 'Identify why HPA shows unknown for current metrics.',
+          commands: [
+            'kubectl create deployment no-metrics --image=nginx:1.27',
+            'kubectl autoscale deployment no-metrics --cpu-percent=50 --min=1 --max=5',
+            'kubectl get hpa no-metrics',
+            'kubectl describe hpa no-metrics',
+            'kubectl top pods -l app=no-metrics',
+          ],
+          verify: ['HPA shows <unknown>/50% if metrics-server disabled or CPU requests missing', 'describe shows unable to fetch metrics or missing resource in Events'],
+          expectedOutcome: 'Unknown metrics traced to missing CPU requests or metrics-server not ready.',
+          cleanup: ['kubectl delete hpa no-metrics', 'kubectl delete deployment no-metrics'],
+        },
+        {
+          id: 'p4-m3-e4',
+          title: '7-day spaced review — HPA algorithm and commands',
+          kind: 'spaced-review',
+          goal: 'Recall HPA algorithm, prerequisites, and commands from memory.',
+          commands: [
+            'kubectl explain horizontalpodautoscaler.spec',
+            'kubectl get hpa -A',
+            'kubectl top nodes',
+          ],
+          verify: ['explain shows minReplicas, maxReplicas, targetCPUUtilizationPercentage', 'Can state: CPU requests required, metrics-server required, 15s poll interval'],
+          expectedOutcome: 'HPA concepts and commands recalled without notes.',
+          cleanup: [],
         },
       ],
     },
@@ -1229,6 +1465,133 @@ spec:
           explanation: 'Appending a "-" to the taint specification in kubectl taint removes it. The minimal syntax is kubectl taint nodes <node-name> <key>:<effect>- — the value is not required for taint removal. The trailing dash is the removal signal. kubectl label uses the same trailing-dash pattern for removing labels, but taints are a separate spec field managed via kubectl taint.',
         },
       ],
+      coverage: {
+        concepts: ['nodeSelector for label-based node targeting', 'Node Affinity: requiredDuringScheduling (hard) vs preferredDuringScheduling (soft)', 'taints: NoSchedule/PreferNoSchedule/NoExecute effects', 'tolerations to override taint effects', 'Pod Anti-Affinity for spreading replicas', 'topologySpreadConstraints'],
+        commands: ['kubectl taint nodes', 'kubectl taint nodes <node> <key>:<effect>- (remove)', 'kubectl label nodes', 'kubectl get nodes --show-labels', 'kubectl describe node (Taints section)', 'kubectl get pods -o wide (verify node placement)'],
+        architecture: ['scheduler filters nodes via predicates (hard rules)', 'scheduler scores nodes via priorities (soft rules)', 'NoExecute evicts existing pods unless toleration with tolerationSeconds', 'Pod Affinity/Anti-Affinity run after filter phase'],
+        techniques: ['taint a node to dedicate it to GPU workloads', 'toleration to run on control-plane nodes', 'requiredDuringScheduling for hard placement', 'preferredDuringScheduling for soft preferences', 'Pod anti-affinity to spread replicas across zones'],
+        procedures: ['add taint to node', 'create pod with matching toleration', 'add nodeSelector to pod/deployment', 'verify pod lands on correct node', 'remove taint with trailing dash'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['pod Pending — no node satisfies node affinity required rule', 'pod evicted — NoExecute taint added to node after pod was running', 'all replicas on same node — missing anti-affinity'],
+        scenarios: ['dedicate node to GPU workloads with taint + toleration', 'spread deployment replicas across nodes with pod anti-affinity'],
+      },
+      exercises: [
+        {
+          id: 'p4-m4-e1',
+          title: 'Taint a node and schedule with toleration',
+          kind: 'guided',
+          goal: 'Add a NoSchedule taint to minikube node and deploy a pod with and without toleration.',
+          commands: [
+            'kubectl taint nodes minikube dedicated=gpu:NoSchedule',
+            'kubectl run no-toleration --image=nginx:1.27',
+            'kubectl get pod no-toleration',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: with-toleration
+spec:
+  tolerations:
+  - key: dedicated
+    value: gpu
+    effect: NoSchedule
+  containers:
+  - name: nginx
+    image: nginx:1.27
+EOF`,
+            'kubectl get pods no-toleration with-toleration',
+          ],
+          verify: ['no-toleration pod stays Pending', 'with-toleration pod reaches Running', 'describe no-toleration shows Tolerations not satisfied in events'],
+          expectedOutcome: 'Taint blocks non-tolerating pod; toleration allows scheduling.',
+          cleanup: ['kubectl taint nodes minikube dedicated:NoSchedule-', 'kubectl delete pod no-toleration with-toleration --ignore-not-found'],
+        },
+        {
+          id: 'p4-m4-e2',
+          title: 'Spread replicas with Pod anti-affinity',
+          kind: 'challenge',
+          goal: 'Configure a Deployment so no two replicas land on the same node.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spread-web
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: spread-web
+  template:
+    metadata:
+      labels:
+        app: spread-web
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: spread-web
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: nginx
+        image: nginx:1.27
+EOF`,
+            'kubectl get pods -l app=spread-web -o wide',
+          ],
+          verify: ['Pods scheduled across available nodes (on minikube single-node they land on the same node — that is expected)', 'describe shows anti-affinity config in pod spec'],
+          expectedOutcome: 'Pod anti-affinity configured; behavior understood for multi-node clusters.',
+          cleanup: ['kubectl delete deployment spread-web'],
+        },
+        {
+          id: 'p4-m4-e3',
+          title: 'Diagnose Pending pod due to failed node affinity',
+          kind: 'debug',
+          goal: 'Create a pod with a hard node affinity rule that no node satisfies.',
+          commands: [
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: affinity-pending
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: gpu-type
+            operator: In
+            values: [a100, h100]
+  containers:
+  - name: app
+    image: nginx:1.27
+EOF`,
+            'kubectl get pod affinity-pending',
+            'kubectl describe pod affinity-pending',
+          ],
+          verify: ['Pod stays Pending', 'Events show 0/1 nodes match node affinity'],
+          expectedOutcome: 'Unsatisfiable node affinity diagnosed from describe events.',
+          cleanup: ['kubectl delete pod affinity-pending --ignore-not-found'],
+        },
+        {
+          id: 'p4-m4-e4',
+          title: '7-day spaced review — taint and affinity commands',
+          kind: 'spaced-review',
+          goal: 'Recall taint/toleration and node affinity syntax from memory.',
+          commands: [
+            'kubectl taint nodes minikube test-taint=value:NoSchedule',
+            'kubectl describe node minikube | grep -A3 Taints',
+            'kubectl taint nodes minikube test-taint:NoSchedule-',
+            'kubectl describe node minikube | grep -A3 Taints',
+          ],
+          verify: ['Taint visible after add', 'Taints section shows <none> after removal'],
+          expectedOutcome: 'Taint add/remove commands recalled from memory.',
+          cleanup: [],
+        },
+      ],
     },
 
     // ─── Module 5: PodDisruptionBudgets & Cluster Maintenance ────────────────
@@ -1509,6 +1872,103 @@ spec:
           ],
           answer: 2,
           explanation: 'The correct sequence is: (1) cordon — stop new Pods from scheduling on the node; (2) drain — evict existing Pods to other nodes (respecting PDBs); (3) upgrade — update kubelet, containerd, OS, etc.; (4) uncordon — return the node to the scheduling pool. Starting with the upgrade while Pods are still running is risky — the kubelet version change can cause issues.',
+        },
+      ],
+      coverage: {
+        concepts: ['PodDisruptionBudget: minAvailable or maxUnavailable', 'voluntary vs involuntary disruptions', 'eviction API vs direct pod delete', 'kubectl drain respects PDBs', 'cordon: mark node unschedulable', 'uncordon: return node to pool', 'node maintenance workflow'],
+        commands: ['kubectl create poddisruptionbudget', 'kubectl get pdb', 'kubectl describe pdb', 'kubectl cordon node', 'kubectl drain node --ignore-daemonsets --delete-emptydir-data', 'kubectl uncordon node', 'kubectl get nodes (SchedulingDisabled status)'],
+        architecture: ['PDB blocks eviction API if budget would be violated', 'kubectl drain uses eviction API — PDB is enforced', 'kubectl delete pod bypasses PDB — direct delete not via eviction', 'kubelet node condition drives cordon/uncordon state'],
+        techniques: ['set minAvailable=1 to ensure at least one replica during drain', 'use maxUnavailable=1 for percentage-based budget', 'drain with --ignore-daemonsets to skip DaemonSet pods', 'use --delete-emptydir-data for pods with emptyDir volumes'],
+        procedures: ['create PDB for a deployment', 'cordon a node', 'drain node with PDB in effect', 'uncordon after maintenance', 'verify pod rescheduled on other node'],
+        toolsAndPlugins: ['kubectl', 'minikube'],
+        cases: ['drain blocked — PDB minAvailable=1 and only 1 replica running', 'drain hangs — pod with emptyDir data needs --delete-emptydir-data', 'node stays SchedulingDisabled after drain — forgot to uncordon'],
+        scenarios: ['safely drain a node for OS upgrade without application downtime', 'set PDB before rolling deployment to prevent eviction of all replicas'],
+      },
+      exercises: [
+        {
+          id: 'p4-m5-e1',
+          title: 'Create PDB and perform a node drain',
+          kind: 'guided',
+          goal: 'Create a deployment with PDB, then cordon and drain the node.',
+          commands: [
+            'kubectl create deployment web-pdb --image=nginx:1.27 --replicas=3',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: web-pdb
+EOF`,
+            'kubectl get pdb web-pdb',
+            'kubectl cordon minikube',
+            'kubectl get nodes',
+            'kubectl drain minikube --ignore-daemonsets --delete-emptydir-data',
+            'kubectl get pods -l app=web-pdb -o wide',
+            'kubectl uncordon minikube',
+          ],
+          verify: ['Node shows SchedulingDisabled after cordon', 'PDB shows minAvailable=2', 'After drain: pods rescheduled (or eviction blocked on single-node minikube)', 'Node schedulable again after uncordon'],
+          expectedOutcome: 'Full cordon → drain → uncordon lifecycle executed with PDB.',
+          cleanup: ['kubectl delete pdb web-pdb', 'kubectl delete deployment web-pdb', 'kubectl uncordon minikube'],
+        },
+        {
+          id: 'p4-m5-e2',
+          title: 'Observe PDB blocking a drain',
+          kind: 'challenge',
+          goal: 'Create a PDB that prevents drain from evicting the last replica.',
+          commands: [
+            'kubectl create deployment singleton --image=nginx:1.27 --replicas=1',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: singleton-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: singleton
+EOF`,
+            'kubectl drain minikube --ignore-daemonsets --delete-emptydir-data --timeout=20s',
+            'kubectl get pdb singleton-pdb',
+          ],
+          verify: ['drain fails or times out with "Cannot evict pod as it would violate the pod\'s disruption budget"', 'PDB shows ALLOWED DISRUPTIONS: 0'],
+          expectedOutcome: 'PDB blocks drain when minAvailable would be violated.',
+          cleanup: ['kubectl delete pdb singleton-pdb', 'kubectl delete deployment singleton', 'kubectl uncordon minikube'],
+        },
+        {
+          id: 'p4-m5-e3',
+          title: 'Diagnose node stuck in SchedulingDisabled',
+          kind: 'debug',
+          goal: 'Identify a node that was cordoned and never uncordoned, and recover it.',
+          commands: [
+            'kubectl cordon minikube',
+            'kubectl get nodes',
+            'kubectl run test-pod --image=nginx:1.27',
+            'kubectl get pod test-pod',
+            'kubectl uncordon minikube',
+            'kubectl get nodes',
+          ],
+          verify: ['Node shows STATUS SchedulingDisabled after cordon', 'test-pod stays Pending while node is cordoned', 'Node returns to Ready after uncordon', 'test-pod schedules after uncordon'],
+          expectedOutcome: 'Cordoned node identified and recovered with uncordon.',
+          cleanup: ['kubectl delete pod test-pod --ignore-not-found'],
+        },
+        {
+          id: 'p4-m5-e4',
+          title: '7-day spaced review — maintenance workflow',
+          kind: 'spaced-review',
+          goal: 'Recall the full node maintenance sequence and PDB purpose from memory.',
+          commands: [
+            'kubectl explain poddisruptionbudget.spec',
+            'kubectl get pdb -A',
+            'kubectl get nodes',
+          ],
+          verify: ['explain shows minAvailable and maxUnavailable fields', 'Can state the sequence: cordon → drain → maintain → uncordon'],
+          expectedOutcome: 'Maintenance workflow and PDB fields recalled without notes.',
+          cleanup: [],
         },
       ],
     },
