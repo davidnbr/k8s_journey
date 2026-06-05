@@ -164,20 +164,36 @@ function TheoryContent({ text }: { text: string }) {
       )
       continue
     }
-    // Blockquotes
+    // Blockquotes — detect Brain Warm-Up vs generic
     else if (line.startsWith('> ')) {
       const quoteLines: string[] = []
       while (i < lines.length && lines[i].startsWith('> ')) {
         quoteLines.push(lines[i].slice(2))
         i++
       }
-      elements.push(
-        <blockquote key={`bq-${i}`} className="border-l-2 border-slate-600 pl-4 py-1 mb-3 text-slate-400 text-sm italic leading-relaxed">
-          {quoteLines.map((ql, qi) => (
-            <span key={qi} dangerouslySetInnerHTML={{ __html: formatInline(ql) }} />
-          ))}
-        </blockquote>
-      )
+      const text = quoteLines.join(' ')
+      const isBrainWarmup = text.includes('🧠') || text.toLowerCase().includes('brain warm-up')
+      if (isBrainWarmup) {
+        elements.push(
+          <div key={`bq-${i}`} className="bg-violet-500/8 border border-violet-500/30 rounded-xl p-4 mb-5">
+            <div className="flex items-center gap-2 text-violet-300 text-xs font-bold uppercase tracking-widest mb-2">
+              <span>🧠</span> Brain Warm-Up
+            </div>
+            <div className="text-slate-200 text-sm leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: quoteLines.map(formatInline).join(' ')
+                .replace(/^🧠\s*\*\*Brain Warm-Up\*\*:\s*/i, '')
+                .replace(/^Brain Warm-Up:\s*/i, '') }} />
+          </div>
+        )
+      } else {
+        elements.push(
+          <blockquote key={`bq-${i}`} className="border-l-2 border-slate-600 pl-4 py-1 mb-3 text-slate-400 text-sm italic leading-relaxed">
+            {quoteLines.map((ql, qi) => (
+              <span key={qi} dangerouslySetInnerHTML={{ __html: formatInline(ql) }} />
+            ))}
+          </blockquote>
+        )
+      }
       continue
     }
     // Numbered lists
@@ -571,7 +587,7 @@ export default function LessonPageClient({ params }: PageProps) {
   )
   const [labDone, setLabDone] = useState(false)
   const [quizDone, setQuizDone] = useState(false)
-  const [activeTab, setActiveTab] = useState<'theory' | 'lab' | 'quiz'>('theory')
+  const [activeTab, setActiveTab] = useState<'theory' | 'lab' | 'quiz' | 'practice'>('theory')
   const [nextReview, setNextReview] = useState<ReturnType<typeof getNextReviewDue>>(null)
   const [reviewProgress, setReviewProgress] = useState<{ done: number; total: number }>({ done: 0, total: 4 })
 
@@ -610,9 +626,10 @@ export default function LessonPageClient({ params }: PageProps) {
   const isModuleDone = labDone && quizDone
 
   const TABS = [
-    { id: 'theory' as const, label: '📖 Theory', always: true },
-    { id: 'lab' as const, label: '▶ Lab', always: true },
-    { id: 'quiz' as const, label: '🧠 Quiz', always: true },
+    { id: 'theory' as const, label: '📖 Theory' },
+    { id: 'lab' as const, label: '▶ Lab' },
+    { id: 'quiz' as const, label: '🧠 Quiz' },
+    { id: 'practice' as const, label: '⚙ Practice' },
   ]
 
   return (
@@ -673,9 +690,18 @@ export default function LessonPageClient({ params }: PageProps) {
                 </span>
                 <h1 className="text-2xl font-bold text-slate-100 mt-1">{mod.title}</h1>
                 <p className="text-slate-400 text-sm mt-1">{mod.description}</p>
+                <div className="flex items-center gap-3 mt-3">
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${
+                    mod.difficulty === 'beginner'
+                      ? 'bg-emerald-500/10 text-emerald-400'
+                      : mod.difficulty === 'intermediate'
+                      ? 'bg-yellow-500/10 text-yellow-400'
+                      : 'bg-red-500/10 text-red-400'
+                  }`}>{mod.difficulty}</span>
+                  <span className="text-slate-600 text-xs">{mod.duration}</span>
+                  <span className="text-slate-700 text-xs">Read → Lab → Quiz → Practice</span>
+                </div>
               </div>
-
-              <LearningContract phaseSlug={phaseSlug} mod={mod} />
 
               <TheoryContent text={mod.theory} />
 
@@ -809,6 +835,15 @@ export default function LessonPageClient({ params }: PageProps) {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Practice tab */}
+        {activeTab === 'practice' && (
+          <div className="h-full overflow-y-auto">
+            <div className="max-w-3xl mx-auto px-6 py-6">
+              <LearningContract phaseSlug={phaseSlug} mod={mod} />
             </div>
           </div>
         )}
