@@ -704,18 +704,26 @@ kubens production # switch namespace
       exercises: [
         {
           id: 'p0-m3-e1',
-          title: 'Explore your kubeconfig structure',
+          title: 'Official tutorial setup: verify cluster access with kubectl version + get nodes',
           kind: 'guided',
-          goal: 'Read and understand the three-section structure of your local kubeconfig.',
+          goal: 'Follow the official Kubernetes Basics environment setup: confirm kubectl talks to the cluster, inspect nodes, deploy first app.',
           commands: [
+            'kubectl version',
+            'kubectl get nodes',
+            'kubectl create deployment kubernetes-bootcamp --image=registry.k8s.io/minikube/kubernetes-bootcamp:v1',
+            'kubectl get deployments',
+            'kubectl get pods',
             'kubectl config view',
-            'kubectl config get-contexts',
             'kubectl config current-context',
-            'kubectl config view --minify',
+            'kubectl config get-contexts',
           ],
-          verify: ['current-context shows minikube', 'get-contexts lists at least one context', 'view --minify shows only the active context'],
-          expectedOutcome: 'Able to read kubeconfig and identify clusters, users, and contexts.',
-          cleanup: [],
+          verify: ['kubectl version shows both Client and Server versions', 'kubectl get nodes shows at least one node in Ready state', 'kubectl get deployments shows kubernetes-bootcamp with READY 1/1', 'current-context shows minikube'],
+          expectedOutcome: 'Cluster access confirmed, first deployment running, kubeconfig structure understood.',
+          cleanup: ['kubectl delete deployment kubernetes-bootcamp --ignore-not-found'],
+          sourceRefs: [
+            { title: 'Kubernetes Basics: Deploy an App', url: 'https://kubernetes.io/docs/tutorials/kubernetes-basics/deploy-app/deploy-intro/', checkedAt: '2026-06', scope: 'tutorial' },
+            { title: 'kubectl reference', url: 'https://kubernetes.io/docs/reference/kubectl/', checkedAt: '2026-06', scope: 'commands' },
+          ],
         },
         {
           id: 'p0-m3-e2',
@@ -733,6 +741,9 @@ kubens production # switch namespace
           verify: ['review-ctx appears in kubectl config get-contexts', 'kubectl get pods while in review-ctx queries review-ns by default'],
           expectedOutcome: 'Custom context created; namespace scoping confirmed.',
           cleanup: ['kubectl config delete-context review-ctx', 'kubectl delete namespace review-ns'],
+          sourceRefs: [
+            { title: 'kubectl config set-context reference', url: 'https://kubernetes.io/docs/reference/kubectl/', checkedAt: '2026-06', scope: 'commands' },
+          ],
         },
         {
           id: 'p0-m3-e3',
@@ -748,6 +759,9 @@ kubens production # switch namespace
           verify: ['kubectl get nodes with broken-ctx shows a connection or cluster-not-found error', 'Switching back to minikube context restores access immediately'],
           expectedOutcome: 'Understand how missing cluster entries produce errors and how to recover.',
           cleanup: ['kubectl config delete-context broken-ctx'],
+          sourceRefs: [
+            { title: 'kubectl reference', url: 'https://kubernetes.io/docs/reference/kubectl/', checkedAt: '2026-06', scope: 'commands' },
+          ],
         },
         {
           id: 'p0-m3-e4',
@@ -763,6 +777,9 @@ kubens production # switch namespace
           verify: ['All four commands run without error', 'current-context confirmed as minikube'],
           expectedOutcome: 'Context commands recalled and executed without consulting notes.',
           cleanup: [],
+          sourceRefs: [
+            { title: 'kubectl reference', url: 'https://kubernetes.io/docs/reference/kubectl/', checkedAt: '2026-06', scope: 'commands' },
+          ],
         },
       ],
     },

@@ -380,67 +380,73 @@ spec:
       exercises: [
         {
           id: 'p3-m1-e1',
-          title: 'Create PVC, mount it, and verify data persistence',
+          title: 'Official tutorial: configure a Pod to use a PersistentVolume for storage',
           kind: 'guided',
-          goal: 'Persist data across pod delete and recreate using a PVC.',
+          goal: 'Follow the official "Configure a Pod to Use a PersistentVolume for Storage" tutorial: create data on node via minikube ssh, create PV with hostPath, create PVC, create Pod that mounts it, verify nginx serves the file.',
           commands: [
-            'kubectl get storageclass',
+            'minikube ssh "sudo mkdir -p /mnt/data && sudo sh -c \'echo Hello from Kubernetes storage > /mnt/data/index.html\'"',
+            'minikube ssh "cat /mnt/data/index.html"',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: task-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data"
+EOF`,
+            'kubectl get pv task-pv-volume',
             `cat <<'EOF' | kubectl apply -f -
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: data-pvc
+  name: task-pv-claim
 spec:
+  storageClassName: manual
   accessModes:
-  - ReadWriteOnce
+    - ReadWriteOnce
   resources:
     requests:
-      storage: 100Mi
+      storage: 3Gi
 EOF`,
-            'kubectl get pvc data-pvc',
+            'kubectl get pv task-pv-volume',
+            'kubectl get pvc task-pv-claim',
             `cat <<'EOF' | kubectl apply -f -
 apiVersion: v1
 kind: Pod
 metadata:
-  name: storage-pod
+  name: task-pv-pod
 spec:
-  containers:
-  - name: app
-    image: busybox:1.36
-    command: ["sh", "-c", "echo persistent > /data/file.txt && sleep 3600"]
-    volumeMounts:
-    - name: data
-      mountPath: /data
   volumes:
-  - name: data
-    persistentVolumeClaim:
-      claimName: data-pvc
-EOF`,
-            'kubectl exec storage-pod -- cat /data/file.txt',
-            'kubectl delete pod storage-pod',
-            `cat <<'EOF' | kubectl apply -f -
-apiVersion: v1
-kind: Pod
-metadata:
-  name: storage-pod-2
-spec:
+    - name: task-pv-storage
+      persistentVolumeClaim:
+        claimName: task-pv-claim
   containers:
-  - name: app
-    image: busybox:1.36
-    command: ["sh", "-c", "sleep 3600"]
-    volumeMounts:
-    - name: data
-      mountPath: /data
-  volumes:
-  - name: data
-    persistentVolumeClaim:
-      claimName: data-pvc
+    - name: task-pv-container
+      image: nginx
+      ports:
+        - containerPort: 80
+          name: "http-server"
+      volumeMounts:
+        - mountPath: "/usr/share/nginx/html"
+          name: task-pv-storage
 EOF`,
-            'kubectl exec storage-pod-2 -- cat /data/file.txt',
+            'kubectl get pod task-pv-pod',
+            'kubectl exec -it task-pv-pod -- /bin/bash -c "curl http://localhost/"',
           ],
-          verify: ['PVC reaches Bound status', 'First pod writes file', 'Second pod reads same file — data persisted'],
-          expectedOutcome: 'Data persisted on PVC across pod delete and recreate.',
-          cleanup: ['kubectl delete pod storage-pod storage-pod-2 --ignore-not-found', 'kubectl delete pvc data-pvc'],
+          verify: ['After PV create: STATUS shows Available', 'After PVC create: PV STATUS changes to Bound, CLAIM shows default/task-pv-claim', 'PVC STATUS shows Bound, VOLUME shows task-pv-volume', 'curl inside pod returns "Hello from Kubernetes storage"'],
+          expectedOutcome: 'Full PV → PVC → Pod bind chain confirmed; node data served via nginx.',
+          cleanup: ['kubectl delete pod task-pv-pod --ignore-not-found', 'kubectl delete pvc task-pv-claim --ignore-not-found', 'kubectl delete pv task-pv-volume --ignore-not-found'],
+          sourceRefs: [
+            { title: 'Kubernetes: Configure a Pod to Use a PersistentVolume for Storage', url: 'https://kubernetes.io/docs/tutorials/configuration/configure-persistent-volume-storage/', checkedAt: '2026-06', scope: 'tutorial' },
+          ],
         },
         {
           id: 'p3-m1-e2',
@@ -849,59 +855,75 @@ spec:
       exercises: [
         {
           id: 'p3-m2-e1',
-          title: 'Deploy a StatefulSet with per-pod storage',
+          title: 'Official tutorial: StatefulSet Basics — ordered deploy, DNS, scale',
           kind: 'guided',
-          goal: 'Create a headless service and StatefulSet, verify ordered startup and per-pod PVCs.',
+          goal: 'Follow the official StatefulSet Basics tutorial: create headless service + StatefulSet, watch ordered startup, verify stable DNS, scale up and down.',
           commands: [
             `cat <<'EOF' | kubectl apply -f -
 apiVersion: v1
 kind: Service
 metadata:
-  name: web-headless
+  name: nginx
+  labels:
+    app: nginx
 spec:
-  clusterIP: None
-  selector:
-    app: web-ss
   ports:
   - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: nginx
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: web-ss
+  name: web
 spec:
-  serviceName: web-headless
-  replicas: 3
+  serviceName: "nginx"
+  replicas: 2
   selector:
     matchLabels:
-      app: web-ss
+      app: nginx
   template:
     metadata:
       labels:
-        app: web-ss
+        app: nginx
     spec:
       containers:
       - name: nginx
-        image: nginx:1.27
+        image: registry.k8s.io/nginx-slim:0.24
+        ports:
+        - containerPort: 80
+          name: web
         volumeMounts:
-        - name: data
-          mountPath: /data
+        - name: www
+          mountPath: /usr/share/nginx/html
   volumeClaimTemplates:
   - metadata:
-      name: data
+      name: www
     spec:
-      accessModes: [ReadWriteOnce]
+      accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 10Mi
+          storage: 1Gi
 EOF`,
-            'kubectl get pods -l app=web-ss -w',
-            'kubectl get pvc | grep web-ss',
-            'kubectl exec web-ss-0 -- hostname',
+            'kubectl get pods --watch -l app=nginx',
+            'kubectl get service nginx',
+            'kubectl get statefulset web',
+            'kubectl exec web-0 -- sh -c "hostname"',
+            'kubectl exec web-1 -- sh -c "hostname"',
+            'kubectl run -i --tty --image busybox:1.28 dns-test --restart=Never --rm -- nslookup web-0.nginx 2>/dev/null || echo "DNS lookup: web-0.nginx.<namespace>.svc.cluster.local"',
+            'kubectl scale statefulset web --replicas=5',
+            'kubectl get pods --watch -l app=nginx',
+            'kubectl patch statefulset web -p \'{"spec":{"replicas":3}}\'',
+            'kubectl get pods --watch -l app=nginx',
           ],
-          verify: ['Pods created in order: web-ss-0 → web-ss-1 → web-ss-2', '3 PVCs created: data-web-ss-0, data-web-ss-1, data-web-ss-2', 'exec hostname returns web-ss-0'],
-          expectedOutcome: 'Ordered startup and per-pod PVCs confirmed.',
-          cleanup: ['kubectl delete statefulset web-ss', 'kubectl delete service web-headless', 'kubectl delete pvc -l app=web-ss'],
+          verify: ['Pods created in order: web-0 then web-1 (watch confirms sequential)', 'kubectl get statefulset web shows READY 2/2', 'exec hostname returns web-0 and web-1 respectively', 'scale to 5 creates web-2, web-3, web-4 in order', 'scale down to 3 deletes web-4 then web-3 in reverse order'],
+          expectedOutcome: 'Ordered creation/deletion and stable hostname identity confirmed following official tutorial.',
+          cleanup: ['kubectl delete statefulset web', 'kubectl delete service nginx', 'kubectl delete pvc -l app=nginx --ignore-not-found'],
+          sourceRefs: [
+            { title: 'Kubernetes: StatefulSet Basics', url: 'https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/', checkedAt: '2026-06', scope: 'tutorial' },
+          ],
         },
         {
           id: 'p3-m2-e2',

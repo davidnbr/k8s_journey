@@ -243,21 +243,47 @@ kubectl config set-context --current --namespace=default
       exercises: [
         {
           id: 'p2-m1-e1',
-          title: 'Create and use namespaces',
+          title: 'Official tutorial: Namespaces Walkthrough — dev/prod isolation',
           kind: 'guided',
-          goal: 'Create namespaces, deploy into them, and list resources per namespace.',
+          goal: 'Follow the official Kubernetes Namespaces Walkthrough: create dev and production namespaces, deploy into each, and verify isolation.',
           commands: [
             'kubectl get namespaces',
-            'kubectl create namespace dev',
-            'kubectl create namespace staging',
-            'kubectl run web --image=nginx:1.27 -n dev',
-            'kubectl get pods -n dev',
-            'kubectl get pods -n staging',
-            'kubectl get pods -A',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: development
+  labels:
+    name: development
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    name: production
+EOF`,
+            'kubectl get namespaces --show-labels',
+            'kubectl config set-context dev --namespace=development --cluster=$(kubectl config view -o jsonpath="{.clusters[0].name}") --user=$(kubectl config view -o jsonpath="{.users[0].name}")',
+            'kubectl config use-context dev',
+            'kubectl config current-context',
+            'kubectl create deployment snowflake --image=registry.k8s.io/serve_hostname --replicas=2',
+            'kubectl get deployment',
+            'kubectl get pods -l app=snowflake',
+            'kubectl config set-context prod --namespace=production --cluster=$(kubectl config view -o jsonpath="{.clusters[0].name}") --user=$(kubectl config view -o jsonpath="{.users[0].name}")',
+            'kubectl config use-context prod',
+            'kubectl get deployment',
+            'kubectl get pods',
+            'kubectl create deployment cattle --image=registry.k8s.io/serve_hostname --replicas=5',
+            'kubectl get deployment',
+            'kubectl config use-context minikube',
           ],
-          verify: ['dev and staging namespaces visible in get namespaces', 'web pod Running in dev namespace', 'staging namespace shows no pods', '-A flag shows pods across all namespaces'],
-          expectedOutcome: 'Namespace isolation confirmed: pods in dev not visible in staging.',
-          cleanup: ['kubectl delete namespace dev', 'kubectl delete namespace staging'],
+          verify: ['kubectl get namespaces --show-labels shows development and production with name labels', 'In dev context: snowflake deployment shows READY 2/2', 'In prod context: kubectl get deployment returns No resources found (isolation confirmed)', 'In prod context: cattle deployment shows READY 5/5'],
+          expectedOutcome: 'Namespace isolation demonstrated: dev resources invisible in prod context.',
+          cleanup: ['kubectl config delete-context dev', 'kubectl config delete-context prod', 'kubectl delete namespace development', 'kubectl delete namespace production'],
+          sourceRefs: [
+            { title: 'Kubernetes: Namespaces Walkthrough', url: 'https://kubernetes.io/docs/tutorials/cluster-management/namespaces-walkthrough/', checkedAt: '2026-06', scope: 'tutorial' },
+          ],
         },
         {
           id: 'p2-m1-e2',
@@ -946,32 +972,111 @@ spec:
       exercises: [
         {
           id: 'p2-m3-e1',
-          title: 'Create ConfigMap and inject as env vars',
+          title: 'Official tutorial: configure Redis using a ConfigMap',
           kind: 'guided',
-          goal: 'Create a ConfigMap from literals and inject its values into a pod as environment variables.',
+          goal: 'Follow the official "Configuring Redis Using a ConfigMap" tutorial: apply empty config, check defaults, update ConfigMap with maxmemory, restart pod, verify values applied.',
           commands: [
-            'kubectl create configmap app-config --from-literal=LOG_LEVEL=debug --from-literal=PORT=8080',
-            'kubectl get configmap app-config',
-            'kubectl describe configmap app-config',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example-redis-config
+data:
+  redis-config: ""
+EOF`,
             `cat <<'EOF' | kubectl apply -f -
 apiVersion: v1
 kind: Pod
 metadata:
-  name: config-pod
+  name: redis
 spec:
   containers:
-  - name: app
-    image: busybox:1.36
-    command: ["sh", "-c", "echo LOG_LEVEL=$LOG_LEVEL; echo PORT=$PORT; sleep 3600"]
-    envFrom:
-    - configMapRef:
-        name: app-config
+  - name: redis
+    image: redis:5.0.4
+    command:
+      - redis-server
+      - "/redis-master/redis.conf"
+    env:
+    - name: MASTER
+      value: "true"
+    ports:
+    - containerPort: 6379
+    resources:
+      limits:
+        cpu: "0.1"
+    volumeMounts:
+    - mountPath: /redis-master-data
+      name: data
+    - mountPath: /redis-master
+      name: config
+  volumes:
+    - name: data
+      emptyDir: {}
+    - name: config
+      configMap:
+        name: example-redis-config
+        items:
+        - key: redis-config
+          path: redis.conf
 EOF`,
-            'kubectl logs config-pod',
+            'kubectl get pod/redis configmap/example-redis-config',
+            'kubectl describe configmap/example-redis-config',
+            'kubectl exec -it redis -- redis-cli CONFIG GET maxmemory',
+            'kubectl exec -it redis -- redis-cli CONFIG GET maxmemory-policy',
+            `kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example-redis-config
+data:
+  redis-config: |
+    maxmemory 2mb
+    maxmemory-policy allkeys-lru
+EOF`,
+            'kubectl describe configmap/example-redis-config',
+            'kubectl exec -it redis -- redis-cli CONFIG GET maxmemory',
+            'kubectl delete pod redis',
+            `cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redis
+spec:
+  containers:
+  - name: redis
+    image: redis:5.0.4
+    command:
+      - redis-server
+      - "/redis-master/redis.conf"
+    ports:
+    - containerPort: 6379
+    resources:
+      limits:
+        cpu: "0.1"
+    volumeMounts:
+    - mountPath: /redis-master-data
+      name: data
+    - mountPath: /redis-master
+      name: config
+  volumes:
+    - name: data
+      emptyDir: {}
+    - name: config
+      configMap:
+        name: example-redis-config
+        items:
+        - key: redis-config
+          path: redis.conf
+EOF`,
+            'kubectl exec -it redis -- redis-cli CONFIG GET maxmemory',
+            'kubectl exec -it redis -- redis-cli CONFIG GET maxmemory-policy',
           ],
-          verify: ['kubectl logs shows LOG_LEVEL=debug and PORT=8080', 'ConfigMap keys injected as environment variables'],
-          expectedOutcome: 'ConfigMap created and all keys injected as env vars confirmed.',
-          cleanup: ['kubectl delete pod config-pod --ignore-not-found', 'kubectl delete configmap app-config'],
+          verify: ['Before update: maxmemory returns 0, maxmemory-policy returns noeviction', 'After ConfigMap update but BEFORE pod restart: values still show old defaults (key insight: pod restart required for command-arg configs)', 'After pod delete + recreate: maxmemory returns 2097152, maxmemory-policy returns allkeys-lru'],
+          expectedOutcome: 'ConfigMap update applied to Redis after pod restart. Demonstrates that env-var and command-arg configs require pod restart, unlike volume-mounted files.',
+          cleanup: ['kubectl delete pod/redis configmap/example-redis-config --ignore-not-found'],
+          sourceRefs: [
+            { title: 'Kubernetes: Configuring Redis Using a ConfigMap', url: 'https://kubernetes.io/docs/tutorials/configuration/configure-redis-using-configmap/', checkedAt: '2026-06', scope: 'tutorial' },
+          ],
         },
         {
           id: 'p2-m3-e2',

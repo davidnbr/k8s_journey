@@ -85,6 +85,7 @@ export interface ExerciseTask {
   verify: string[]
   expectedOutcome: string
   cleanup: string[]
+  sourceRefs?: SourceRef[]
 }
 
 export interface TopicCoverage {
