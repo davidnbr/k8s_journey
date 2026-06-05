@@ -18,7 +18,11 @@ import {
   getRunnableCommands,
   spacedReviewCadence,
 } from '@/content/learningDesign'
-import { markStepReached, markModuleCompleted, getModuleStatus } from '@/lib/progress'
+import {
+  markStepReached, markModuleCompleted, getModuleStatus,
+  markReviewDone, getNextReviewDue, getReviewProgress, REVIEW_INTERVALS,
+  type ReviewIntervalIndex,
+} from '@/lib/progress'
 import type { ClusterState } from '@/lib/types'
 import ScriptedTerminal from '@/components/ScriptedTerminal'
 import ClusterDiagram from '@/components/ClusterDiagram'
@@ -270,7 +274,7 @@ function LearningContract({
   mod: NonNullable<ReturnType<typeof getModule>>
 }) {
   const review = getModuleReview(phaseSlug, mod.slug)
-  const exerciseTasks = getExerciseTasks(mod, review)
+  const exerciseTasks = mod.exercises?.length ? mod.exercises : getExerciseTasks(mod, review)
   const commandFamilies = getCommandFamilies(mod)
   const runnableCommands = getRunnableCommands(mod)
   const externalTools = getExternalTools(mod)
@@ -524,6 +528,25 @@ function LearningContract({
                     </pre>
                   </div>
                 </div>
+                {task.sourceRefs && task.sourceRefs.length > 0 && (
+                  <div className="px-3 pb-3 border-t border-slate-800 pt-2">
+                    <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1.5">Official Docs</div>
+                    <div className="flex flex-wrap gap-2">
+                      {task.sourceRefs.map((ref) => (
+                        <a
+                          key={ref.url}
+                          href={ref.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-blue-400 hover:text-blue-300 underline underline-offset-2"
+                        >
+                          {ref.title}
+                          <span className="text-slate-600 no-underline ml-1">({ref.scope})</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -549,6 +572,13 @@ export default function LessonPageClient({ params }: PageProps) {
   const [labDone, setLabDone] = useState(false)
   const [quizDone, setQuizDone] = useState(false)
   const [activeTab, setActiveTab] = useState<'theory' | 'lab' | 'quiz'>('theory')
+  const [nextReview, setNextReview] = useState<ReturnType<typeof getNextReviewDue>>(null)
+  const [reviewProgress, setReviewProgress] = useState<{ done: number; total: number }>({ done: 0, total: 4 })
+
+  const refreshReviewState = useCallback(() => {
+    setNextReview(getNextReviewDue(phaseSlug, moduleSlug))
+    setReviewProgress(getReviewProgress(phaseSlug, moduleSlug))
+  }, [phaseSlug, moduleSlug])
 
   useEffect(() => {
     markStepReached(phaseSlug, moduleSlug)
@@ -557,7 +587,15 @@ export default function LessonPageClient({ params }: PageProps) {
       setLabDone(true)
       setQuizDone(true)
     }
-  }, [phaseSlug, moduleSlug])
+    refreshReviewState()
+    window.addEventListener('k8s-progress-change', refreshReviewState)
+    return () => window.removeEventListener('k8s-progress-change', refreshReviewState)
+  }, [phaseSlug, moduleSlug, refreshReviewState])
+
+  const handleMarkReviewDone = useCallback(() => {
+    if (nextReview === null) return
+    markReviewDone(phaseSlug, moduleSlug, nextReview.intervalIndex as ReviewIntervalIndex)
+  }, [phaseSlug, moduleSlug, nextReview])
 
   const handleLabComplete = useCallback(() => {
     setLabDone(true)
@@ -708,6 +746,67 @@ export default function LessonPageClient({ params }: PageProps) {
                       Next Module →
                     </Link>
                   </div>
+                </div>
+              )}
+
+              {quizDone && (
+                <div className="mt-4 bg-slate-950 border border-slate-800 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-slate-300 text-sm font-semibold">Spaced Review Schedule</h3>
+                    <span className="text-xs text-slate-500">{reviewProgress.done}/{reviewProgress.total} reviews done</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 mb-4">
+                    {REVIEW_INTERVALS.map((days, i) => {
+                      const isDone = i < reviewProgress.done
+                      const isNext = nextReview?.intervalIndex === i
+                      return (
+                        <div
+                          key={days}
+                          className={`rounded-lg p-2 text-center border text-xs transition-all ${
+                            isDone
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                              : isNext
+                              ? 'bg-blue-500/10 border-blue-500/40 text-blue-300'
+                              : 'bg-slate-900 border-slate-800 text-slate-600'
+                          }`}
+                        >
+                          <div className="font-bold text-sm">{isDone ? '✓' : `Day ${days}`}</div>
+                          <div className="text-[10px] mt-0.5 opacity-70">
+                            {isDone ? 'done' : isNext ? 'due' : `+${days}d`}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {nextReview && nextReview.intervalIndex < REVIEW_INTERVALS.length && (
+                    <div className="flex items-center justify-between bg-blue-500/5 border border-blue-500/20 rounded-lg p-3">
+                      <div className="text-xs">
+                        <span className="text-blue-300 font-semibold">
+                          Day {REVIEW_INTERVALS[nextReview.intervalIndex]} review
+                        </span>
+                        {nextReview.overdueDays > 0 && (
+                          <span className="text-red-400 ml-2">{nextReview.overdueDays}d overdue</span>
+                        )}
+                        {nextReview.overdueDays === 0 && nextReview.dueAt <= Date.now() && (
+                          <span className="text-amber-400 ml-2">due today</span>
+                        )}
+                        <p className="text-slate-500 mt-0.5">
+                          {spacedReviewCadence[nextReview.intervalIndex]}
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleMarkReviewDone}
+                        className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ml-3 shrink-0"
+                      >
+                        Mark done
+                      </button>
+                    </div>
+                  )}
+                  {reviewProgress.done === reviewProgress.total && (
+                    <div className="text-center text-xs text-emerald-400 py-2">
+                      All spaced reviews complete — long-term retention secured.
+                    </div>
+                  )}
                 </div>
               )}
             </div>

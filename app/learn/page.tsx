@@ -1,14 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { phases } from '@/content/index'
 import { getModuleReview } from '@/content/reviewMatrix'
 import { getCoverageGaps, getPhaseLearningRole, learningPrinciples } from '@/content/learningDesign'
+import { getDueReviews, getUpcomingReviews, REVIEW_INTERVALS, type DueReview } from '@/lib/progress'
 
 export default function LearnOverviewPage() {
   const [search, setSearch] = useState('')
+  const [dueReviews, setDueReviews] = useState<DueReview[]>([])
+  const [upcomingReviews, setUpcomingReviews] = useState<DueReview[]>([])
   const query = search.toLowerCase().trim()
+
+  useEffect(() => {
+    function load() {
+      setDueReviews(getDueReviews(phases))
+      setUpcomingReviews(getUpcomingReviews(phases, 3))
+    }
+    load()
+    window.addEventListener('k8s-progress-change', load)
+    return () => window.removeEventListener('k8s-progress-change', load)
+  }, [])
 
   const filteredPhases = query
     ? phases
@@ -76,6 +89,70 @@ export default function LearnOverviewPage() {
         )}
       </div>
 
+      {/* Due reviews — only show when not searching and there are due/upcoming */}
+      {!query && (dueReviews.length > 0 || upcomingReviews.length > 0) && (
+        <div className="mb-6">
+          {dueReviews.length > 0 && (
+            <div className="bg-amber-500/8 border border-amber-500/30 rounded-xl p-4 mb-3">
+              <h2 className="text-amber-300 text-sm font-semibold mb-3 flex items-center gap-2">
+                <span>⏰</span>
+                {dueReviews.length} module{dueReviews.length !== 1 ? 's' : ''} due for review
+              </h2>
+              <div className="space-y-2">
+                {dueReviews.map((r) => (
+                  <Link
+                    key={`${r.phaseSlug}-${r.moduleSlug}`}
+                    href={`/learn/${r.phaseSlug}/${r.moduleSlug}`}
+                    className="flex items-center justify-between bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 transition-all group"
+                  >
+                    <div>
+                      <span className="text-amber-400/60 text-[10px] uppercase tracking-wide mr-2">{r.phaseTitle}</span>
+                      <span className="text-slate-200 text-sm group-hover:text-white">{r.moduleTitle}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-amber-400/80">
+                        Day {REVIEW_INTERVALS[r.intervalIndex]} review
+                      </span>
+                      {r.overdueDays > 0 && (
+                        <span className="bg-red-500/20 text-red-400 border border-red-500/20 rounded-full px-2 py-0.5">
+                          {r.overdueDays}d overdue
+                        </span>
+                      )}
+                      {r.overdueDays === 0 && (
+                        <span className="bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-full px-2 py-0.5">
+                          due today
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {upcomingReviews.length > 0 && (
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+              <h2 className="text-slate-400 text-xs font-semibold mb-2 uppercase tracking-wide">Upcoming reviews (next 3 days)</h2>
+              <div className="flex flex-wrap gap-2">
+                {upcomingReviews.map((r) => {
+                  const daysUntil = Math.ceil((r.dueAt - Date.now()) / 86_400_000)
+                  return (
+                    <Link
+                      key={`${r.phaseSlug}-${r.moduleSlug}`}
+                      href={`/learn/${r.phaseSlug}/${r.moduleSlug}`}
+                      className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-300 transition-all"
+                    >
+                      {r.moduleTitle}
+                      <span className="text-slate-500 ml-1.5">in {daysUntil}d</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Learning system reminder — hide when searching */}
       {!query && (
         <div className="space-y-4 mb-8">
@@ -136,7 +213,7 @@ export default function LearnOverviewPage() {
 
       {/* Phases */}
       <div className="space-y-8">
-        {filteredPhases.map((phase, pi) => {
+        {filteredPhases.map((phase) => {
           const originalIndex = phases.findIndex((p) => p.id === phase.id)
           return (
             <div key={phase.id}>
