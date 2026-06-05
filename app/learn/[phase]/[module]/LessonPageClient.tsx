@@ -274,7 +274,7 @@ function TheoryContent({ text }: { text: string }) {
     // Normal paragraph
     else {
       elements.push(
-        <p key={i} className="text-slate-300 text-sm leading-relaxed mb-3"
+        <p key={i} className="text-slate-300 text-base leading-relaxed mb-4"
           dangerouslySetInnerHTML={{ __html: formatInline(line) }} />
       )
     }
@@ -309,7 +309,12 @@ function PracticeTab({
       return stored ? new Set<string>(JSON.parse(stored)) : new Set()
     } catch { return new Set() }
   })
-  const [revealedSolutions, setRevealedSolutions] = useState<Set<string>>(new Set())
+  const [revealedSolutions, setRevealedSolutions] = useState<Set<string>>(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem(doneKey) : null
+      return stored ? new Set<string>(JSON.parse(stored)) : new Set()
+    } catch { return new Set() }
+  })
 
   useEffect(() => {
     try { localStorage.setItem(masteryKey, JSON.stringify([...checkedItems])) } catch { /* ignore */ }
@@ -468,6 +473,13 @@ function PracticeTab({
   )
 }
 
+const TABS = [
+  { id: 'theory' as const, label: '📖 Theory' },
+  { id: 'lab' as const, label: '▶ Lab' },
+  { id: 'quiz' as const, label: '🧠 Quiz' },
+  { id: 'practice' as const, label: '⚙ Practice' },
+]
+
 export default function LessonPageClient({ params }: PageProps) {
   const { phase: phaseSlug, module: moduleSlug } = use(params)
 
@@ -521,13 +533,6 @@ export default function LessonPageClient({ params }: PageProps) {
 
   const isModuleDone = labDone && quizDone
 
-  const TABS = [
-    { id: 'theory' as const, label: '📖 Theory' },
-    { id: 'lab' as const, label: '▶ Lab' },
-    { id: 'quiz' as const, label: '🧠 Quiz' },
-    { id: 'practice' as const, label: '⚙ Practice' },
-  ]
-
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
@@ -541,6 +546,9 @@ export default function LessonPageClient({ params }: PageProps) {
             <span className="text-slate-300">{mod.title}</span>
           </div>
           <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-600 font-mono">
+              {phase.modules.findIndex(m => m.slug === moduleSlug) + 1}/{phase.modules.length}
+            </span>
             <span className="text-xs text-slate-600">{mod.duration}</span>
             {isModuleDone && (
               <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
@@ -552,10 +560,13 @@ export default function LessonPageClient({ params }: PageProps) {
       </div>
 
       {/* Tabs */}
-      <div className="flex-shrink-0 flex gap-1 px-6 pt-4 pb-0 overflow-x-auto scrollbar-none">
+      <div role="tablist" aria-label="Lesson sections" className="flex-shrink-0 flex gap-1 px-6 pt-4 pb-0 overflow-x-auto scrollbar-none">
         {TABS.map((tab) => (
           <button
             key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={tab.id + '-panel'}
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-all ${
               activeTab === tab.id
@@ -564,6 +575,9 @@ export default function LessonPageClient({ params }: PageProps) {
             }`}
           >
             {tab.label}
+            {tab.id === 'theory' && isModuleDone && (
+              <span className="ml-1 text-emerald-400 text-xs">✓</span>
+            )}
             {tab.id === 'lab' && labDone && (
               <span className="ml-1 text-emerald-400 text-xs">✓</span>
             )}
@@ -578,7 +592,7 @@ export default function LessonPageClient({ params }: PageProps) {
       <div className="flex-1 overflow-hidden">
         {/* Theory tab */}
         {activeTab === 'theory' && (
-          <div className="h-full overflow-y-auto">
+          <div role="tabpanel" id="theory-panel" className="h-full overflow-y-auto">
             <div className="max-w-3xl mx-auto px-6 py-6">
               <div className="mb-6">
                 <span className={`text-xs font-bold uppercase tracking-widest ${phase.color}`}>
@@ -595,7 +609,7 @@ export default function LessonPageClient({ params }: PageProps) {
                       : 'bg-red-500/10 text-red-400'
                   }`}>{mod.difficulty}</span>
                   <span className="text-slate-600 text-xs">{mod.duration}</span>
-                  <span className="text-slate-700 text-xs">Read → Lab → Quiz → Practice</span>
+                  <span className="text-slate-500 text-xs">Read → Lab → Quiz → Practice</span>
                 </div>
               </div>
 
@@ -615,7 +629,7 @@ export default function LessonPageClient({ params }: PageProps) {
 
         {/* Lab tab */}
         {activeTab === 'lab' && (
-          <div className="h-full grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-0 overflow-hidden">
+          <div role="tabpanel" id="lab-panel" className="h-full grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-0 overflow-hidden">
             {/* Terminal (left) */}
             <div className="p-4 overflow-hidden flex flex-col min-h-0">
               <ScriptedTerminal
@@ -639,7 +653,7 @@ export default function LessonPageClient({ params }: PageProps) {
 
         {/* Quiz tab */}
         {activeTab === 'quiz' && (
-          <div className="h-full overflow-y-auto">
+          <div role="tabpanel" id="quiz-panel" className="h-full overflow-y-auto">
             <div className="max-w-2xl mx-auto px-6 py-6">
               <div className="mb-6">
                 <h2 className="text-lg font-bold text-slate-100">Active Recall</h2>
@@ -668,6 +682,19 @@ export default function LessonPageClient({ params }: PageProps) {
                       Next Module →
                     </Link>
                   </div>
+                </div>
+              )}
+
+              {quizDone && (
+                <div className="mt-4 bg-violet-500/8 border border-violet-500/20 rounded-xl p-4">
+                  <p className="text-violet-300 text-sm font-semibold mb-1">Solidify your learning</p>
+                  <p className="text-slate-400 text-xs mb-3">Run the challenge exercises and tick the mastery checks before moving on.</p>
+                  <button
+                    onClick={() => setActiveTab('practice')}
+                    className="text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    Go to Practice →
+                  </button>
                 </div>
               )}
 
@@ -737,8 +764,14 @@ export default function LessonPageClient({ params }: PageProps) {
 
         {/* Practice tab */}
         {activeTab === 'practice' && (
-          <div className="h-full overflow-y-auto">
+          <div role="tabpanel" id="practice-panel" className="h-full overflow-y-auto">
             <div className="max-w-3xl mx-auto px-6 py-6">
+              {!isModuleDone && (
+                <div className="mb-6 bg-amber-500/8 border border-amber-500/20 rounded-xl px-4 py-3 flex items-start gap-3">
+                  <span className="text-amber-400 mt-0.5">⚠</span>
+                  <p className="text-amber-300 text-sm">Complete the Lab and Quiz first — then use these exercises to test yourself.</p>
+                </div>
+              )}
               <PracticeTab phaseSlug={phaseSlug} mod={mod} />
             </div>
           </div>
@@ -771,7 +804,14 @@ export default function LessonPageClient({ params }: PageProps) {
             </div>
             <span>→</span>
           </Link>
-        ) : <div />}
+        ) : (
+          <div className="text-right">
+            <div className="text-slate-600 text-[10px]">Phase complete</div>
+            <Link href="/learn" className="text-emerald-400 text-xs hover:text-emerald-300 transition-colors">
+              Back to overview →
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   )

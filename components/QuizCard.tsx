@@ -14,6 +14,7 @@ export default function QuizCard({ questions, onComplete }: Props) {
   const [revealed, setRevealed] = useState(false)
   const [score, setScore] = useState(0)
   const [finished, setFinished] = useState(false)
+  const [wrongAnswers, setWrongAnswers] = useState<{ question: string; correct: string; explanation: string }[]>([])
 
   const q = questions[current]
   const isCorrect = selected === q.answer
@@ -26,7 +27,11 @@ export default function QuizCard({ questions, onComplete }: Props) {
   const handleReveal = () => {
     if (selected === null) return
     setRevealed(true)
-    if (selected === q.answer) setScore((s) => s + 1)
+    if (selected === q.answer) {
+      setScore((s) => s + 1)
+    } else {
+      setWrongAnswers((w) => [...w, { question: q.question, correct: q.options[q.answer], explanation: q.explanation }])
+    }
   }
 
   const handleNext = () => {
@@ -76,15 +81,24 @@ export default function QuizCard({ questions, onComplete }: Props) {
           </span>{' '}
           ({pct}%)
         </p>
-        {pct < 80 && (
-          <p className="text-slate-500 text-xs mb-4">
-            Review the explanations above before moving on. Spaced repetition works best when you revisit weak areas.
-          </p>
+        {wrongAnswers.length > 0 ? (
+          <div className="mt-4 text-left space-y-3">
+            <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide">Review these:</p>
+            {wrongAnswers.map((wa, i) => (
+              <div key={i} className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 text-left">
+                <p className="text-slate-300 text-xs font-medium mb-1">{wa.question}</p>
+                <p className="text-emerald-400 text-xs mb-1">✓ {wa.correct}</p>
+                <p className="text-slate-500 text-xs leading-relaxed">{wa.explanation}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-slate-500 text-xs">Perfect score — no items to review.</p>
         )}
         <button
           onClick={() => {
             setCurrent(0); setSelected(null); setRevealed(false)
-            setScore(0); setFinished(false)
+            setScore(0); setFinished(false); setWrongAnswers([])
           }}
           className="text-xs text-slate-400 hover:text-slate-200 transition-colors underline"
         >
@@ -115,6 +129,10 @@ export default function QuizCard({ questions, onComplete }: Props) {
           ))}
         </div>
       </div>
+
+      <p className="text-[10px] text-slate-600 mt-1 px-4 pb-2">
+        Press <kbd className="bg-slate-800 px-1 rounded text-slate-400">A–D</kbd> to select · <kbd className="bg-slate-800 px-1 rounded text-slate-400">Enter</kbd> to confirm
+      </p>
 
       {/* Question */}
       <div className="p-4">

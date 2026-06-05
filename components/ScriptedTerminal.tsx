@@ -20,6 +20,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
   const [challengeMode, setChallengeMode] = useState(false)
   const [userInput, setUserInput] = useState('')
   const [inputError, setInputError] = useState(false)
+  const [showHint, setShowHint] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const terminalRef = useRef<HTMLDivElement>(null)
 
@@ -37,6 +38,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
   useEffect(() => {
     setUserInput('')
     setInputError(false)
+    setShowHint(false)
   }, [currentStep])
 
   // Auto-focus input when entering challenge mode or advancing
@@ -88,6 +90,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
       runCommand()
     } else {
       setInputError(true)
+      setShowHint(true)
     }
   }, [userInput, step.command, runCommand])
 
@@ -157,6 +160,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
         <button
           onClick={() => { setChallengeMode(m => !m); setUserInput(''); setInputError(false) }}
           aria-pressed={challengeMode}
+          title={challengeMode ? 'Switch to type-the-command mode' : 'Switch to guided walkthrough mode'}
           className={`text-[10px] px-2 py-1 rounded border transition-all ${
             challengeMode
               ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
@@ -218,7 +222,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
       <div ref={terminalRef} className="flex-1 overflow-y-auto p-4 font-mono text-sm space-y-1 min-h-0">
         {/* History */}
         {history.map((h, hi) => (
-          <div key={hi} className="space-y-0.5 opacity-50">
+          <div key={hi} className="space-y-0.5 opacity-70">
             <div className="flex items-center gap-2">
               <span className="text-emerald-400 select-none">$</span>
               <span className="text-slate-200">{h.cmd}</span>
@@ -256,22 +260,29 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
         {/* Idle prompt / challenge input */}
         {phase === 'ready' && step.command && (
           challengeMode ? (
-            <div className="flex items-center gap-2">
-              <span className="text-emerald-400 select-none" aria-hidden="true">$</span>
-              <input
-                ref={inputRef}
-                type="text"
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleChallengeSubmit() }}
-                aria-label="Enter kubectl command"
-                className={`bg-transparent font-mono text-sm outline-none flex-1 ml-2 ${
-                  inputError ? 'text-red-400' : 'text-slate-100'
-                }`}
-                placeholder="type the command…"
-                autoComplete="off"
-                spellCheck={false}
-              />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-400 select-none" aria-hidden="true">$</span>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleChallengeSubmit() }}
+                  aria-label="Enter kubectl command"
+                  className={`bg-transparent font-mono text-sm outline-none flex-1 ml-2 ${
+                    inputError ? 'text-red-400' : 'text-slate-100'
+                  }`}
+                  placeholder="type the command…"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+              {showHint && phase === 'ready' && challengeMode && (
+                <div className="pl-6 mt-1 text-xs text-slate-500">
+                  Expected: <code className="text-cyan-400 font-mono">{step.command}</code>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-2 text-slate-600" aria-hidden="true">
