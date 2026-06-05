@@ -293,11 +293,7 @@ function PracticeTab({
   const toggleCheck = (index: number) => {
     setCheckedItems((prev) => {
       const next = new Set(prev)
-      if (next.has(index)) {
-        next.delete(index)
-      } else {
-        next.add(index)
-      }
+      next.has(index) ? next.delete(index) : next.add(index)
       return next
     })
   }
@@ -305,11 +301,7 @@ function PracticeTab({
   const toggleSolution = (id: string) => {
     setRevealedSolutions((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
+      next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
   }
@@ -317,11 +309,7 @@ function PracticeTab({
   const toggleDone = (id: string) => {
     setDoneExercises((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
+      next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
   }
@@ -331,116 +319,93 @@ function PracticeTab({
   ) ?? []
 
   return (
-    <div className="mb-8 space-y-10">
+    <div className="space-y-8 pb-8">
       {/* Mastery checklist */}
       <section>
-        <h2 className="text-base font-bold text-slate-100 mb-1">Mastery Checklist</h2>
-        <p className="text-sm text-slate-500 mb-4">Check each item only when you can do it from memory, without notes.</p>
-        <ul className="space-y-3">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">
+          Mastery checks · tick only when you can do it from memory
+        </h2>
+        <ul className="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden">
           {masteryChecks.map((item, index) => {
             const checked = checkedItems.has(index)
             return (
               <li key={index}>
                 <button
                   onClick={() => toggleCheck(index)}
-                  className={`w-full text-left flex items-start gap-4 px-4 py-4 rounded-xl border text-sm leading-relaxed transition-all ${
-                    checked
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                      : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-600'
+                  className={`w-full text-left flex items-center gap-4 px-4 py-3.5 text-sm transition-colors ${
+                    checked ? 'bg-emerald-500/8 text-emerald-300' : 'text-slate-300 hover:bg-slate-800/60'
                   }`}
                 >
-                  <span className="flex-shrink-0 mt-0.5 font-mono text-base leading-none">
+                  <span className={`flex-shrink-0 text-base leading-none ${checked ? 'text-emerald-400' : 'text-slate-600'}`}>
                     {checked ? '✓' : '○'}
                   </span>
-                  <span>{item}</span>
+                  <span className={checked ? 'line-through decoration-emerald-600 opacity-60' : ''}>{item}</span>
                 </button>
               </li>
             )
           })}
         </ul>
-        {allChecked && (
-          <div className="mt-4 flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3">
-            <span className="text-emerald-400">✓</span>
-            <span className="text-emerald-300 text-sm font-semibold">All checks complete — ready to move on.</span>
-          </div>
+        {allChecked && masteryChecks.length > 0 && (
+          <p className="mt-2 text-xs text-emerald-400 pl-1">All done — move on.</p>
         )}
       </section>
 
       {/* Challenge exercises */}
       {exerciseTasks.length > 0 && (
         <section>
-          <h2 className="text-base font-bold text-slate-100 mb-1">Challenge Exercises</h2>
-          <p className="text-sm text-slate-500 mb-4">Attempt each on your local cluster. Reveal the solution only after a genuine try.</p>
-          <div className="space-y-4">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">
+            Challenges · attempt first, reveal only if stuck
+          </h2>
+          <div className="space-y-3">
             {exerciseTasks.map((task) => {
               const revealed = revealedSolutions.has(task.id)
               const done = doneExercises.has(task.id)
               return (
-                <div
-                  key={task.id}
-                  className={`border rounded-xl overflow-hidden transition-all ${
-                    done ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-slate-800 bg-slate-950/50'
-                  }`}
-                >
-                  <div className="px-5 py-4 flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[10px] uppercase tracking-widest text-cyan-300 border border-cyan-500/20 rounded-full px-2 py-0.5">
-                          {task.kind}
-                        </span>
-                        {done && (
-                          <span className="text-[10px] uppercase tracking-widest text-emerald-300 border border-emerald-500/20 rounded-full px-2 py-0.5">
-                            done
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-base font-semibold text-slate-100">{task.title}</p>
-                      <p className="text-sm text-slate-400 mt-1 leading-relaxed">{task.goal}</p>
-                    </div>
-                  </div>
-
-                  {revealed && (
-                    <div className="grid md:grid-cols-3 gap-0 border-t border-slate-800">
-                      <div className="p-4 border-b md:border-b-0 md:border-r border-slate-800">
-                        <div className="text-xs uppercase tracking-widest text-slate-500 mb-3 font-semibold">Run</div>
-                        <pre className="overflow-x-auto text-xs leading-relaxed text-cyan-200 font-mono whitespace-pre-wrap">
-                          {task.commands.join('\n')}
-                        </pre>
-                      </div>
-                      <div className="p-4 border-b md:border-b-0 md:border-r border-slate-800">
-                        <div className="text-xs uppercase tracking-widest text-slate-500 mb-3 font-semibold">Verify</div>
-                        <pre className="overflow-x-auto text-xs leading-relaxed text-emerald-200 font-mono whitespace-pre-wrap">
-                          {task.verify.join('\n')}
-                        </pre>
-                        <p className="text-xs text-slate-500 mt-3 leading-relaxed">{task.expectedOutcome}</p>
-                      </div>
-                      <div className="p-4">
-                        <div className="text-xs uppercase tracking-widest text-slate-500 mb-3 font-semibold">Cleanup</div>
-                        <pre className="overflow-x-auto text-xs leading-relaxed text-amber-200 font-mono whitespace-pre-wrap">
-                          {task.cleanup.join('\n')}
-                        </pre>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="px-5 py-3 border-t border-slate-800 flex items-center gap-3">
-                    <button
-                      onClick={() => toggleSolution(task.id)}
-                      className="text-sm text-slate-400 hover:text-slate-200 transition-colors"
-                    >
-                      {revealed ? '▾ Hide solution' : '▸ Show solution'}
-                    </button>
-                    <div className="flex-1" />
+                <div key={task.id} className={`border rounded-xl overflow-hidden transition-colors ${done ? 'border-emerald-500/25' : 'border-slate-800'}`}>
+                  {/* Header */}
+                  <div className="px-4 py-3 flex items-center gap-3">
+                    <span className="text-[10px] uppercase tracking-widest text-slate-500 border border-slate-700 rounded px-1.5 py-0.5">{task.kind}</span>
+                    <p className="flex-1 text-sm font-medium text-slate-200">{task.title}</p>
                     <button
                       onClick={() => toggleDone(task.id)}
-                      className={`text-sm font-semibold px-4 py-2 rounded-lg border transition-all ${
-                        done
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                          : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600'
+                      className={`text-xs px-2.5 py-1 rounded border transition-all ${
+                        done ? 'border-emerald-500/30 text-emerald-400' : 'border-slate-700 text-slate-500 hover:text-slate-300'
                       }`}
                     >
-                      {done ? '✓ Done' : 'Mark done'}
+                      {done ? '✓' : 'done?'}
                     </button>
+                  </div>
+
+                  {/* Goal */}
+                  <p className="px-4 pb-3 text-sm text-slate-400 leading-relaxed">{task.goal}</p>
+
+                  {/* Solution */}
+                  <div className="border-t border-slate-800">
+                    <button
+                      onClick={() => toggleSolution(task.id)}
+                      className="w-full px-4 py-2.5 text-left text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1.5"
+                    >
+                      <span>{revealed ? '▾' : '▸'}</span>
+                      <span>{revealed ? 'Hide solution' : 'Show solution'}</span>
+                    </button>
+
+                    {revealed && (
+                      <div className="border-t border-slate-800 bg-slate-950/60 px-4 py-4 space-y-4">
+                        <div>
+                          <span className="text-[10px] uppercase tracking-widest text-cyan-500 font-semibold">Run</span>
+                          <pre className="mt-1.5 text-xs text-cyan-200 font-mono whitespace-pre-wrap leading-relaxed">{task.commands.join('\n')}</pre>
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase tracking-widest text-emerald-500 font-semibold">Verify</span>
+                          <pre className="mt-1.5 text-xs text-emerald-200 font-mono whitespace-pre-wrap leading-relaxed">{task.verify.join('\n')}</pre>
+                          {task.expectedOutcome && <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">{task.expectedOutcome}</p>}
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase tracking-widest text-amber-500 font-semibold">Cleanup</span>
+                          <pre className="mt-1.5 text-xs text-amber-200 font-mono whitespace-pre-wrap leading-relaxed">{task.cleanup.join('\n')}</pre>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )
@@ -452,8 +417,7 @@ function PracticeTab({
       {/* Official docs */}
       {uniqueSourceRefs.length > 0 && (
         <section>
-          <h2 className="text-base font-bold text-slate-100 mb-2">Official Docs</h2>
-          <p className="text-sm text-slate-500 mb-4">Reference material from the Kubernetes project.</p>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Docs</h2>
           <div className="flex flex-wrap gap-2">
             {uniqueSourceRefs.map((ref, i) => (
               <a
@@ -461,7 +425,7 @@ function PracticeTab({
                 href={ref.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-blue-400 hover:text-blue-300 bg-slate-900 border border-slate-700 hover:border-blue-500/40 rounded-lg px-4 py-2 transition-all"
+                className="text-xs text-blue-400 hover:text-blue-300 bg-slate-900 border border-slate-800 hover:border-slate-600 rounded-lg px-3 py-1.5 transition-all"
               >
                 {ref.title}
               </a>
