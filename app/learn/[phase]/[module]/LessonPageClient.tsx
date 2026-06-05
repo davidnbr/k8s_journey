@@ -6,16 +6,8 @@ import Link from 'next/link'
 import { getModule, getPhase, getNextModule, getPrevModule } from '@/content/index'
 import { getModuleReview } from '@/content/reviewMatrix'
 import {
-  getCommandFamilies,
-  getCoverageGaps,
   getExerciseTasks,
-  getExternalTools,
-  getLocalPracticeChecklist,
-  getModuleKeyConcepts,
-  getModuleLearningObjectives,
   getModuleMasteryChecks,
-  getModulePracticePrompts,
-  getRunnableCommands,
   spacedReviewCadence,
 } from '@/content/learningDesign'
 import {
@@ -281,8 +273,7 @@ function TheoryContent({ text }: { text: string }) {
 
   return <div>{elements}</div>
 }
-
-function LearningContract({
+function PracticeTab({
   phaseSlug,
   mod,
 }: {
@@ -290,284 +281,194 @@ function LearningContract({
   mod: NonNullable<ReturnType<typeof getModule>>
 }) {
   const review = getModuleReview(phaseSlug, mod.slug)
+  const masteryChecks = getModuleMasteryChecks(mod)
   const exerciseTasks = mod.exercises?.length ? mod.exercises : getExerciseTasks(mod, review)
-  const commandFamilies = getCommandFamilies(mod)
-  const runnableCommands = getRunnableCommands(mod)
-  const externalTools = getExternalTools(mod)
-  const coverageGaps = getCoverageGaps(mod)
 
-  const sections = [
-    {
-      title: 'Learning Objectives',
-      eyebrow: 'What you must be able to do',
-      items: getModuleLearningObjectives(mod),
-      tone: 'border-blue-500/25 bg-blue-500/5 text-blue-300',
-    },
-    {
-      title: 'Retrieval Targets',
-      eyebrow: 'Recall these without notes',
-      items: getModuleKeyConcepts(mod),
-      tone: 'border-emerald-500/25 bg-emerald-500/5 text-emerald-300',
-    },
-    {
-      title: 'Practice Exercises',
-      eyebrow: 'Do, predict, troubleshoot',
-      items: getModulePracticePrompts(mod),
-      tone: 'border-amber-500/25 bg-amber-500/5 text-amber-300',
-    },
-    {
-      title: 'Mastery Checks',
-      eyebrow: 'Move on only when true',
-      items: getModuleMasteryChecks(mod),
-      tone: 'border-slate-600 bg-slate-900/70 text-slate-300',
-    },
-  ]
+  const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set())
+  const [doneExercises, setDoneExercises] = useState<Set<string>>(new Set())
+  const [revealedSolutions, setRevealedSolutions] = useState<Set<string>>(new Set())
+
+  const allChecked = checkedItems.size === masteryChecks.length
+
+  const toggleCheck = (index: number) => {
+    setCheckedItems((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
+
+  const toggleSolution = (id: string) => {
+    setRevealedSolutions((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const toggleDone = (id: string) => {
+    setDoneExercises((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const uniqueSourceRefs = review?.sourceRefs.filter(
+    (ref, i, arr) => arr.findIndex((r) => r.url === ref.url) === i
+  ) ?? []
 
   return (
-    <div className="mb-8">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
-        <div className="text-[11px] text-blue-300 font-bold uppercase tracking-widest mb-1">
-          Evidence-Based Learning Loop
-        </div>
-        <p className="text-slate-300 text-sm leading-relaxed">
-          Preview the idea, predict the result, run the guided lab, explain what changed,
-          then repeat a variant from memory. This combines retrieval practice, spaced
-          review, worked examples, and transfer practice.
-        </p>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-3">
-        {sections.map((section) => (
-          <section key={section.title} className={`border rounded-xl p-4 ${section.tone}`}>
-            <div className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">
-              {section.eyebrow}
-            </div>
-            <h2 className="text-sm font-bold text-slate-100 mb-2">{section.title}</h2>
-            <ul className="space-y-1.5">
-              {section.items.map((item) => (
-                <li key={item} className="text-xs text-slate-300 leading-relaxed flex gap-2">
-                  <span className="text-slate-500 mt-0.5">-</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
-
-      <details className="mt-3 bg-slate-900/70 border border-slate-800 rounded-xl p-4">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-200">
-          Spaced Review Schedule
-        </summary>
-        <ul className="mt-3 space-y-1.5">
-          {spacedReviewCadence.map((item) => (
-            <li key={item} className="text-xs text-slate-400 leading-relaxed flex gap-2">
-              <span className="text-blue-400 mt-0.5">-</span>
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      </details>
-
-      <div className="mt-4 bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div>
-            <div className="text-[11px] text-cyan-300 font-bold uppercase tracking-widest mb-1">
-              June 2026 Review + Local Practice Runbook
-            </div>
-            <p className="text-slate-400 text-xs leading-relaxed">
-              These are the concrete commands and procedures you should run on your computer,
-              against a local throwaway minikube cluster unless the module explicitly states otherwise.
-            </p>
-          </div>
-          <span className={`text-[10px] border rounded-full px-2 py-1 ${
-            review?.reviewStatus === 'verified' && coverageGaps.length === 0
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-              : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
-          }`}>
-            {review?.reviewStatus === 'verified' && coverageGaps.length === 0
-              ? 'June 2026 verified'
-              : review?.reviewStatus ?? `${coverageGaps.length} gap${coverageGaps.length > 1 ? 's' : ''}`}
-          </span>
-        </div>
-
-        {review && (
-          <div className="grid md:grid-cols-2 gap-3 mb-3">
-            <div className="border border-emerald-500/20 rounded-xl p-3 bg-emerald-500/5">
-              <h3 className="text-emerald-300 text-xs font-semibold mb-2">Validated Against</h3>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {review.verifiedAgainst.map((item) => (
-                  <span key={item} className="text-[10px] bg-emerald-500/10 text-emerald-200 border border-emerald-500/20 rounded-full px-2 py-1">
-                    {item}
+    <div className="mb-8 space-y-10">
+      {/* Mastery checklist */}
+      <section>
+        <h2 className="text-base font-bold text-slate-100 mb-1">Mastery Checklist</h2>
+        <p className="text-sm text-slate-500 mb-4">Check each item only when you can do it from memory, without notes.</p>
+        <ul className="space-y-3">
+          {masteryChecks.map((item, index) => {
+            const checked = checkedItems.has(index)
+            return (
+              <li key={index}>
+                <button
+                  onClick={() => toggleCheck(index)}
+                  className={`w-full text-left flex items-start gap-4 px-4 py-4 rounded-xl border text-sm leading-relaxed transition-all ${
+                    checked
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                      : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-600'
+                  }`}
+                >
+                  <span className="flex-shrink-0 mt-0.5 font-mono text-base leading-none">
+                    {checked ? '✓' : '○'}
                   </span>
-                ))}
-              </div>
-              <p className="text-xs text-slate-400">Checked: {review.verifiedAt}</p>
-            </div>
-
-            <div className="border border-slate-800 rounded-xl p-3 bg-slate-950/50">
-              <h3 className="text-slate-200 text-xs font-semibold mb-2">Official Sources</h3>
-              <ul className="space-y-1.5">
-                {review.sourceRefs.slice(0, 6).map((source) => (
-                  <li key={`${source.title}-${source.url}`} className="text-xs leading-relaxed">
-                    <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-blue-300 hover:text-blue-200 underline underline-offset-2">
-                      {source.title}
-                    </a>
-                    <span className="text-slate-500"> · {source.scope} · checked {source.checkedAt}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        <div className="grid md:grid-cols-2 gap-3 mb-3">
-          <div className="border border-slate-800 rounded-xl p-3 bg-slate-950/50">
-            <h3 className="text-slate-200 text-xs font-semibold mb-2">Before Running Commands</h3>
-            <ul className="space-y-1.5">
-              {getLocalPracticeChecklist(mod).map((item) => (
-                <li key={item} className="text-xs text-slate-400 leading-relaxed flex gap-2">
-                  <span className="text-cyan-400 mt-0.5">-</span>
                   <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="border border-slate-800 rounded-xl p-3 bg-slate-950/50">
-            <h3 className="text-slate-200 text-xs font-semibold mb-2">Tools and Plugins</h3>
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              <span className="text-[10px] bg-blue-500/10 text-blue-300 border border-blue-500/20 rounded-full px-2 py-1">
-                kubectl
-              </span>
-              {externalTools.map((tool) => (
-                <span key={tool} className="text-[10px] bg-slate-800 text-slate-300 border border-slate-700 rounded-full px-2 py-1">
-                  {tool}
-                </span>
-              ))}
-            </div>
-            {commandFamilies.length > 0 ? (
-              <ul className="space-y-1.5">
-                {commandFamilies.map((family) => (
-                  <li key={family.name} className="text-xs text-slate-400 leading-relaxed">
-                    <span className="text-slate-200">{family.name}:</span> {family.purpose}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-slate-500">No runnable command family detected for this module.</p>
-            )}
-          </div>
-        </div>
-
-        {review && (
-          <div className="mb-3 border border-slate-800 rounded-xl p-3 bg-slate-950/50">
-            <h3 className="text-slate-200 text-xs font-semibold mb-2">Topic Coverage Reviewed</h3>
-            <div className="grid md:grid-cols-2 gap-2">
-              {Object.entries(review.coverage).map(([key, values]) => (
-                <div key={key} className="rounded-lg border border-slate-800 bg-slate-900/50 p-2">
-                  <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">{key}</div>
-                  <div className="text-xs text-slate-300 leading-relaxed">{values.join(', ')}</div>
-                </div>
-              ))}
-            </div>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+        {allChecked && (
+          <div className="mt-4 flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3">
+            <span className="text-emerald-400">✓</span>
+            <span className="text-emerald-300 text-sm font-semibold">All checks complete — ready to move on.</span>
           </div>
         )}
+      </section>
 
-        {coverageGaps.length > 0 && (
-          <div className="mb-3 border border-amber-500/20 bg-amber-500/5 rounded-xl p-3">
-            <h3 className="text-amber-300 text-xs font-semibold mb-1">Detected Coverage Gaps</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              This module should be improved with: {coverageGaps.join(', ')}. Do not treat the topic as complete until those are added.
-            </p>
+      {/* Challenge exercises */}
+      {exerciseTasks.length > 0 && (
+        <section>
+          <h2 className="text-base font-bold text-slate-100 mb-1">Challenge Exercises</h2>
+          <p className="text-sm text-slate-500 mb-4">Attempt each on your local cluster. Reveal the solution only after a genuine try.</p>
+          <div className="space-y-4">
+            {exerciseTasks.map((task) => {
+              const revealed = revealedSolutions.has(task.id)
+              const done = doneExercises.has(task.id)
+              return (
+                <div
+                  key={task.id}
+                  className={`border rounded-xl overflow-hidden transition-all ${
+                    done ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-slate-800 bg-slate-950/50'
+                  }`}
+                >
+                  <div className="px-5 py-4 flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] uppercase tracking-widest text-cyan-300 border border-cyan-500/20 rounded-full px-2 py-0.5">
+                          {task.kind}
+                        </span>
+                        {done && (
+                          <span className="text-[10px] uppercase tracking-widest text-emerald-300 border border-emerald-500/20 rounded-full px-2 py-0.5">
+                            done
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-base font-semibold text-slate-100">{task.title}</p>
+                      <p className="text-sm text-slate-400 mt-1 leading-relaxed">{task.goal}</p>
+                    </div>
+                  </div>
+
+                  {revealed && (
+                    <div className="grid md:grid-cols-3 gap-0 border-t border-slate-800">
+                      <div className="p-4 border-b md:border-b-0 md:border-r border-slate-800">
+                        <div className="text-xs uppercase tracking-widest text-slate-500 mb-3 font-semibold">Run</div>
+                        <pre className="overflow-x-auto text-xs leading-relaxed text-cyan-200 font-mono whitespace-pre-wrap">
+                          {task.commands.join('\n')}
+                        </pre>
+                      </div>
+                      <div className="p-4 border-b md:border-b-0 md:border-r border-slate-800">
+                        <div className="text-xs uppercase tracking-widest text-slate-500 mb-3 font-semibold">Verify</div>
+                        <pre className="overflow-x-auto text-xs leading-relaxed text-emerald-200 font-mono whitespace-pre-wrap">
+                          {task.verify.join('\n')}
+                        </pre>
+                        <p className="text-xs text-slate-500 mt-3 leading-relaxed">{task.expectedOutcome}</p>
+                      </div>
+                      <div className="p-4">
+                        <div className="text-xs uppercase tracking-widest text-slate-500 mb-3 font-semibold">Cleanup</div>
+                        <pre className="overflow-x-auto text-xs leading-relaxed text-amber-200 font-mono whitespace-pre-wrap">
+                          {task.cleanup.join('\n')}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="px-5 py-3 border-t border-slate-800 flex items-center gap-3">
+                    <button
+                      onClick={() => toggleSolution(task.id)}
+                      className="text-sm text-slate-400 hover:text-slate-200 transition-colors"
+                    >
+                      {revealed ? '▾ Hide solution' : '▸ Show solution'}
+                    </button>
+                    <div className="flex-1" />
+                    <button
+                      onClick={() => toggleDone(task.id)}
+                      className={`text-sm font-semibold px-4 py-2 rounded-lg border transition-all ${
+                        done
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                          : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600'
+                      }`}
+                    >
+                      {done ? '✓ Done' : 'Mark done'}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
-        )}
+        </section>
+      )}
 
-        <details className="border border-slate-800 rounded-xl p-3 bg-slate-950/50">
-          <summary className="cursor-pointer text-xs font-semibold text-slate-200">
-            Commands You Will Run Locally ({runnableCommands.length})
-          </summary>
-          {runnableCommands.length > 0 ? (
-            <div className="mt-3 space-y-2">
-              {mod.labSteps.filter((step) => step.command).map((step) => (
-                <div key={step.id} className="border border-slate-800 rounded-lg overflow-hidden">
-                  <div className="bg-slate-900 px-3 py-2 text-[11px] text-slate-400">
-                    {step.title}
-                  </div>
-                  <pre className="p-3 overflow-x-auto text-[11px] leading-relaxed text-cyan-200 font-mono">
-                    {step.command}
-                  </pre>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-3 text-xs text-slate-500">No local commands are defined yet.</p>
-          )}
-        </details>
-
-        <details className="mt-3 border border-slate-800 rounded-xl p-3 bg-slate-950/50" open>
-          <summary className="cursor-pointer text-xs font-semibold text-slate-200">
-            Exercises To Run On Your Computer ({exerciseTasks.length})
-          </summary>
-          <div className="mt-3 space-y-3">
-            {exerciseTasks.map((task) => (
-              <div key={task.id} className="border border-slate-800 rounded-lg overflow-hidden">
-                <div className="bg-slate-900 px-3 py-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-xs font-semibold text-slate-200">{task.title}</div>
-                      <div className="text-[11px] text-slate-500">{task.goal}</div>
-                    </div>
-                    <span className="text-[10px] uppercase tracking-widest text-cyan-300 border border-cyan-500/20 rounded-full px-2 py-1">
-                      {task.kind}
-                    </span>
-                  </div>
-                </div>
-                <div className="grid md:grid-cols-3 gap-0">
-                  <div className="p-3 border-b md:border-b-0 md:border-r border-slate-800">
-                    <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Run</div>
-                    <pre className="overflow-x-auto text-[11px] leading-relaxed text-cyan-200 font-mono whitespace-pre-wrap">
-                      {task.commands.join('\n')}
-                    </pre>
-                  </div>
-                  <div className="p-3 border-b md:border-b-0 md:border-r border-slate-800">
-                    <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Verify</div>
-                    <pre className="overflow-x-auto text-[11px] leading-relaxed text-emerald-200 font-mono whitespace-pre-wrap">
-                      {task.verify.join('\n')}
-                    </pre>
-                    <p className="text-[11px] text-slate-500 mt-2">{task.expectedOutcome}</p>
-                  </div>
-                  <div className="p-3">
-                    <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Cleanup</div>
-                    <pre className="overflow-x-auto text-[11px] leading-relaxed text-amber-200 font-mono whitespace-pre-wrap">
-                      {task.cleanup.join('\n')}
-                    </pre>
-                  </div>
-                </div>
-                {task.sourceRefs && task.sourceRefs.length > 0 && (
-                  <div className="px-3 pb-3 border-t border-slate-800 pt-2">
-                    <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1.5">Official Docs</div>
-                    <div className="flex flex-wrap gap-2">
-                      {task.sourceRefs.map((ref) => (
-                        <a
-                          key={ref.url}
-                          href={ref.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[11px] text-blue-400 hover:text-blue-300 underline underline-offset-2"
-                        >
-                          {ref.title}
-                          <span className="text-slate-600 no-underline ml-1">({ref.scope})</span>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+      {/* Official docs */}
+      {uniqueSourceRefs.length > 0 && (
+        <section>
+          <h2 className="text-base font-bold text-slate-100 mb-2">Official Docs</h2>
+          <p className="text-sm text-slate-500 mb-4">Reference material from the Kubernetes project.</p>
+          <div className="flex flex-wrap gap-2">
+            {uniqueSourceRefs.map((ref, i) => (
+              <a
+                key={`${ref.url}-${i}`}
+                href={ref.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-400 hover:text-blue-300 bg-slate-900 border border-slate-700 hover:border-blue-500/40 rounded-lg px-4 py-2 transition-all"
+              >
+                {ref.title}
+              </a>
             ))}
           </div>
-        </details>
-      </div>
+        </section>
+      )}
     </div>
   )
 }
@@ -843,7 +744,7 @@ export default function LessonPageClient({ params }: PageProps) {
         {activeTab === 'practice' && (
           <div className="h-full overflow-y-auto">
             <div className="max-w-3xl mx-auto px-6 py-6">
-              <LearningContract phaseSlug={phaseSlug} mod={mod} />
+              <PracticeTab phaseSlug={phaseSlug} mod={mod} />
             </div>
           </div>
         )}

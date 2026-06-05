@@ -17,6 +17,10 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
   const [typedCmd, setTypedCmd] = useState('')
   const [visibleLines, setVisibleLines] = useState(0)
   const [history, setHistory] = useState<{ cmd: string; output: string[] }[]>([])
+  const [challengeMode, setChallengeMode] = useState(false)
+  const [userInput, setUserInput] = useState('')
+  const [inputError, setInputError] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   const terminalRef = useRef<HTMLDivElement>(null)
   const step = steps[currentStep]
   const isLastStep = currentStep === steps.length - 1
@@ -27,6 +31,26 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight
     }
   }, [history, typedCmd, visibleLines])
+
+  // Reset user input when step changes
+  useEffect(() => {
+    setUserInput('')
+    setInputError(false)
+  }, [currentStep])
+
+  // Auto-focus input when entering challenge mode or advancing in challenge mode
+  useEffect(() => {
+    if (challengeMode && phase === 'ready' && step.command) {
+      inputRef.current?.focus()
+    }
+  }, [challengeMode, phase, currentStep, step.command])
+
+  // Clear inputError after 600ms
+  useEffect(() => {
+    if (!inputError) return
+    const t = setTimeout(() => setInputError(false), 600)
+    return () => clearTimeout(t)
+  }, [inputError])
 
   const runCommand = useCallback(() => {
     if (phase !== 'ready') return
@@ -123,6 +147,16 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
         <span className="text-slate-500 text-xs font-mono">
           {currentStep + 1}/{steps.length}
         </span>
+        <button
+          onClick={() => { setChallengeMode(m => !m); setUserInput(''); setInputError(false) }}
+          className={`text-[10px] px-2 py-1 rounded border transition-all ${
+            challengeMode
+              ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+              : 'bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          {challengeMode ? '⌨ Challenge' : '▶ Guided'}
+        </button>
       </div>
 
       {/* Current step instruction */}
@@ -211,12 +245,40 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
           </div>
         )}
 
-        {/* Idle prompt */}
+        {/* Idle prompt / challenge input */}
         {phase === 'ready' && step.command && (
-          <div className="flex items-center gap-2 text-slate-600">
-            <span className="text-emerald-700 select-none">$</span>
-            <span className="animate-blink text-slate-700">▌</span>
-          </div>
+          challengeMode ? (
+            <div className="flex items-center gap-2">
+              <span className="text-emerald-400 select-none">$</span>
+              <input
+                ref={inputRef}
+                type="text"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (userInput.trim() === step.command!.trim()) {
+                      setUserInput('')
+                      runCommand()
+                    } else {
+                      setInputError(true)
+                    }
+                  }
+                }}
+                className={`bg-transparent font-mono text-sm outline-none flex-1 ml-2 ${
+                  inputError ? 'text-red-400' : 'text-slate-100'
+                }`}
+                placeholder="type the command…"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-slate-600">
+              <span className="text-emerald-700 select-none">$</span>
+              <span className="animate-blink text-slate-700">▌</span>
+            </div>
+          )
         )}
       </div>
 
@@ -243,13 +305,47 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
         </button>
 
         <div className="flex gap-2">
-          {phase === 'ready' && (
+          {phase === 'ready' && challengeMode && step.command && (
+            <>
+              <button
+                onClick={runCommand}
+                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+              >
+                Show hint
+              </button>
+              <button
+                onClick={() => {
+                  if (userInput.trim() === step.command!.trim()) {
+                    setUserInput('')
+                    runCommand()
+                  } else {
+                    setInputError(true)
+                  }
+                }}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+              >
+                Run
+              </button>
+            </>
+          )}
+
+          {phase === 'ready' && !challengeMode && (
             <button
               onClick={runCommand}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
             >
               <span>▶</span>
               {step.command ? 'Run Command' : 'Apply YAML'}
+            </button>
+          )}
+
+          {phase === 'ready' && challengeMode && !step.command && (
+            <button
+              onClick={runCommand}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              <span>▶</span>
+              Apply YAML
             </button>
           )}
 
@@ -262,7 +358,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
             </button>
           )}
 
-          {(phase === 'output') && (
+          {phase === 'output' && (
             <button
               disabled
               className="flex items-center gap-2 bg-slate-700 text-slate-400 text-xs px-4 py-2 rounded-lg cursor-not-allowed"
