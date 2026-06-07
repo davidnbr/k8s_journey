@@ -34,9 +34,12 @@ function reviewKey(phaseSlug: string, moduleSlug: string) {
 
 // ─── Module status ────────────────────────────────────────────────────────────
 
+const MODULE_STATUSES: ReadonlySet<string> = new Set<ModuleStatus>(['not_started', 'in_progress', 'completed'])
+
 export function getModuleStatus(phaseSlug: string, moduleSlug: string): ModuleStatus {
   if (typeof window === 'undefined') return 'not_started'
-  return (localStorage.getItem(statusKey(phaseSlug, moduleSlug)) as ModuleStatus) ?? 'not_started'
+  const raw = localStorage.getItem(statusKey(phaseSlug, moduleSlug))
+  return raw && MODULE_STATUSES.has(raw) ? (raw as ModuleStatus) : 'not_started'
 }
 
 export function setModuleStatus(phaseSlug: string, moduleSlug: string, status: ModuleStatus) {
@@ -76,8 +79,9 @@ function saveReviewState(phaseSlug: string, moduleSlug: string, state: ReviewSta
 }
 
 export function markReviewDone(phaseSlug: string, moduleSlug: string, intervalIndex: ReviewIntervalIndex) {
-  const state = getReviewState(phaseSlug, moduleSlug)
-  if (!state) return
+  // Seed review state if the module was never marked completed (stale UI / cleared storage)
+  // so the action isn't a silent no-op.
+  const state = getReviewState(phaseSlug, moduleSlug) ?? { completedAt: Date.now(), reviewsDone: [] }
   const updated: ReviewState = {
     ...state,
     reviewsDone: [...state.reviewsDone.slice(0, intervalIndex), Date.now(), ...state.reviewsDone.slice(intervalIndex + 1)],
@@ -118,65 +122,54 @@ export function getReviewProgress(phaseSlug: string, moduleSlug: string): {
 
 // ─── Course-wide aggregates ───────────────────────────────────────────────────
 
-export function getDueReviews(
-  phases: { slug: string; title: string; modules: { slug: string; title: string }[] }[]
+type CoursePhase = { slug: string; title: string; modules: { slug: string; title: string }[] }
+
+function collectReviews(
+  phases: CoursePhase[],
+  include: (next: { dueAt: number; overdueDays: number }) => boolean,
+  overdueDays: (next: { overdueDays: number }) => number
 ): DueReview[] {
   if (typeof window === 'undefined') return []
-  const now = Date.now()
-  const due: DueReview[] = []
+  const results: DueReview[] = []
 
   for (const phase of phases) {
     for (const mod of phase.modules) {
       const next = getNextReviewDue(phase.slug, mod.slug)
-      if (!next) continue
-      if (next.dueAt <= now) {
-        due.push({
-          phaseSlug: phase.slug,
-          moduleSlug: mod.slug,
-          moduleTitle: mod.title,
-          phaseTitle: phase.title,
-          intervalIndex: next.intervalIndex,
-          daysInterval: REVIEW_INTERVALS[next.intervalIndex],
-          dueAt: next.dueAt,
-          overdueDays: next.overdueDays,
-        })
-      }
+      if (!next || !include(next)) continue
+      results.push({
+        phaseSlug: phase.slug,
+        moduleSlug: mod.slug,
+        moduleTitle: mod.title,
+        phaseTitle: phase.title,
+        intervalIndex: next.intervalIndex,
+        daysInterval: REVIEW_INTERVALS[next.intervalIndex],
+        dueAt: next.dueAt,
+        overdueDays: overdueDays(next),
+      })
     }
   }
 
-  return due.sort((a, b) => a.dueAt - b.dueAt)
+  return results.sort((a, b) => a.dueAt - b.dueAt)
 }
 
-export function getUpcomingReviews(
-  phases: { slug: string; title: string; modules: { slug: string; title: string }[] }[],
-  withinDays = 3
-): DueReview[] {
-  if (typeof window === 'undefined') return []
+export function getDueReviews(phases: CoursePhase[]): DueReview[] {
+  const now = Date.now()
+  return collectReviews(
+    phases,
+    (next) => next.dueAt <= now,
+    (next) => next.overdueDays
+  )
+}
+
+export function getUpcomingReviews(phases: CoursePhase[], withinDays = 3): DueReview[] {
   const now = Date.now()
   const MS_PER_DAY = 86_400_000
   const cutoff = now + withinDays * MS_PER_DAY
-  const upcoming: DueReview[] = []
-
-  for (const phase of phases) {
-    for (const mod of phase.modules) {
-      const next = getNextReviewDue(phase.slug, mod.slug)
-      if (!next) continue
-      if (next.dueAt > now && next.dueAt <= cutoff) {
-        upcoming.push({
-          phaseSlug: phase.slug,
-          moduleSlug: mod.slug,
-          moduleTitle: mod.title,
-          phaseTitle: phase.title,
-          intervalIndex: next.intervalIndex,
-          daysInterval: REVIEW_INTERVALS[next.intervalIndex],
-          dueAt: next.dueAt,
-          overdueDays: 0,
-        })
-      }
-    }
-  }
-
-  return upcoming.sort((a, b) => a.dueAt - b.dueAt)
+  return collectReviews(
+    phases,
+    (next) => next.dueAt > now && next.dueAt <= cutoff,
+    () => 0
+  )
 }
 
 export function getPhaseProgress(phaseSlug: string, moduleSlugs: string[]): number {

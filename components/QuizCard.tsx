@@ -66,7 +66,7 @@ export default function QuizCard({ questions, onComplete }: Props) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [finished, revealed, selected, current, q.options.length])
+  }, [finished, revealed, selected, current, q])
 
   if (finished) {
     const pct = Math.round((score / questions.length) * 100)

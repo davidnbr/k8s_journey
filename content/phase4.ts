@@ -1220,8 +1220,8 @@ These rules constraint scheduling based on **labels of Pods already running** on
           command: 'kubectl get nodes --show-labels',
           output: [
             'NAME     STATUS   ROLES           AGE   VERSION   LABELS',
-            'node-1   Ready    control-plane   10d   v1.35.0   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/os=linux,kubernetes.io/hostname=node-1,...',
-            'node-2   Ready    <none>          10d   v1.35.0   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/os=linux,kubernetes.io/hostname=node-2,...',
+            'node-1   Ready    control-plane   10d   v1.30.0   kubernetes.io/arch=amd64,kubernetes.io/os=linux,kubernetes.io/hostname=node-1,...',
+            'node-2   Ready    <none>          10d   v1.30.0   kubernetes.io/arch=amd64,kubernetes.io/os=linux,kubernetes.io/hostname=node-2,...',
           ],
           explanation: 'Every node gets a set of built-in labels automatically: kubernetes.io/hostname, kubernetes.io/os, kubernetes.io/arch, and topology labels for zone/region on cloud providers. These labels are the building blocks for nodeSelector and Node Affinity rules.',
           clusterState: {

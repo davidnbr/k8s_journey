@@ -1140,7 +1140,7 @@ spec:
             'log-collector-9mwqr         1/1     Running   0          node-2         30s',
             'log-collector-vt7nz         1/1     Running   0          controlplane   30s',
           ],
-          explanation: 'One Pod per node — exactly what a DaemonSet guarantees. Each Pod has a random suffix (4hxkp, 9mwqr, vt7nz) appended to the DaemonSet name, unlike StatefulSets which use ordinal numbers. The NODE column confirms the 1:1 mapping.',
+          explanation: 'One Pod per node — exactly what a DaemonSet guarantees. Each Pod has a random suffix (4hxkp, 9mwqr, vt7nz) appended to the DaemonSet name, unlike StatefulSets which use ordinal numbers. The NODE column confirms the 1:1 mapping. Note: this sample illustrates a 3-node cluster — on your single-node minikube you\'ll see exactly one log-collector Pod, scheduled on the `minikube` node.',
           clusterState: {
             pods: [
               { id: 'log-4hxkp', name: 'log-collector-4hxkp', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'log-collector' }, image: 'fluent/fluent-bit:3.3', restarts: 0 },

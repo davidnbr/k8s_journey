@@ -147,8 +147,8 @@ The **OTel Collector** pipeline consists of:
           clusterState: {
             pods: [
               { id: 'etcd', name: 'etcd-node-1', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'etcd' }, image: 'registry.k8s.io/etcd:3.5.10', restarts: 0 },
-              { id: 'apiserver', name: 'kube-apiserver-node-1', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.35.0', restarts: 0 },
-              { id: 'scheduler', name: 'kube-scheduler-node-1', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-scheduler' }, image: 'registry.k8s.io/kube-scheduler:v1.35.0', restarts: 0 },
+              { id: 'apiserver', name: 'kube-apiserver-node-1', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 0 },
+              { id: 'scheduler', name: 'kube-scheduler-node-1', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-scheduler' }, image: 'registry.k8s.io/kube-scheduler:v1.30.0', restarts: 0 },
             ],
             services: [],
             deployments: [],
@@ -164,8 +164,8 @@ The **OTel Collector** pipeline consists of:
           command: 'kubectl get nodes -o wide',
           output: [
             'NAME     STATUS   ROLES    AGE   VERSION   INTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME',
-            'node-1   Ready    control  42d   v1.35.0   10.244.0.1    Ubuntu 22.04.3 LTS   5.15.0-101-generic  containerd://1.7.13',
-            'node-2   Ready    worker   42d   v1.35.0   10.244.0.2    Ubuntu 22.04.3 LTS   5.15.0-101-generic  containerd://1.7.13',
+            'node-1   Ready    control  42d   v1.30.0   10.244.0.1    Ubuntu 22.04.3 LTS   5.15.0-101-generic  containerd://1.7.13',
+            'node-2   Ready    worker   42d   v1.30.0   10.244.0.2    Ubuntu 22.04.3 LTS   5.15.0-101-generic  containerd://1.7.13',
           ],
           explanation: 'KCNA targets understanding of the Container Runtime Interface (CRI). Modern Kubernetes clusters use `containerd` or `CRI-O` rather than standard Docker directly, because Docker lacks native CRI compliance.',
           clusterState: {

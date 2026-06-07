@@ -24,19 +24,43 @@ interface PageProps {
   params: Promise<{ phase: string; module: string }>
 }
 
-// Strip executable HTML — defence-in-depth for authored content
+// Only allow links with safe schemes (http/https/relative) — blocks javascript:/data: payloads
+const SAFE_LINK_SCHEME = /^(https?:\/\/|\/|#)/i
+
+function escapeAttr(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// Allowlist-based: only <a>, <strong>, <code>, <br> survive — every other tag (script,
+// iframe, svg/onload, img/onerror, etc.) is stripped outright. Safer than denylisting
+// attributes/tag-names one at a time, which regex-based filters routinely miss.
+const ALLOWED_TAGS = new Set(['a', 'strong', 'code', 'br'])
+
 function sanitizeHtml(html: string): string {
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-    .replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/\son\w+\s*=[^\s>]*/gi, '')
+  return html.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g, (tag, name: string) => {
+    const lower = name.toLowerCase()
+    if (!ALLOWED_TAGS.has(lower)) return ''
+    if (lower === 'a') {
+      // Re-emit <a> with only the href/target/rel/class attrs we generate ourselves —
+      // strips any on*= handlers or extra attributes that slipped through.
+      const isClosing = tag.startsWith('</')
+      if (isClosing) return '</a>'
+      const hrefMatch = tag.match(/href\s*=\s*"([^"]*)"/i)
+      const href = hrefMatch ? hrefMatch[1] : ''
+      if (!SAFE_LINK_SCHEME.test(href.trim())) return ''
+      return `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline underline-offset-2">`
+    }
+    return tag.startsWith('</') ? `</${lower}>` : `<${lower}>`
+  })
 }
 
 // Inline formatting: bold, code, links
 function formatInline(text: string): string {
   const html = text
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline underline-offset-2">$1</a>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label: string, url: string) => {
+      if (!SAFE_LINK_SCHEME.test(url.trim())) return label
+      return `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline underline-offset-2">${label}</a>`
+    })
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>')
     .replace(/`(.+?)`/g, '<code class="bg-slate-800 text-blue-300 text-xs px-1.5 py-0.5 rounded font-mono">$1</code>')
   return sanitizeHtml(html)
@@ -296,6 +320,7 @@ function PracticeTab({
 
   const masteryKey = `k8s-practice-mastery:${phaseSlug}:${mod.slug}`
   const doneKey = `k8s-practice-done:${phaseSlug}:${mod.slug}`
+  const revealedKey = `k8s-practice-revealed:${phaseSlug}:${mod.slug}`
 
   const [checkedItems, setCheckedItems] = useState<Set<number>>(() => {
     try {
@@ -311,7 +336,7 @@ function PracticeTab({
   })
   const [revealedSolutions, setRevealedSolutions] = useState<Set<string>>(() => {
     try {
-      const stored = typeof window !== 'undefined' ? localStorage.getItem(doneKey) : null
+      const stored = typeof window !== 'undefined' ? localStorage.getItem(revealedKey) : null
       return stored ? new Set<string>(JSON.parse(stored)) : new Set()
     } catch { return new Set() }
   })
@@ -323,6 +348,10 @@ function PracticeTab({
   useEffect(() => {
     try { localStorage.setItem(doneKey, JSON.stringify([...doneExercises])) } catch { /* ignore */ }
   }, [doneExercises, doneKey])
+
+  useEffect(() => {
+    try { localStorage.setItem(revealedKey, JSON.stringify([...revealedSolutions])) } catch { /* ignore */ }
+  }, [revealedSolutions, revealedKey])
 
   const allChecked = masteryChecks.length > 0 && checkedItems.size === masteryChecks.length
 

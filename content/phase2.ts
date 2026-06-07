@@ -158,9 +158,9 @@ kubectl config set-context --current --namespace=default
           output: [
             'NAMESPACE     NAME                                   READY   STATUS    RESTARTS   AGE',
             'kube-system   coredns-6f6b679f8f-4vj8t               1/1     Running   0          5d',
-            'kube-system   etcd-controlplane                      1/1     Running   0          5d',
-            'kube-system   kube-apiserver-controlplane            1/1     Running   0          5d',
-            'kube-system   kube-scheduler-controlplane            1/1     Running   0          5d',
+            'kube-system   etcd-minikube                          1/1     Running   0          5d',
+            'kube-system   kube-apiserver-minikube                1/1     Running   0          5d',
+            'kube-system   kube-scheduler-minikube                1/1     Running   0          5d',
             'staging       nginx                                  1/1     Running   0          30s',
           ],
           explanation: 'The NAMESPACE column makes it clear where each pod lives. This is the quickest way to get a full picture of what is running across your entire cluster.',

@@ -453,7 +453,7 @@ Step 5: [v2][v2][v2]       ← done ✓
             '1         <none>',
             '2         <none>',
           ],
-          explanation: 'Each update creates a new revision. You can rollback to any previous revision. Add --record to capture the change cause (e.g. kubectl set image ... --record).',
+          explanation: 'Each update creates a new revision. You can rollback to any previous revision. To populate the CHANGE-CAUSE column for future revisions, annotate the resource after each change: kubectl annotate deployment/web kubernetes.io/change-cause="bumped nginx to 1.27" (the older --record flag is deprecated since v1.20 and prints a warning).',
           clusterState: {
             pods: [
               { id: 'web-5', name: 'web-yyy-eee', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },

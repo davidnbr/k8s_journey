@@ -270,6 +270,11 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
                   onChange={(e) => setUserInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleChallengeSubmit() }}
                   aria-label="Enter kubectl command"
+                  aria-invalid={inputError}
+                  aria-describedby={[
+                    inputError ? 'challenge-error' : null,
+                    showHint ? 'challenge-hint' : null,
+                  ].filter(Boolean).join(' ') || undefined}
                   className={`bg-transparent font-mono text-sm outline-none flex-1 ml-2 ${
                     inputError ? 'text-red-400' : 'text-slate-100'
                   }`}
@@ -278,8 +283,11 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
                   spellCheck={false}
                 />
               </div>
+              <p id="challenge-error" role="status" aria-live="polite" className="sr-only">
+                {inputError ? 'Not quite — check the command and try again.' : ''}
+              </p>
               {showHint && phase === 'ready' && challengeMode && (
-                <div className="pl-6 mt-1 text-xs text-slate-500">
+                <div id="challenge-hint" className="pl-6 mt-1 text-xs text-slate-500">
                   Expected: <code className="text-cyan-400 font-mono">{step.command}</code>
                 </div>
               )}
