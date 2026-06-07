@@ -11,18 +11,19 @@ const phaseFiles = fs
 const modules = []
 for (const file of phaseFiles) {
   const source = fs.readFileSync(path.join(contentDir, file), 'utf8')
-  const phaseSlug = source.match(/slug:\s*'([^']+)'/)?.[1]
+  // Content files mix single- and double-quoted string literals (both valid TS) — match either.
+  const phaseSlug = source.match(/slug:\s*(['"])([^'"]+)\1/)?.[2]
   if (!phaseSlug) {
     throw new Error(`Could not find phase slug in ${file}`)
   }
 
-  const moduleMatches = [...source.matchAll(/^\s{4}\{\n\s{6}id:\s*'(p\d+-m\d+)',([\s\S]*?)(?=^\s{4}\{\n\s{6}id:\s*'p\d+-m\d+',|^\s{2}\],)/gm)]
+  const moduleMatches = [...source.matchAll(/^\s{4}\{\n\s{6}id:\s*(['"])(p\d+-m\d+)\1,([\s\S]*?)(?=^\s{4}\{\n\s{6}id:\s*['"]p\d+-m\d+['"],|^\s{2}\],)/gm)]
 
   for (let i = 0; i < moduleMatches.length; i += 1) {
-    const moduleId = moduleMatches[i][1]
-    const block = moduleMatches[i][2]
-    const moduleSlug = block.match(/slug:\s*'([^']+)'/)?.[1]
-    const title = block.match(/title:\s*'([^']+)'/)?.[1]
+    const moduleId = moduleMatches[i][2]
+    const block = moduleMatches[i][3]
+    const moduleSlug = block.match(/slug:\s*(['"])([^'"]+)\1/)?.[2]
+    const title = block.match(/title:\s*(['"])([^'"]+)\1/)?.[2]
     if (!moduleId || !moduleSlug || !title) {
       throw new Error(`Could not parse module ${i + 1} in ${file}`)
     }
