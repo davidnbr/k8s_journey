@@ -1972,6 +1972,515 @@ EOF`,
         },
       ],
     },
+    {
+      id: 'p4-m6',
+      slug: 'security-context',
+      title: 'SecurityContext — Pod & Container Hardening',
+      description: 'Run containers as non-root, drop Linux capabilities, enforce read-only filesystems, and prevent privilege escalation.',
+      duration: '60 min',
+      difficulty: 'intermediate' as const,
+      masteryChecks: [
+        'Set runAsUser and runAsNonRoot on a pod',
+        'Verify the UID inside a running container with kubectl exec',
+        'Drop ALL capabilities and add only what is needed',
+        'Enable readOnlyRootFilesystem and mount a writable emptyDir for temp files',
+        'Explain the difference between pod-level and container-level securityContext',
+        'Explain allowPrivilegeEscalation: false',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: By default, containers run as root (UID 0). If an attacker breaks out of the container, they have root on the host. What fields would you set in a securityContext to minimize this risk?
+
+## Pod vs Container securityContext
+
+\`\`\`yaml
+spec:
+  securityContext:          # ← pod-level: applies to all containers
+    runAsUser: 1000
+    runAsGroup: 3000
+    fsGroup: 2000
+  containers:
+  - name: app
+    securityContext:        # ← container-level: overrides pod-level
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+\`\`\`
+
+**Pod-level** applies to all containers and init containers.
+**Container-level** overrides pod-level for that specific container.
+
+## Key Fields
+
+| Field | Level | Effect |
+|-------|-------|--------|
+| \`runAsUser\` | pod/container | Sets UID for process |
+| \`runAsGroup\` | pod/container | Sets GID for process |
+| \`runAsNonRoot\` | pod/container | Rejects UID 0 |
+| \`fsGroup\` | pod | Volume files owned by this GID |
+| \`readOnlyRootFilesystem\` | container | Prevents writes to container FS |
+| \`allowPrivilegeEscalation\` | container | Prevents sudo/setUID |
+| \`capabilities.drop\` | container | Remove Linux capabilities |
+| \`capabilities.add\` | container | Add specific capabilities |
+| \`privileged\` | container | Full host access (avoid!) |
+
+## Linux Capabilities
+
+Instead of root vs non-root, Linux capabilities give fine-grained privileges:
+
+- \`NET_BIND_SERVICE\` — bind ports < 1024
+- \`SYS_ADMIN\` — various admin operations (powerful, avoid)
+- \`CHOWN\` — change file ownership
+
+Best practice: \`drop: ["ALL"]\` then \`add: ["NET_BIND_SERVICE"]\` if needed.
+
+## The Hardened Baseline
+
+\`\`\`yaml
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+\`\`\`
+
+This is the minimum you should apply to every production container.`,
+      labSteps: [
+        {
+          id: 'p4-m6-s1',
+          title: 'Run a pod as non-root',
+          instruction: 'Create a pod that runs as UID 1000.',
+          yamlContent: `apiVersion: v1
+kind: Pod
+metadata:
+  name: nonroot-pod
+spec:
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 3000
+    fsGroup: 2000
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sleep", "3600"]
+    securityContext:
+      allowPrivilegeEscalation: false`,
+          output: [],
+          explanation: 'runAsUser: 1000 sets the process UID. fsGroup: 2000 sets the group ownership of mounted volumes. allowPrivilegeEscalation: false prevents sudo and setUID binaries.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+        {
+          id: 'p4-m6-s2',
+          title: 'Verify the running UID',
+          instruction: 'Confirm the container runs as UID 1000, not root.',
+          command: 'kubectl exec nonroot-pod -- id',
+          output: ['uid=1000 gid=3000 groups=3000,2000'],
+          explanation: 'uid=1000 confirms the pod spec was applied. gid=3000 from runAsGroup. 2000 is the fsGroup — used for volume ownership.',
+          clusterState: {
+            pods: [{ id: 'nr', name: 'nonroot-pod', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 }],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+        },
+        {
+          id: 'p4-m6-s3',
+          title: 'Add read-only filesystem',
+          instruction: 'Mount readOnlyRootFilesystem and provide a writable emptyDir for /tmp.',
+          yamlContent: `apiVersion: v1
+kind: Pod
+metadata:
+  name: readonly-pod
+spec:
+  securityContext:
+    runAsUser: 1000
+    runAsNonRoot: true
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sleep", "3600"]
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    volumeMounts:
+    - name: tmp-dir
+      mountPath: /tmp
+  volumes:
+  - name: tmp-dir
+    emptyDir: {}`,
+          output: [],
+          explanation: 'readOnlyRootFilesystem: true blocks writes to the container image filesystem. Mount an emptyDir at /tmp for apps that need to write temp files.',
+          clusterState: {
+            pods: [{ id: 'ro', name: 'readonly-pod', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 }],
+            services: [], deployments: [], namespaces: ['default'], events: ['readonly-pod scheduled → node-1'],
+          },
+        },
+        {
+          id: 'p4-m6-s4',
+          title: 'Test read-only enforcement',
+          instruction: 'Try to write to the root filesystem — expect failure.',
+          command: 'kubectl exec readonly-pod -- sh -c "echo test > /etc/hack"',
+          output: [
+            'sh: /etc/hack: Read-only file system',
+          ],
+          explanation: 'readOnlyRootFilesystem: true prevents writes to the container image layer. Any writes must go to explicit volume mounts (emptyDir, PVC, etc.).',
+          clusterState: {
+            pods: [{ id: 'ro', name: 'readonly-pod', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 }],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+          tip: '/tmp is writable because we mounted an emptyDir there. Try: kubectl exec readonly-pod -- sh -c "echo test > /tmp/ok" — this works.',
+        },
+        {
+          id: 'p4-m6-s5',
+          title: 'Drop all capabilities',
+          instruction: 'Verify a hardened container cannot do privileged operations.',
+          command: 'kubectl exec readonly-pod -- sh -c "ping -c 1 8.8.8.8"',
+          output: [
+            'PING 8.8.8.8 (8.8.8.8): 56 data bytes',
+            'ping: permission denied (are you root?)',
+          ],
+          explanation: 'ping requires NET_RAW capability. With capabilities.drop: ["ALL"], this is denied. The container cannot use raw sockets, even for ICMP. This is expected and correct.',
+          clusterState: {
+            pods: [{ id: 'ro', name: 'readonly-pod', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 }],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+        },
+        {
+          id: 'p4-m6-s6',
+          title: 'Clean up',
+          instruction: 'Delete test pods.',
+          command: 'kubectl delete pod nonroot-pod readonly-pod',
+          output: ['pod "nonroot-pod" deleted', 'pod "readonly-pod" deleted'],
+          explanation: 'Always clean up lab pods. In real workloads, add these security fields to all Deployment pod templates as standard practice.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+      ],
+      quiz: [
+        {
+          id: 'p4-m6-q1',
+          question: 'runAsNonRoot: true is set. The container image has USER root. What happens?',
+          options: [
+            'The container runs as root — image USER overrides runAsNonRoot',
+            'Kubernetes remaps root to UID 1000 automatically',
+            'The pod fails to start with "container has runAsNonRoot and image will run as root"',
+            'The container starts but is immediately killed',
+          ],
+          answer: 2,
+          explanation: 'runAsNonRoot: true causes the kubelet to reject the container at startup if the effective UID is 0. You must set runAsUser to a non-zero UID or ensure the image USER is non-root.',
+        },
+        {
+          id: 'p4-m6-q2',
+          question: 'What is the effect of allowPrivilegeEscalation: false?',
+          options: [
+            'Prevents the container from running as root',
+            'Prevents processes inside the container from gaining more privileges than their parent (blocks sudo, setUID)',
+            'Drops all Linux capabilities',
+            'Makes the filesystem read-only',
+          ],
+          answer: 1,
+          explanation: 'allowPrivilegeEscalation: false sets the no_new_privs Linux flag. This prevents setUID binaries (like sudo, passwd) from gaining elevated privileges. The container still runs with its initial UID/capabilities.',
+        },
+        {
+          id: 'p4-m6-q3',
+          question: 'fsGroup: 2000 is set. A PVC is mounted at /data. What is the group ownership of /data?',
+          options: [
+            'root (GID 0) — fsGroup only affects emptyDir',
+            'GID 2000 — all files in the mounted volume are owned by group 2000',
+            'The GID of the storage class',
+            'fsGroup has no effect on volume ownership',
+          ],
+          answer: 1,
+          explanation: 'fsGroup sets the group ownership of all mounted volumes. Kubernetes runs a chgrp on the volume when the pod starts. This allows the container process (running as runAsGroup) to write to the volume.',
+        },
+        {
+          id: 'p4-m6-q4',
+          question: 'A container needs to bind to port 80 but must not run as root. Which capability must you add?',
+          options: ['SYS_ADMIN', 'NET_BIND_SERVICE', 'SYS_PTRACE', 'SETUID'],
+          answer: 1,
+          explanation: 'Binding to ports below 1024 requires NET_BIND_SERVICE capability. Add it with capabilities.add: ["NET_BIND_SERVICE"] while still dropping ALL other capabilities.',
+        },
+        {
+          id: 'p4-m6-q5',
+          question: 'Pod-level securityContext sets runAsUser: 1000. A specific container sets runAsUser: 2000. What UID does that container use?',
+          options: ['1000 — pod-level always wins', '2000 — container-level overrides pod-level', 'Both run simultaneously', 'The pod fails — conflicting settings'],
+          answer: 1,
+          explanation: 'Container-level securityContext overrides pod-level for fields where both are set. Other pod-level fields (not overridden at container level) still apply.',
+        },
+        {
+          id: 'p4-m6-q6',
+          question: 'readOnlyRootFilesystem: true is set. The app needs to write logs. What is the correct solution?',
+          options: [
+            'Set readOnlyRootFilesystem: false for just the log directory',
+            'Use a sidecar container to handle logging',
+            'Mount an emptyDir (or PVC) at the log directory path',
+            'Add WRITE capability to the container',
+          ],
+          answer: 2,
+          explanation: 'readOnlyRootFilesystem makes the image layer read-only. To allow writes to specific paths, mount a writable volume (emptyDir for ephemeral, PVC for persistent) at those paths. The volume mount overrides the read-only root.',
+        },
+      ],
+      exercises: [
+        {
+          id: 'p4-m6-e1',
+          title: 'Harden a deployment',
+          kind: 'challenge' as const,
+          goal: 'Apply the hardened baseline securityContext to a real deployment and verify it works',
+          commands: [
+            'kubectl create deployment hardened --image=nginx:1.27',
+            'kubectl patch deployment hardened -p \'{"spec":{"template":{"spec":{"securityContext":{"runAsUser":101,"runAsNonRoot":true},"containers":[{"name":"nginx","securityContext":{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":false,"capabilities":{"drop":["ALL"]}}}]}}}}\'',
+            'kubectl get pods',
+            'kubectl exec deploy/hardened -- id',
+          ],
+          verify: [
+            'kubectl exec shows uid=101',
+            'Pod is Running not CrashLoopBackOff',
+          ],
+          expectedOutcome: 'nginx running as non-root with dropped capabilities',
+          cleanup: ['kubectl delete deployment hardened'],
+        },
+      ],
+    },
+
+    {
+      id: 'p4-m7',
+      slug: 'node-management',
+      title: 'Node Management — Cordon, Drain & Maintenance',
+      description: 'Safely remove nodes from rotation for maintenance without disrupting running workloads.',
+      duration: '60 min',
+      difficulty: 'intermediate' as const,
+      masteryChecks: [
+        'Cordon a node to prevent new pod scheduling',
+        'Drain a node to evict all pods before maintenance',
+        'Uncordon a node to resume scheduling after maintenance',
+        'Explain the difference between cordon and drain',
+        'Add a taint and create a pod with a matching toleration',
+        'Check node conditions with kubectl describe node',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: You need to reboot a node for a kernel upgrade. 5 pods are running on it. How do you ensure the pods are safely rescheduled before you reboot, without any downtime?
+
+## The Maintenance Workflow
+
+\`\`\`
+1. kubectl cordon <node>   → mark Unschedulable (no NEW pods)
+2. kubectl drain <node>    → evict all pods + cordon
+3. [perform maintenance]
+4. kubectl uncordon <node> → re-enable scheduling
+\`\`\`
+
+## Cordon vs Drain
+
+| Command | Effect |
+|---------|--------|
+| \`cordon\` | Marks node Unschedulable. Existing pods keep running |
+| \`drain\` | Evicts all pods AND marks node Unschedulable |
+| \`uncordon\` | Marks node Schedulable again |
+
+## kubectl drain Flags
+
+\`\`\`bash
+kubectl drain node-1 \\
+  --ignore-daemonsets \\   # DaemonSet pods cannot be moved — skip them
+  --delete-emptydir-data  # Allow draining pods with emptyDir volumes
+\`\`\`
+
+Without \`--ignore-daemonsets\`, drain fails if DaemonSet pods are present.
+
+## Taints and Tolerations
+
+Taints repel pods from nodes. Tolerations allow pods to be scheduled on tainted nodes.
+
+\`\`\`
+Node taint: key=value:effect
+  - NoSchedule: new pods without toleration not scheduled
+  - PreferNoSchedule: soft preference against scheduling
+  - NoExecute: existing pods without toleration are evicted
+
+Pod toleration:
+  key: "key"
+  operator: "Equal"
+  value: "value"
+  effect: "NoSchedule"
+\`\`\`
+
+## Node Conditions
+
+kubectl describe node shows:
+- \`Ready\` — node is healthy
+- \`MemoryPressure\` — node is low on memory
+- \`DiskPressure\` — node is low on disk
+- \`PIDPressure\` — too many processes
+- \`NetworkUnavailable\` — CNI not configured`,
+      labSteps: [
+        {
+          id: 'p4-m7-s1',
+          title: 'Check node status',
+          instruction: 'List nodes and see their conditions.',
+          command: 'kubectl get nodes',
+          output: [
+            'NAME       STATUS   ROLES           AGE   VERSION',
+            'minikube   Ready    control-plane   60m   v1.30.0',
+          ],
+          explanation: 'STATUS Ready means the node is healthy and schedulable. Other statuses: NotReady (kubelet problem), SchedulingDisabled (cordoned).',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+        {
+          id: 'p4-m7-s2',
+          title: 'Cordon the node',
+          instruction: 'Mark the node unschedulable — new pods will not be placed here.',
+          command: 'kubectl cordon minikube',
+          output: ['node/minikube cordoned'],
+          explanation: 'Cordon adds the node.kubernetes.io/unschedulable taint. Existing pods keep running. Only new pod creation is blocked.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: ['minikube cordoned'] },
+          tip: 'After cordoning, kubectl get nodes shows STATUS=Ready,SchedulingDisabled.',
+        },
+        {
+          id: 'p4-m7-s3',
+          title: 'Verify SchedulingDisabled',
+          instruction: 'Confirm the node is cordoned.',
+          command: 'kubectl get nodes',
+          output: [
+            'NAME       STATUS                     ROLES           AGE   VERSION',
+            'minikube   Ready,SchedulingDisabled   control-plane   60m   v1.30.0',
+          ],
+          explanation: 'SchedulingDisabled shows the cordon is active. The node is still healthy (Ready) but the scheduler will not assign new pods to it.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+        {
+          id: 'p4-m7-s4',
+          title: 'Drain the node',
+          instruction: 'Evict all pods from the node before maintenance.',
+          command: 'kubectl drain minikube --ignore-daemonsets --delete-emptydir-data',
+          output: [
+            'node/minikube already cordoned',
+            'WARNING: ignoring DaemonSet-managed Pods: kube-system/kube-proxy-abc12',
+            'evicting pod default/nginx-abc12',
+            'evicting pod default/web-def34',
+            'pod/nginx-abc12 evicted',
+            'pod/web-def34 evicted',
+            'node/minikube drained',
+          ],
+          explanation: '--ignore-daemonsets skips kube-proxy and other DaemonSet pods (they cannot be rescheduled elsewhere). Evicted pods are rescheduled on other available nodes immediately.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: ['nginx-abc12 evicted', 'web-def34 evicted'] },
+        },
+        {
+          id: 'p4-m7-s5',
+          title: 'Uncordon after maintenance',
+          instruction: 'Re-enable scheduling on the node.',
+          command: 'kubectl uncordon minikube',
+          output: ['node/minikube uncordoned'],
+          explanation: 'Uncordon removes the unschedulable taint. The scheduler can now place new pods on this node again. Evicted pods that have been rescheduled elsewhere will stay where they are — they do not automatically move back.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: ['minikube uncordoned'] },
+        },
+        {
+          id: 'p4-m7-s6',
+          title: 'Add a taint and test toleration',
+          instruction: 'Taint the node with NoSchedule — only pods with a matching toleration can be scheduled.',
+          command: 'kubectl taint nodes minikube env=prod:NoSchedule',
+          output: ['node/minikube tainted'],
+          explanation: 'Now only pods with a toleration for env=prod:NoSchedule can be scheduled on minikube. All other pods will be Pending if this is the only node.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: ['minikube tainted env=prod:NoSchedule'] },
+          tip: 'Remove the taint: kubectl taint nodes minikube env=prod:NoSchedule-  (note the trailing -)',
+        },
+      ],
+      quiz: [
+        {
+          id: 'p4-m7-q1',
+          question: 'What is the difference between kubectl cordon and kubectl drain?',
+          options: [
+            'cordon reboots the node; drain just marks it unschedulable',
+            'cordon marks the node unschedulable (existing pods stay); drain evicts all pods AND marks it unschedulable',
+            'They do the same thing — drain is an alias for cordon',
+            'cordon evicts pods; drain does not',
+          ],
+          answer: 1,
+          explanation: 'Cordon only prevents new pods from being scheduled — existing pods keep running. Drain goes further: it evicts all non-DaemonSet pods (which triggers rescheduling) and also cordons the node.',
+        },
+        {
+          id: 'p4-m7-q2',
+          question: 'kubectl drain fails with "cannot delete Pods not managed by a controller". What does this mean?',
+          options: [
+            'There are DaemonSet pods — use --ignore-daemonsets',
+            'There is a bare Pod (not owned by a ReplicaSet/Deployment) — add --force to delete it',
+            'The node has a taint that blocks drain',
+            'kubectl drain only works on worker nodes',
+          ],
+          answer: 1,
+          explanation: 'drain protects unmanaged pods by default. If you delete a bare pod, it cannot be rescheduled (no controller to recreate it). --force overrides this and deletes the pod anyway. Use with caution.',
+        },
+        {
+          id: 'p4-m7-q3',
+          question: 'After draining a node and completing maintenance, pods do not automatically move back to the uncordoned node. Why?',
+          options: [
+            'The pods are still in Evicted state and need manual restart',
+            'The scheduler assigns pods at creation time; it does not rebalance running pods',
+            'Pods remain on their current node due to pod affinity rules',
+            'You must run kubectl reschedule to trigger rebalancing',
+          ],
+          answer: 1,
+          explanation: 'The Kubernetes scheduler only places pods when they are first created (or rescheduled after eviction). Running pods are not rebalanced. After uncordoning, new pods and newly rescheduled pods can use the node.',
+        },
+        {
+          id: 'p4-m7-q4',
+          question: 'A taint NoExecute is added to a node. What happens to existing pods without a matching toleration?',
+          options: [
+            'They continue running — NoExecute only prevents new scheduling',
+            'They are evicted immediately (or after tolerationSeconds if set)',
+            'They are moved to another node automatically',
+            'They enter Pending state on the same node',
+          ],
+          answer: 1,
+          explanation: 'NoExecute evicts existing pods that do not tolerate the taint. NoSchedule only prevents NEW pods from being scheduled (existing pods are unaffected). NoExecute is more disruptive.',
+        },
+        {
+          id: 'p4-m7-q5',
+          question: 'You add a taint to a node and now one of your DaemonSet pods is evicted. Why did this happen?',
+          options: [
+            'DaemonSets are always tolerant of all taints',
+            'The DaemonSet pod did not have a toleration for the new taint and the effect was NoExecute',
+            'Draining a node always evicts DaemonSet pods',
+            'DaemonSet pods cannot tolerate NoExecute taints',
+          ],
+          answer: 1,
+          explanation: 'DaemonSets automatically add tolerations for NoSchedule/NoExecute to built-in taints (like node.kubernetes.io/unschedulable). But custom taints you add manually require explicit tolerations in the DaemonSet spec.',
+        },
+        {
+          id: 'p4-m7-q6',
+          question: 'How do you remove a taint from a node?',
+          options: [
+            'kubectl untaint nodes <node> <key>',
+            'kubectl taint nodes <node> <key>:<effect>- (with trailing dash)',
+            'kubectl patch node <node> --remove-taint',
+            'kubectl drain <node> --remove-taints',
+          ],
+          answer: 1,
+          explanation: 'The trailing dash removes the taint. Example: kubectl taint nodes node-1 env=prod:NoSchedule-. Without the dash, it would try to add or update the taint.',
+        },
+      ],
+      exercises: [
+        {
+          id: 'p4-m7-e1',
+          title: 'Safe node maintenance simulation',
+          kind: 'guided' as const,
+          goal: 'Simulate draining a node for maintenance and restoring it',
+          commands: [
+            'kubectl create deployment web --image=nginx:1.27 --replicas=3',
+            'kubectl get pods -o wide',
+            'kubectl cordon minikube',
+            'kubectl drain minikube --ignore-daemonsets --delete-emptydir-data',
+            'kubectl get pods -o wide',
+            'kubectl uncordon minikube',
+          ],
+          verify: [
+            'After drain: kubectl get nodes shows SchedulingDisabled',
+            'After drain: kubectl get pods shows pods on remaining nodes',
+            'After uncordon: kubectl get nodes shows Ready',
+          ],
+          expectedOutcome: 'Node safely drained and restored with zero pod downtime',
+          cleanup: ['kubectl delete deployment web', 'kubectl taint nodes minikube env=prod:NoSchedule- 2>/dev/null || true'],
+        },
+      ],
+    },
+
   ],
 }
 

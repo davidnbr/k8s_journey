@@ -16,6 +16,277 @@ const phase0: Phase = {
   bgColor: 'bg-violet-500/10 border-violet-500/30',
   modules: [
     {
+      id: 'p0-m0',
+      slug: 'local-setup',
+      title: 'Set Up Your Local Cluster',
+      description: 'Install kubectl and minikube, start a local cluster, and verify you can run commands before tackling anything else.',
+      duration: '30 min',
+      difficulty: 'beginner' as const,
+      learningObjectives: [
+        'Install kubectl and verify the version',
+        'Install and start minikube',
+        'Confirm cluster access with kubectl cluster-info',
+        'Enable metrics-server addon',
+      ],
+      masteryChecks: [
+        'kubectl version --client returns v1.26 or newer',
+        'minikube start completes without errors',
+        'kubectl get nodes shows STATUS=Ready',
+        'kubectl cluster-info displays the API server URL',
+        'minikube addons list shows metrics-server enabled',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: Before touching any cluster, ask yourself: what is the difference between a local cluster (minikube) and a production cluster (EKS, GKE)? Think about networking, resource limits, and HA before reading.
+
+## Why You Need a Local Cluster
+
+Every command in this course runs against a real Kubernetes cluster. You have two good options:
+
+| Tool | Best For | Notes |
+|------|----------|-------|
+| **minikube** | Beginners, course labs | All-in-one, best addon support |
+| **kind** | Multi-node simulation, CI | Nodes run as Docker containers |
+
+This course uses **minikube** throughout.
+
+## What minikube Creates
+
+\`\`\`
+Your Machine
+├── minikube node (Docker container or VM)
+│   ├── kube-apiserver     ← API entrypoint
+│   ├── etcd               ← state store
+│   ├── kube-scheduler     ← places pods on nodes
+│   ├── kube-controller-manager
+│   ├── kubelet            ← runs pods
+│   └── kube-proxy         ← handles networking
+└── ~/.kube/config         ← kubectl reads this automatically
+\`\`\`
+
+minikube also updates \`~/.kube/config\` automatically so kubectl points to the local cluster.
+
+## Install kubectl
+
+\`\`\`bash
+# macOS
+brew install kubectl
+
+# Linux
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+\`\`\`
+
+## Install minikube
+
+\`\`\`bash
+# macOS
+brew install minikube
+
+# Linux
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+\`\`\`
+
+## Resource Requirements
+
+- Minimum: 2 CPU, 4 GB RAM, 20 GB disk
+- Recommended for this course: 4 CPU, 8 GB RAM`,
+      labSteps: [
+        {
+          id: 'p0-m0-s1',
+          title: 'Verify kubectl',
+          instruction: 'Confirm kubectl is installed and version is 1.26+.',
+          command: 'kubectl version --client',
+          output: [
+            'Client Version: v1.30.0',
+            'Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3',
+          ],
+          explanation: '--client skips the server connection check so it works before the cluster starts. You need v1.26+ for all course commands.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+          tip: 'If not installed: brew install kubectl (macOS) or see kubernetes.io/docs/tasks/tools.',
+        },
+        {
+          id: 'p0-m0-s2',
+          title: 'Verify minikube',
+          instruction: 'Confirm minikube is installed.',
+          command: 'minikube version',
+          output: [
+            'minikube version: v1.33.0',
+            'commit: 86fc9d54fca63f295d8737c8eacdbb7987e89c67',
+          ],
+          explanation: 'minikube creates a local Kubernetes node. Any version 1.28+ works with this course.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+        {
+          id: 'p0-m0-s3',
+          title: 'Start the cluster',
+          instruction: 'Start a minikube cluster with 2 CPUs and 4 GB RAM. First run takes 2–3 minutes to download the node image.',
+          command: 'minikube start --cpus=2 --memory=4096',
+          output: [
+            '😄  minikube v1.33.0 on Linux',
+            '✨  Automatically selected the docker driver',
+            '👍  Starting control plane node minikube in cluster minikube',
+            '🔥  Creating docker container (CPUs=2, Memory=4096MB) ...',
+            '🐳  Preparing Kubernetes v1.30.0 on Docker 26.1.1 ...',
+            '🔎  Verifying Kubernetes components...',
+            '✅  kubectl is now configured to use "minikube" cluster',
+            '🎉  Done! kubectl is now configured to use "minikube" cluster and "default" namespace',
+          ],
+          explanation: 'minikube adds a "minikube" context to ~/.kube/config and sets it as the active context. All kubectl commands now target this cluster.',
+          clusterState: {
+            pods: [
+              { id: 'api', name: 'kube-apiserver-minikube', namespace: 'kube-system', node: 'node-1' as const, status: 'Running' as const, labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 0 },
+              { id: 'etcd', name: 'etcd-minikube', namespace: 'kube-system', node: 'node-1' as const, status: 'Running' as const, labels: { component: 'etcd' }, image: 'registry.k8s.io/etcd:3.5.12-0', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: ['Cluster started', 'kubectl configured'],
+          },
+          tip: 'Add --driver=docker if minikube complains about hypervisors. On Windows, use --driver=hyperv.',
+        },
+        {
+          id: 'p0-m0-s4',
+          title: 'Verify cluster access',
+          instruction: 'Check kubectl can reach the API server.',
+          command: 'kubectl cluster-info',
+          output: [
+            'Kubernetes control plane is running at https://192.168.49.2:8443',
+            'CoreDNS is running at https://192.168.49.2:8443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy',
+            '',
+            'To further debug and diagnose cluster problems, use kubectl cluster-info dump.',
+          ],
+          explanation: 'The control plane URL is the kube-apiserver address. All kubectl commands send HTTP requests here. CoreDNS handles DNS-based service discovery for pods.',
+          clusterState: {
+            pods: [
+              { id: 'api', name: 'kube-apiserver-minikube', namespace: 'kube-system', node: 'node-1' as const, status: 'Running' as const, labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+          },
+        },
+        {
+          id: 'p0-m0-s5',
+          title: 'List nodes',
+          instruction: 'See the single minikube node that acts as both control plane and worker.',
+          command: 'kubectl get nodes',
+          output: [
+            'NAME       STATUS   ROLES           AGE    VERSION',
+            'minikube   Ready    control-plane   2m3s   v1.30.0',
+          ],
+          explanation: 'STATUS Ready means the node is healthy. ROLES control-plane means this node also runs API server, scheduler, etcd. In production you separate control-plane and worker nodes.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [] },
+        },
+        {
+          id: 'p0-m0-s6',
+          title: 'Enable metrics-server',
+          instruction: 'Enable the metrics-server addon. Required for kubectl top commands later in the course.',
+          command: 'minikube addons enable metrics-server',
+          output: [
+            '💡  metrics-server is an addon maintained by Kubernetes.',
+            "    ▪ Using image registry.k8s.io/metrics-server/metrics-server:v0.7.1",
+            "🌟  The 'metrics-server' addon is enabled",
+          ],
+          explanation: 'metrics-server scrapes CPU/memory from kubelets and exposes the Metrics API. Without it kubectl top pods and kubectl top nodes return errors.',
+          clusterState: {
+            pods: [
+              { id: 'ms', name: 'metrics-server', namespace: 'kube-system', node: 'node-1' as const, status: 'Running' as const, labels: { 'k8s-app': 'metrics-server' }, image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.1', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: ['metrics-server enabled'],
+          },
+          tip: 'Also run: minikube addons enable ingress — you will need it in Phase 3.',
+        },
+      ],
+      quiz: [
+        {
+          id: 'p0-m0-q1',
+          question: 'What does minikube start do to ~/.kube/config?',
+          options: [
+            'Overwrites it completely with a fresh config',
+            'Adds a new "minikube" context and sets it as current-context',
+            'Nothing — you must run kubectl config set-cluster manually',
+            'Copies /etc/kubernetes/admin.conf to ~/.kube/config',
+          ],
+          answer: 1,
+          explanation: 'minikube merges a new context into your existing kubeconfig and sets it as current. It does not overwrite existing contexts (e.g. a production cluster config you already have).',
+        },
+        {
+          id: 'p0-m0-q2',
+          question: 'kubectl cluster-info returns "The connection to the server was refused". What should you check first?',
+          options: [
+            'Whether port 8443 is open in your firewall',
+            'Whether minikube is running (minikube status)',
+            'Whether kubectl version matches the cluster version',
+            'Whether ~/.kube/config exists',
+          ],
+          answer: 1,
+          explanation: 'Connection refused means the API server process is not listening. Most common cause: minikube is stopped. Run minikube status, then minikube start if needed.',
+        },
+        {
+          id: 'p0-m0-q3',
+          question: 'Which minikube addon must be enabled for kubectl top pods to work?',
+          options: ['ingress', 'dashboard', 'metrics-server', 'storage-provisioner'],
+          answer: 2,
+          explanation: 'metrics-server exposes the Kubernetes Metrics API. kubectl top reads from this API. Without it you get "Metrics API not available".',
+        },
+        {
+          id: 'p0-m0-q4',
+          question: 'In a minikube cluster, the node has ROLES=control-plane. What does this mean for scheduling workloads?',
+          options: [
+            'You cannot schedule user pods on this node',
+            'The node runs both control plane components and user pods',
+            'You need to add a worker node before deploying apps',
+            'The node auto-taints itself to reject all pods',
+          ],
+          answer: 1,
+          explanation: 'minikube removes the default control-plane taint so user pods can be scheduled on the single node. In production, control-plane nodes are typically tainted to repel user workloads.',
+        },
+        {
+          id: 'p0-m0-q5',
+          question: 'What is the key difference between minikube and kind?',
+          options: [
+            'minikube supports multi-node clusters; kind does not',
+            'kind runs Kubernetes nodes as Docker containers; minikube uses a VM or Docker for a single all-in-one node',
+            'kind is production-grade; minikube is for development only',
+            'They are identical tools with different names',
+          ],
+          answer: 1,
+          explanation: 'kind (Kubernetes IN Docker) runs each node as a Docker container, making multi-node simulation easy. minikube creates one all-in-one node and has better addon/dashboard support.',
+        },
+        {
+          id: 'p0-m0-q6',
+          question: 'You want to run labs from this course on your laptop. Which command starts a minikube cluster suitable for the course?',
+          options: [
+            'minikube start --nodes=3',
+            'minikube start --cpus=2 --memory=4096',
+            'minikube start --driver=none',
+            'minikube start --kubernetes-version=v1.20.0',
+          ],
+          answer: 1,
+          explanation: '--cpus=2 --memory=4096 gives minikube 2 cores and 4 GB RAM — enough for all course labs. --nodes=3 wastes resources. --driver=none requires running as root. Pinning an old version is not recommended.',
+        },
+      ],
+      exercises: [
+        {
+          id: 'p0-m0-e1',
+          title: 'Fresh cluster setup',
+          kind: 'guided' as const,
+          goal: 'Get a working local cluster from scratch',
+          commands: [
+            'kubectl version --client',
+            'minikube version',
+            'minikube start --cpus=2 --memory=4096',
+            'kubectl cluster-info',
+            'kubectl get nodes',
+            'minikube addons enable metrics-server',
+          ],
+          verify: [
+            'kubectl get nodes shows STATUS=Ready',
+            'kubectl cluster-info shows the control plane URL',
+            "minikube addons list shows metrics-server: enabled",
+          ],
+          expectedOutcome: 'A healthy single-node cluster ready for the rest of the course',
+          cleanup: [],
+        },
+      ],
+    },
+
+    {
       id: 'p0-m1',
       slug: 'why-kubernetes',
       title: 'Why Kubernetes Exists',

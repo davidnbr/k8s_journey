@@ -2397,6 +2397,784 @@ EOF`,
         },
       ],
     },
+    {
+      id: 'p2-m7',
+      slug: 'service-types',
+      title: 'Service Types Deep Dive',
+      description: 'ClusterIP, NodePort, LoadBalancer, ExternalName, and Headless — when to use each and how they work.',
+      duration: '60 min',
+      difficulty: 'intermediate' as const,
+      masteryChecks: [
+        'Explain ClusterIP and when it is appropriate',
+        'Create a NodePort service and access it from outside the cluster',
+        'Explain what minikube tunnel does for LoadBalancer services',
+        'Describe when to use ExternalName',
+        'Create a Headless service and explain its DNS behavior',
+        'Check service endpoints with kubectl get endpoints',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: A ClusterIP service gives you a stable virtual IP inside the cluster. But that IP is not reachable from your laptop. What would you need to expose a service to external traffic? Think about the layers before reading.
+
+## Service Types Overview
+
+| Type | Reachable From | Use Case |
+|------|---------------|----------|
+| **ClusterIP** | Inside cluster only | Internal microservice communication |
+| **NodePort** | Node IP + port | Dev/testing, basic external access |
+| **LoadBalancer** | External LB IP | Production cloud exposure |
+| **ExternalName** | Inside cluster | Alias for external DNS name |
+| **Headless** (clusterIP: None) | Inside cluster (DNS only) | StatefulSets, direct pod addressing |
+
+## ClusterIP (Default)
+
+A stable virtual IP assigned to the service. kube-proxy programs iptables/ipvs to forward traffic to matching pods.
+
+\`\`\`
+Pod A → ClusterIP:80 → kube-proxy → Pod B (one of the backends)
+\`\`\`
+
+Cannot be reached from outside the cluster.
+
+## NodePort
+
+Opens the same high port (30000–32767) on **every node**. Traffic to any node IP on that port reaches the service.
+
+\`\`\`
+Laptop → NodeIP:30080 → kube-proxy → Pod
+\`\`\`
+
+NodePort builds on ClusterIP. The service still has a ClusterIP for internal traffic.
+
+## LoadBalancer
+
+Cloud provider creates an external load balancer pointing to the NodePort. Gives you one stable external IP.
+
+\`\`\`
+Internet → ExternalIP:80 → Cloud LB → NodeIP:NodePort → kube-proxy → Pod
+\`\`\`
+
+On minikube: use \`minikube tunnel\` to simulate the cloud LB.
+
+## ExternalName
+
+Returns a CNAME DNS record. No proxying — pods that resolve the service name get the CNAME target.
+
+\`\`\`yaml
+spec:
+  type: ExternalName
+  externalName: my-database.us-east-1.rds.amazonaws.com
+\`\`\`
+
+## Headless (clusterIP: None)
+
+DNS returns **individual pod IPs** instead of a single virtual IP. Used with StatefulSets for stable pod identity.`,
+      labSteps: [
+        {
+          id: 'p2-m7-s1',
+          title: 'Create a ClusterIP service',
+          instruction: 'Deploy nginx and expose it internally with ClusterIP.',
+          command: 'kubectl expose deployment nginx --port=80 --target-port=80 --name=nginx-clusterip',
+          output: ['service/nginx-clusterip exposed'],
+          explanation: 'ClusterIP is the default type. The service gets a virtual IP inside the cluster. Not reachable from outside.',
+          clusterState: {
+            pods: [{ id: 'ng1', name: 'nginx-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 }],
+            services: [{ id: 'svc1', name: 'nginx-clusterip', namespace: 'default', type: 'ClusterIP' as const, selector: { app: 'nginx' }, port: 80, clusterIP: '10.96.100.1' }],
+            deployments: [{ id: 'd1', name: 'nginx', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
+            namespaces: ['default'], events: ['nginx-clusterip service created'],
+          },
+        },
+        {
+          id: 'p2-m7-s2',
+          title: 'Inspect ClusterIP',
+          instruction: 'See the virtual IP assigned.',
+          command: 'kubectl get svc nginx-clusterip',
+          output: [
+            'NAME              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE',
+            'nginx-clusterip   ClusterIP   10.96.100.1     <none>        80/TCP    8s',
+          ],
+          explanation: 'EXTERNAL-IP is <none> — ClusterIP is internal only. CLUSTER-IP 10.96.100.1 is the stable virtual IP. This IP stays the same even if pods are replaced.',
+          clusterState: {
+            pods: [{ id: 'ng1', name: 'nginx-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 }],
+            services: [{ id: 'svc1', name: 'nginx-clusterip', namespace: 'default', type: 'ClusterIP' as const, selector: { app: 'nginx' }, port: 80, clusterIP: '10.96.100.1' }],
+            deployments: [{ id: 'd1', name: 'nginx', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
+            namespaces: ['default'], events: [],
+          },
+        },
+        {
+          id: 'p2-m7-s3',
+          title: 'Create a NodePort service',
+          instruction: 'Expose nginx on a static node port so you can reach it from your laptop.',
+          yamlContent: `apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: nginx
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30080`,
+          output: [],
+          explanation: 'nodePort: 30080 opens port 30080 on every node. port: 80 is the ClusterIP port. targetPort: 80 is the container port.',
+          clusterState: {
+            pods: [{ id: 'ng1', name: 'nginx-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 }],
+            services: [
+              { id: 'svc1', name: 'nginx-clusterip', namespace: 'default', type: 'ClusterIP' as const, selector: { app: 'nginx' }, port: 80, clusterIP: '10.96.100.1' },
+              { id: 'svc2', name: 'nginx-nodeport', namespace: 'default', type: 'NodePort' as const, selector: { app: 'nginx' }, port: 30080, clusterIP: '10.96.100.2' },
+            ],
+            deployments: [{ id: 'd1', name: 'nginx', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
+            namespaces: ['default'], events: [],
+          },
+        },
+        {
+          id: 'p2-m7-s4',
+          title: 'Access NodePort via minikube',
+          instruction: 'Get the URL to reach the NodePort service from your laptop.',
+          command: 'minikube service nginx-nodeport --url',
+          output: ['http://192.168.49.2:30080'],
+          explanation: 'minikube service prints the URL. On a real cloud cluster you would use the node IP directly: curl NodeIP:30080.',
+          clusterState: {
+            pods: [{ id: 'ng1', name: 'nginx-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 }],
+            services: [{ id: 'svc2', name: 'nginx-nodeport', namespace: 'default', type: 'NodePort' as const, selector: { app: 'nginx' }, port: 30080, clusterIP: '10.96.100.2' }],
+            deployments: [{ id: 'd1', name: 'nginx', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
+            namespaces: ['default'], events: [],
+          },
+        },
+        {
+          id: 'p2-m7-s5',
+          title: 'Check endpoints',
+          instruction: 'Verify the service has pod IPs as backends.',
+          command: 'kubectl get endpoints nginx-nodeport',
+          output: [
+            'NAME              ENDPOINTS       AGE',
+            'nginx-nodeport    10.244.1.5:80   45s',
+          ],
+          explanation: 'Endpoints are the actual pod IPs:ports that the service routes to. If ENDPOINTS shows <none>, your selector does not match any running pods.',
+          clusterState: {
+            pods: [{ id: 'ng1', name: 'nginx-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 }],
+            services: [{ id: 'svc2', name: 'nginx-nodeport', namespace: 'default', type: 'NodePort' as const, selector: { app: 'nginx' }, port: 30080, clusterIP: '10.96.100.2' }],
+            deployments: [{ id: 'd1', name: 'nginx', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
+            namespaces: ['default'], events: [],
+          },
+          tip: 'Empty endpoints = wrong selector. Run kubectl get pods --show-labels to compare label keys/values.',
+        },
+        {
+          id: 'p2-m7-s6',
+          title: 'Clean up',
+          instruction: 'Delete the services.',
+          command: 'kubectl delete svc nginx-clusterip nginx-nodeport',
+          output: ['service "nginx-clusterip" deleted', 'service "nginx-nodeport" deleted'],
+          explanation: 'Deleting a Service does not affect the pods or Deployment it was routing to. The pods continue running.',
+          clusterState: {
+            pods: [{ id: 'ng1', name: 'nginx-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 }],
+            services: [], deployments: [{ id: 'd1', name: 'nginx', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
+            namespaces: ['default'], events: [],
+          },
+        },
+      ],
+      quiz: [
+        {
+          id: 'p2-m7-q1',
+          question: 'What is the default Service type when you run kubectl expose?',
+          options: ['NodePort', 'ClusterIP', 'LoadBalancer', 'ExternalName'],
+          answer: 1,
+          explanation: 'ClusterIP is the default. It creates an internal virtual IP only reachable within the cluster. You must explicitly specify NodePort or LoadBalancer for external access.',
+        },
+        {
+          id: 'p2-m7-q2',
+          question: 'A service shows ENDPOINTS=<none>. What is the most likely cause?',
+          options: [
+            'The service type is ClusterIP',
+            'The service selector does not match any running pod labels',
+            'No nodes are available to run pods',
+            'The targetPort is wrong',
+          ],
+          answer: 1,
+          explanation: 'Endpoints are populated from pods whose labels match the service selector. If no pods match, ENDPOINTS is empty. Check kubectl get pods --show-labels and compare with the service selector.',
+        },
+        {
+          id: 'p2-m7-q3',
+          question: 'What port range is valid for NodePort services?',
+          options: ['1024–65535', '8000–9000', '30000–32767', '80 and 443 only'],
+          answer: 2,
+          explanation: 'Kubernetes reserves 30000–32767 for NodePort services by default. This range is configurable in kube-apiserver (--service-node-port-range), but 30000–32767 is the default.',
+        },
+        {
+          id: 'p2-m7-q4',
+          question: 'What does a Headless service (clusterIP: None) return when a pod queries its DNS name?',
+          options: [
+            'The ClusterIP of the service',
+            'The IP of a random healthy pod',
+            'All matching pod IPs as individual A records',
+            'The external load balancer IP',
+          ],
+          answer: 2,
+          explanation: 'A headless service has no virtual IP. DNS returns A records for each matching pod IP directly. Used by StatefulSets so pods can address each other by stable DNS names (pod-0.svc.namespace.svc.cluster.local).',
+        },
+        {
+          id: 'p2-m7-q5',
+          question: 'On minikube, you create a LoadBalancer service. EXTERNAL-IP stays in Pending. What must you run?',
+          options: [
+            'kubectl expose --type=NodePort',
+            'minikube tunnel',
+            'kubectl patch svc <name> -p \'{"spec":{"externalIPs":["..."]}}\'',
+            'minikube addons enable metallb',
+          ],
+          answer: 1,
+          explanation: 'minikube tunnel creates a network route from your host into the cluster and assigns an external IP to LoadBalancer services. Without it, EXTERNAL-IP stays Pending because there is no cloud provider to provision an LB.',
+        },
+        {
+          id: 'p2-m7-q6',
+          question: 'When would you use an ExternalName service?',
+          options: [
+            'To expose a pod to external traffic without a NodePort',
+            'To create a DNS alias inside the cluster pointing to an external hostname',
+            'To give a service a static external IP',
+            'To route traffic between namespaces',
+          ],
+          answer: 1,
+          explanation: 'ExternalName makes an internal cluster DNS name (e.g. my-db.default.svc.cluster.local) resolve to an external hostname (e.g. prod-db.example.com). No proxying — just a CNAME. Useful for migrating services or aliasing external dependencies.',
+        },
+      ],
+      exercises: [
+        {
+          id: 'p2-m7-e1',
+          title: 'Expose with all types',
+          kind: 'guided' as const,
+          goal: 'Create a Deployment and expose it first as ClusterIP, then NodePort, then verify endpoints',
+          commands: [
+            'kubectl create deployment nginx --image=nginx:1.27 --replicas=2',
+            'kubectl expose deployment nginx --port=80 --name=nginx-internal',
+            'kubectl expose deployment nginx --port=80 --type=NodePort --name=nginx-external',
+            'kubectl get svc',
+            'kubectl get endpoints',
+            'minikube service nginx-external --url',
+          ],
+          verify: ['kubectl get svc shows both services', 'kubectl get endpoints shows pod IPs', 'curl to NodePort URL returns nginx welcome page'],
+          expectedOutcome: 'Both services routing to the same pods, NodePort accessible from laptop',
+          cleanup: ['kubectl delete deployment nginx', 'kubectl delete svc nginx-internal nginx-external'],
+        },
+      ],
+    },
+
+    {
+      id: 'p2-m8',
+      slug: 'dns-coredns',
+      title: 'DNS & CoreDNS',
+      description: 'How Kubernetes DNS works, the FQDN format, CoreDNS configuration, and how to debug DNS failures.',
+      duration: '45 min',
+      difficulty: 'intermediate' as const,
+      masteryChecks: [
+        'State the full FQDN format for a service',
+        'Explain what search domains allow (short names within a namespace)',
+        'Resolve a service DNS name from inside a pod',
+        'Use cross-namespace DNS with the full <svc>.<ns>.svc.cluster.local format',
+        'Inspect the CoreDNS ConfigMap',
+        'Debug a DNS failure using nslookup from inside a pod',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: When a pod in namespace "frontend" tries to connect to "backend-svc", how does it know which IP to use? There is no /etc/hosts entry. Think about how DNS is injected into pods before reading.
+
+## How Kubernetes DNS Works
+
+Every pod gets \`/etc/resolv.conf\` injected with:
+\`\`\`
+nameserver 10.96.0.10          ← CoreDNS ClusterIP
+search default.svc.cluster.local svc.cluster.local cluster.local
+options ndots:5
+\`\`\`
+
+**CoreDNS** is a pod running in \`kube-system\` that handles DNS for the cluster.
+
+## FQDN Format
+
+\`\`\`
+<service>.<namespace>.svc.cluster.local
+    ↑          ↑           ↑
+  svc name  namespace   cluster domain
+\`\`\`
+
+Examples:
+- \`my-api.default.svc.cluster.local\` — full form
+- \`my-api.default\` — works due to search domains
+- \`my-api\` — works within the same namespace
+
+## Search Domains Enable Short Names
+
+From a pod in namespace \`frontend\`:
+- \`backend-svc\` resolves (search appends \`frontend.svc.cluster.local\`)
+- \`backend-svc.backend\` resolves cross-namespace (search appends \`svc.cluster.local\`)
+- \`backend-svc.backend.svc.cluster.local\` — always works
+
+## Pod DNS Policy
+
+| Policy | Behavior |
+|--------|----------|
+| \`ClusterFirst\` (default) | Cluster DNS first, then upstream |
+| \`Default\` | Node's /etc/resolv.conf (no cluster DNS) |
+| \`None\` | Custom — must set dnsConfig |
+| \`ClusterFirstWithHostNet\` | For hostNetwork pods |`,
+      labSteps: [
+        {
+          id: 'p2-m8-s1',
+          title: 'Inspect CoreDNS pods',
+          instruction: 'Check CoreDNS is running.',
+          command: 'kubectl get pods -n kube-system -l k8s-app=kube-dns',
+          output: [
+            'NAME                       READY   STATUS    RESTARTS   AGE',
+            'coredns-5d78c9869d-4xkrb   1/1     Running   0          45m',
+            'coredns-5d78c9869d-8vqvt   1/1     Running   0          45m',
+          ],
+          explanation: 'CoreDNS runs as a Deployment with 2 replicas in kube-system. It exposes port 53 (UDP+TCP) via the kube-dns Service at a stable ClusterIP (usually 10.96.0.10).',
+          clusterState: {
+            pods: [
+              { id: 'dns1', name: 'coredns-5d78c9869d-4xkrb', namespace: 'kube-system', node: 'node-1' as const, status: 'Running' as const, labels: { 'k8s-app': 'kube-dns' }, image: 'registry.k8s.io/coredns/coredns:v1.11.1', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+          },
+        },
+        {
+          id: 'p2-m8-s2',
+          title: 'Inspect the CoreDNS ConfigMap',
+          instruction: 'Read the Corefile that controls DNS behavior.',
+          command: 'kubectl get configmap coredns -n kube-system -o yaml',
+          output: [
+            'data:',
+            '  Corefile: |',
+            '    .:53 {',
+            '        errors',
+            '        health',
+            '        ready',
+            '        kubernetes cluster.local in-addr.arpa ip6.arpa {',
+            '           pods insecure',
+            '           fallthrough in-addr.arpa ip6.arpa',
+            '        }',
+            '        prometheus :9153',
+            '        forward . /etc/resolv.conf',
+            '        cache 30',
+            '        loop',
+            '        reload',
+            '        loadbalance',
+            '    }',
+          ],
+          explanation: 'The kubernetes plugin handles .cluster.local queries. forward . /etc/resolv.conf sends all other queries to the node\'s upstream DNS. cache 30 caches responses for 30 seconds.',
+          clusterState: {
+            pods: [], services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+          },
+        },
+        {
+          id: 'p2-m8-s3',
+          title: 'Create a test service',
+          instruction: 'Create a simple nginx deployment and service to test DNS against.',
+          command: 'kubectl create deployment web --image=nginx:1.27 && kubectl expose deployment web --port=80',
+          output: ['deployment.apps/web created', 'service/web exposed'],
+          explanation: 'The service "web" in namespace "default" is now resolvable as web.default.svc.cluster.local from any pod in the cluster.',
+          clusterState: {
+            pods: [{ id: 'web1', name: 'web-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 }],
+            services: [{ id: 'wsvc', name: 'web', namespace: 'default', type: 'ClusterIP' as const, selector: { app: 'web' }, port: 80, clusterIP: '10.96.50.1' }],
+            deployments: [{ id: 'wd', name: 'web', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
+            namespaces: ['default'], events: [],
+          },
+        },
+        {
+          id: 'p2-m8-s4',
+          title: 'Resolve DNS from inside a pod',
+          instruction: 'Run a temporary pod and use nslookup to resolve the service.',
+          command: 'kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup web',
+          output: [
+            'Server:         10.96.0.10',
+            'Address:        10.96.0.10:53',
+            '',
+            'Name:    web.default.svc.cluster.local',
+            'Address: 10.96.50.1',
+          ],
+          explanation: 'nslookup uses the CoreDNS server at 10.96.0.10. "web" resolves via search domain to web.default.svc.cluster.local → ClusterIP 10.96.50.1.',
+          clusterState: {
+            pods: [
+              { id: 'web1', name: 'web-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'dt', name: 'dns-test', namespace: 'default', node: 'node-2' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 },
+            ],
+            services: [{ id: 'wsvc', name: 'web', namespace: 'default', type: 'ClusterIP' as const, selector: { app: 'web' }, port: 80, clusterIP: '10.96.50.1' }],
+            deployments: [{ id: 'wd', name: 'web', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
+            namespaces: ['default'], events: [],
+          },
+          tip: '--rm removes the pod after it exits. -it attaches stdin/stdout.',
+        },
+        {
+          id: 'p2-m8-s5',
+          title: 'Cross-namespace DNS',
+          instruction: 'Create a service in kube-system and resolve it from default namespace using full FQDN.',
+          command: 'kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup kube-dns.kube-system.svc.cluster.local',
+          output: [
+            'Server:         10.96.0.10',
+            'Address:        10.96.0.10:53',
+            '',
+            'Name:    kube-dns.kube-system.svc.cluster.local',
+            'Address: 10.96.0.10',
+          ],
+          explanation: 'Cross-namespace requires the full form: <service>.<namespace>.svc.cluster.local. The short form "kube-dns" only works inside kube-system namespace.',
+          clusterState: {
+            pods: [], services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+          },
+        },
+        {
+          id: 'p2-m8-s6',
+          title: 'Debug a DNS failure',
+          instruction: 'Check CoreDNS logs when DNS is not resolving correctly.',
+          command: 'kubectl logs -n kube-system -l k8s-app=kube-dns --tail=20',
+          output: [
+            '[INFO] 10.244.1.7:42156 - 12345 "A IN nonexistent.default.svc.cluster.local. udp 55 false 512" NXDOMAIN qr,aa,rd 148 0.000234s',
+            '[INFO] 10.244.1.7:42156 - 12346 "A IN nonexistent.default.svc.cluster.local. udp 55 false 512" NXDOMAIN qr,aa,rd 148 0.000121s',
+          ],
+          explanation: 'NXDOMAIN means "no such domain". If your app cannot resolve a service, CoreDNS logs confirm whether the query reached DNS. Most common fix: check the service name and namespace spelling.',
+          clusterState: {
+            pods: [], services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+          },
+          tip: 'Also check: kubectl get svc -A | grep <service-name> to confirm the service exists.',
+        },
+      ],
+      quiz: [
+        {
+          id: 'p2-m8-q1',
+          question: 'What is the full FQDN for a service named "api" in namespace "prod"?',
+          options: [
+            'api.prod.cluster.local',
+            'api.prod.svc.cluster.local',
+            'svc.api.prod.cluster.local',
+            'api.cluster.local',
+          ],
+          answer: 1,
+          explanation: 'The format is <service>.<namespace>.svc.cluster.local. The "svc" segment is always present between the namespace and cluster domain.',
+        },
+        {
+          id: 'p2-m8-q2',
+          question: 'A pod in namespace "frontend" tries to connect to just "backend-svc". Why does this resolve correctly?',
+          options: [
+            'Kubernetes automatically scans all namespaces for matching service names',
+            'The pod has search domain "frontend.svc.cluster.local" in /etc/resolv.conf',
+            'Short names always resolve to the kube-system namespace',
+            'The kubelet injects a host entry for every service',
+          ],
+          answer: 1,
+          explanation: 'Every pod gets search domains injected. From namespace "frontend", the search domain "frontend.svc.cluster.local" is tried first, so "backend-svc" resolves to backend-svc.frontend.svc.cluster.local if it exists there.',
+        },
+        {
+          id: 'p2-m8-q3',
+          question: 'CoreDNS is down. What symptom will pods experience first?',
+          options: [
+            'Pods crash with OOMKilled',
+            'Service-to-service communication fails with connection refused',
+            'DNS lookups time out — applications cannot resolve service names',
+            'The kube-apiserver becomes unreachable',
+          ],
+          answer: 2,
+          explanation: 'Without CoreDNS, DNS queries time out. Applications that use service names (not hard-coded IPs) fail with "Name or service not known". Direct IP communication still works.',
+        },
+        {
+          id: 'p2-m8-q4',
+          question: 'What DNS policy should you use for a pod with hostNetwork: true that still needs cluster DNS?',
+          options: ['Default', 'ClusterFirst', 'ClusterFirstWithHostNet', 'None'],
+          answer: 2,
+          explanation: 'ClusterFirstWithHostNet is required when hostNetwork: true is set. Without it, the pod uses Default policy (node DNS only) and cannot resolve cluster service names.',
+        },
+        {
+          id: 'p2-m8-q5',
+          question: 'What IP does CoreDNS run on and how do pods find it?',
+          options: [
+            'CoreDNS runs on 8.8.8.8 — pods use the Google resolver',
+            'CoreDNS has a ClusterIP (usually 10.96.0.10) injected into /etc/resolv.conf of every pod',
+            'CoreDNS runs on each node at 127.0.0.1:53',
+            'Pods query etcd directly for DNS resolution',
+          ],
+          answer: 1,
+          explanation: 'CoreDNS is a Deployment with a Service (kube-dns) that has a stable ClusterIP. The kubelet injects this IP as nameserver into every pod\'s /etc/resolv.conf at creation time.',
+        },
+        {
+          id: 'p2-m8-q6',
+          question: 'You need a pod to use custom DNS servers instead of CoreDNS. Which DNS policy and field combination do you use?',
+          options: [
+            'dnsPolicy: Default with nameservers in /etc/resolv.conf',
+            'dnsPolicy: None with spec.dnsConfig.nameservers set',
+            'dnsPolicy: ClusterFirst with spec.dnsConfig.nameservers set',
+            'dnsPolicy: Override — not a real policy',
+          ],
+          answer: 1,
+          explanation: 'dnsPolicy: None disables all automatic DNS configuration. You must then provide spec.dnsConfig with nameservers, searches, and options. Any other policy ignores dnsConfig.nameservers.',
+        },
+      ],
+      exercises: [
+        {
+          id: 'p2-m8-e1',
+          title: 'Cross-namespace DNS resolution',
+          kind: 'challenge' as const,
+          goal: 'Prove that cross-namespace DNS requires the full FQDN',
+          commands: [
+            'kubectl create namespace test-ns',
+            'kubectl create deployment web -n test-ns --image=nginx:1.27',
+            'kubectl expose deployment web -n test-ns --port=80',
+            'kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup web.test-ns.svc.cluster.local',
+          ],
+          verify: ['nslookup resolves the full FQDN', 'nslookup web (short name) fails from default namespace'],
+          expectedOutcome: 'Full FQDN resolves; short name does not work cross-namespace',
+          cleanup: ['kubectl delete namespace test-ns'],
+        },
+      ],
+    },
+
+    {
+      id: 'p2-m9',
+      slug: 'resource-quotas',
+      title: 'LimitRange & ResourceQuota',
+      description: 'Control resource consumption per namespace: set defaults per container and total budgets per namespace.',
+      duration: '45 min',
+      difficulty: 'intermediate' as const,
+      masteryChecks: [
+        'Explain the difference between LimitRange and ResourceQuota',
+        'Create a LimitRange that sets default CPU/memory for containers',
+        'Create a ResourceQuota that caps total pods and CPU in a namespace',
+        'Observe a pod being rejected when quota is exceeded',
+        'Describe what happens to a pod with no resource requests in a namespace with LimitRange',
+        'Check quota usage with kubectl describe resourcequota',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: A shared cluster has 10 teams. Without any controls, one team could deploy 1000 pods and starve everyone else. What two mechanisms would you use: one for defaults, one for hard caps?
+
+## Two Complementary Mechanisms
+
+### LimitRange — Per-Container Defaults and Limits
+
+Applied per container in a namespace. If a container has no requests/limits set, LimitRange injects defaults.
+
+\`\`\`
+Container without requests/limits
+        ↓ LimitRange injects defaults
+Container with cpu: 100m/500m, memory: 128Mi/512Mi
+\`\`\`
+
+**Also enforces:**
+- \`min\`/\`max\`: containers must stay within these bounds
+- \`maxLimitRequestRatio\`: limits cannot be more than N× requests
+
+### ResourceQuota — Namespace-Level Budget
+
+Hard caps on total resources in a namespace. The scheduler rejects any pod that would exceed the quota.
+
+\`\`\`
+ResourceQuota:
+  requests.cpu: 4        ← total CPU requests across all pods
+  limits.memory: 8Gi     ← total memory limits
+  count/pods: 20         ← max 20 pods
+\`\`\`
+
+## Why Both?
+
+- LimitRange prevents pods with no limits (which can consume unlimited resources)
+- ResourceQuota prevents a namespace from growing beyond its budget
+
+## QoS Classes (Side Effect)
+
+When you set requests = limits, the pod gets **Guaranteed** QoS. When requests < limits, it gets **Burstable**. No requests/limits = **BestEffort** (evicted first under pressure).`,
+      labSteps: [
+        {
+          id: 'p2-m9-s1',
+          title: 'Create a namespace for testing',
+          instruction: 'Work in an isolated namespace.',
+          command: 'kubectl create namespace quota-test',
+          output: ['namespace/quota-test created'],
+          explanation: 'ResourceQuota and LimitRange are namespace-scoped. Always test in a dedicated namespace.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default', 'quota-test'], events: [] },
+        },
+        {
+          id: 'p2-m9-s2',
+          title: 'Create a LimitRange',
+          instruction: 'Apply defaults and bounds for containers in quota-test.',
+          yamlContent: `apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: quota-test
+spec:
+  limits:
+  - type: Container
+    default:
+      cpu: 200m
+      memory: 256Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    max:
+      cpu: "2"
+      memory: 2Gi
+    min:
+      cpu: 50m
+      memory: 64Mi`,
+          output: [],
+          explanation: 'default sets the limit if unspecified. defaultRequest sets the request. max/min are hard bounds — the API rejects containers outside this range.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default', 'quota-test'], events: ['LimitRange default-limits created'] },
+        },
+        {
+          id: 'p2-m9-s3',
+          title: 'Create a ResourceQuota',
+          instruction: 'Set total resource budget for the namespace.',
+          yamlContent: `apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: team-quota
+  namespace: quota-test
+spec:
+  hard:
+    requests.cpu: "1"
+    requests.memory: 512Mi
+    limits.cpu: "2"
+    limits.memory: 1Gi
+    count/pods: "5"`,
+          output: [],
+          explanation: 'count/pods: "5" limits this namespace to 5 pods total. requests.cpu: "1" means all pod CPU requests combined cannot exceed 1 CPU. limits > requests allows bursting.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default', 'quota-test'], events: ['ResourceQuota team-quota created'] },
+        },
+        {
+          id: 'p2-m9-s4',
+          title: 'Check quota usage',
+          instruction: 'See current usage vs limits.',
+          command: 'kubectl describe resourcequota team-quota -n quota-test',
+          output: [
+            'Name:            team-quota',
+            'Namespace:        quota-test',
+            'Resource          Used   Hard',
+            '--------          ----   ----',
+            'count/pods        0      5',
+            'limits.cpu        0      2',
+            'limits.memory     0      1Gi',
+            'requests.cpu      0      1',
+            'requests.memory   0      512Mi',
+          ],
+          explanation: 'Used=0 because no pods are running. As pods are created, Used increases. When Used reaches Hard, new pods are rejected.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default', 'quota-test'], events: [] },
+        },
+        {
+          id: 'p2-m9-s5',
+          title: 'Create pods and hit the quota',
+          instruction: 'Deploy 6 pods — the 6th should be rejected.',
+          command: 'kubectl create deployment over-quota -n quota-test --image=nginx:1.27 --replicas=6',
+          output: [
+            'deployment.apps/over-quota created',
+          ],
+          explanation: 'The Deployment is created but only 5 pods are scheduled. The ReplicaSet controller gets a "forbidden: exceeded quota" error for the 6th pod. kubectl describe rs will show the quota error in Events.',
+          clusterState: {
+            pods: [
+              { id: 'oq1', name: 'over-quota-abc1', namespace: 'quota-test', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'over-quota' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'oq2', name: 'over-quota-abc2', namespace: 'quota-test', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'over-quota' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'oq3', name: 'over-quota-abc3', namespace: 'quota-test', node: 'node-2' as const, status: 'Running' as const, labels: { app: 'over-quota' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'oq4', name: 'over-quota-abc4', namespace: 'quota-test', node: 'node-2' as const, status: 'Running' as const, labels: { app: 'over-quota' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'oq5', name: 'over-quota-abc5', namespace: 'quota-test', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'over-quota' }, image: 'nginx:1.27', restarts: 0 },
+            ],
+            services: [], deployments: [{ id: 'oqd', name: 'over-quota', namespace: 'quota-test', replicas: 6, availableReplicas: 5, image: 'nginx:1.27' }],
+            namespaces: ['default', 'quota-test'], events: ['over-quota-abc6: forbidden: exceeded quota: team-quota'],
+          },
+          tip: 'Run kubectl describe replicaset -n quota-test to see the "exceeded quota" event.',
+        },
+        {
+          id: 'p2-m9-s6',
+          title: 'Clean up',
+          instruction: 'Delete the test namespace (removes everything inside it).',
+          command: 'kubectl delete namespace quota-test',
+          output: ['namespace "quota-test" deleted'],
+          explanation: 'Deleting a namespace cascades to all resources inside it: pods, deployments, services, LimitRanges, ResourceQuotas.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+      ],
+      quiz: [
+        {
+          id: 'p2-m9-q1',
+          question: 'A namespace has a LimitRange. A new pod is created with no resource requests or limits. What happens?',
+          options: [
+            'The pod is rejected — all pods must specify resources',
+            'The pod runs with no limits (can consume unlimited resources)',
+            'The LimitRange injects the default requests and limits automatically',
+            'The pod is placed in BestEffort QoS and evicted first',
+          ],
+          answer: 2,
+          explanation: 'LimitRange\'s defaultRequest and default fields are injected by the admission controller before the pod is stored. The pod ends up with resource specs even though you did not write them.',
+        },
+        {
+          id: 'p2-m9-q2',
+          question: 'ResourceQuota count/pods is set to 10. There are 10 running pods. A new Deployment is created with replicas: 3. What happens?',
+          options: [
+            'The Deployment is created but its pods stay Pending until some pods are deleted',
+            'The Deployment creation is rejected by the API server',
+            'The Deployment is created; the ReplicaSet creates 3 pods but they fail with quota error',
+            'The 3 new pods replace 3 old pods to maintain the limit',
+          ],
+          answer: 2,
+          explanation: 'The Deployment and ReplicaSet objects are created successfully. It is the pod creation that is rejected. The RS will show "forbidden: exceeded quota" in its Events. Existing pods are not evicted.',
+        },
+        {
+          id: 'p2-m9-q3',
+          question: 'A namespace has ResourceQuota but no LimitRange. A pod is created with no resource requests. What happens?',
+          options: [
+            'Pod is created successfully with no resources assigned',
+            'Pod creation is rejected — ResourceQuota requires all pods to have resource requests',
+            'Pod is scheduled to the node with the most free resources',
+            'Pod gets Guaranteed QoS automatically',
+          ],
+          answer: 1,
+          explanation: 'When ResourceQuota specifies requests.cpu or requests.memory, every pod in the namespace MUST declare resource requests. Without LimitRange to inject defaults, pods without explicit requests are rejected.',
+        },
+        {
+          id: 'p2-m9-q4',
+          question: 'What QoS class does a pod get when resources.requests equals resources.limits for all containers?',
+          options: ['BestEffort', 'Burstable', 'Guaranteed', 'Reserved'],
+          answer: 2,
+          explanation: 'Guaranteed QoS requires requests = limits for CPU and memory for all containers. These pods are the last to be evicted under memory pressure. BestEffort (no requests/limits) is evicted first.',
+        },
+        {
+          id: 'p2-m9-q5',
+          question: 'LimitRange sets max.cpu: "500m". A pod requests cpu: "1". What happens?',
+          options: [
+            'The request is automatically capped to 500m',
+            'The pod creation is rejected — it exceeds the LimitRange maximum',
+            'The LimitRange max is advisory — the pod runs with 1 CPU',
+            'The pod is scheduled only on nodes with more than 1 CPU',
+          ],
+          answer: 1,
+          explanation: 'LimitRange max is a hard limit enforced by admission control. Any pod specifying resources beyond max is rejected with: "maximum cpu usage per Container is 500m, but limit is 1".',
+        },
+        {
+          id: 'p2-m9-q6',
+          question: 'Which command shows current ResourceQuota usage vs limits?',
+          options: [
+            'kubectl get resourcequota',
+            'kubectl describe resourcequota <name> -n <namespace>',
+            'kubectl top quota -n <namespace>',
+            'kubectl get quota --used',
+          ],
+          answer: 1,
+          explanation: 'kubectl describe resourcequota shows the Used vs Hard table. kubectl get resourcequota shows a brief summary but not the used amounts.',
+        },
+      ],
+      exercises: [
+        {
+          id: 'p2-m9-e1',
+          title: 'Quota enforcement',
+          kind: 'debug' as const,
+          goal: 'Set up a namespace with ResourceQuota and reproduce the "exceeded quota" error',
+          commands: [
+            'kubectl create namespace quota-lab',
+            'kubectl apply -f limitrange.yaml -n quota-lab',
+            'kubectl apply -f resourcequota.yaml -n quota-lab',
+            'kubectl create deployment test -n quota-lab --image=nginx:1.27 --replicas=6',
+            'kubectl describe rs -n quota-lab',
+          ],
+          verify: [
+            'kubectl describe rs shows exceeded quota event',
+            'kubectl get pods -n quota-lab shows only 5 pods',
+            'kubectl describe resourcequota shows Used=5 Hard=5',
+          ],
+          expectedOutcome: 'Quota enforced at pod 6, ReplicaSet shows quota error in Events',
+          cleanup: ['kubectl delete namespace quota-lab'],
+        },
+      ],
+    },
+
   ],
 }
 

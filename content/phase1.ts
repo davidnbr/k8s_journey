@@ -1345,6 +1345,779 @@ EOF`,
         },
       ],
     },
+    {
+      id: 'p1-m5',
+      slug: 'replicasets',
+      title: 'ReplicaSets — Self-Healing Guarantees',
+      description: 'Understand how ReplicaSets maintain a desired pod count and why Deployments exist on top of them.',
+      duration: '45 min',
+      difficulty: 'beginner' as const,
+      masteryChecks: [
+        'Explain the relationship between Deployment → ReplicaSet → Pod',
+        'Create a ReplicaSet with kubectl apply',
+        'Observe a pod respawning after manual deletion',
+        'Scale a ReplicaSet with kubectl scale',
+        'Identify why you rarely create ReplicaSets directly',
+        'Use kubectl get rs to inspect ReplicaSet status',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: If a Deployment manages ReplicaSets and a ReplicaSet manages Pods, what happens when you delete a Pod that was created by a Deployment? Who recreates it — the Deployment or the ReplicaSet?
+
+## What is a ReplicaSet?
+
+A **ReplicaSet** ensures a specified number of pod replicas are running at all times. If a pod crashes or is deleted, the ReplicaSet controller immediately creates a replacement.
+
+\`\`\`
+ReplicaSet (desired: 3)
+├── Pod nginx-abc12  ← Running
+├── Pod nginx-def34  ← Running  ← delete this
+└── Pod nginx-ghi56  ← Running
+
+After deletion:
+├── Pod nginx-abc12  ← Running
+├── Pod nginx-ghi56  ← Running
+└── Pod nginx-xyz99  ← Running (new — RS respawned it)
+\`\`\`
+
+## ReplicaSet vs Deployment
+
+| Feature | ReplicaSet | Deployment |
+|---------|-----------|------------|
+| Maintains desired pod count | ✓ | ✓ (via RS) |
+| Rolling updates | ✗ | ✓ |
+| Rollback | ✗ | ✓ |
+| Revision history | ✗ | ✓ |
+
+**You almost never create a ReplicaSet directly.** Use a Deployment instead — it creates and manages the ReplicaSet for you, adding rollout and rollback on top.
+
+## Selector Must Match Template Labels
+
+The ReplicaSet selector tells it which pods to count. If the selector does not match the pod template labels, the RS will keep creating pods forever (selector finds 0 matching pods).
+
+\`\`\`yaml
+selector:
+  matchLabels:
+    app: nginx      # must match ↓
+template:
+  metadata:
+    labels:
+      app: nginx    # must match ↑
+\`\`\``,
+      labSteps: [
+        {
+          id: 'p1-m5-s1',
+          title: 'Write a ReplicaSet manifest',
+          instruction: 'Create rs.yaml. Note selector.matchLabels must match template.metadata.labels exactly.',
+          yamlContent: `apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: nginx-rs
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27
+        ports:
+        - containerPort: 80`,
+          output: [],
+          explanation: 'replicas: 3 is the desired state. The controller loop continuously compares actual vs desired and acts to reconcile.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+        {
+          id: 'p1-m5-s2',
+          title: 'Create the ReplicaSet',
+          instruction: 'Apply the manifest and watch three pods appear.',
+          command: 'kubectl apply -f rs.yaml',
+          output: ['replicaset.apps/nginx-rs created'],
+          explanation: 'The ReplicaSet controller sees desired=3, actual=0, creates 3 pods.',
+          clusterState: {
+            pods: [
+              { id: 'rs1', name: 'nginx-rs-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'rs2', name: 'nginx-rs-def34', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'rs3', name: 'nginx-rs-ghi56', namespace: 'default', node: 'node-2' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: ['nginx-rs-abc12 scheduled', 'nginx-rs-def34 scheduled', 'nginx-rs-ghi56 scheduled'],
+          },
+        },
+        {
+          id: 'p1-m5-s3',
+          title: 'Inspect ReplicaSet status',
+          instruction: 'Check the RS status fields.',
+          command: 'kubectl get rs nginx-rs',
+          output: [
+            'NAME       DESIRED   CURRENT   READY   AGE',
+            'nginx-rs   3         3         3       12s',
+          ],
+          explanation: 'DESIRED=3 (spec), CURRENT=3 (pods exist), READY=3 (pods passing readiness). If READY < DESIRED, pods are still starting or failing.',
+          clusterState: {
+            pods: [
+              { id: 'rs1', name: 'nginx-rs-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'rs2', name: 'nginx-rs-def34', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'rs3', name: 'nginx-rs-ghi56', namespace: 'default', node: 'node-2' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+        },
+        {
+          id: 'p1-m5-s4',
+          title: 'Delete a pod — watch it respawn',
+          instruction: 'Delete one pod. The RS immediately creates a replacement.',
+          command: 'kubectl delete pod nginx-rs-abc12',
+          output: ['pod "nginx-rs-abc12" deleted'],
+          explanation: 'The RS controller detects CURRENT=2 < DESIRED=3 and creates a new pod. This is the self-healing guarantee.',
+          clusterState: {
+            pods: [
+              { id: 'rs2', name: 'nginx-rs-def34', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'rs3', name: 'nginx-rs-ghi56', namespace: 'default', node: 'node-2' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'rs4', name: 'nginx-rs-xyz99', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: ['nginx-rs-abc12 deleted', 'nginx-rs-xyz99 scheduled → node-1'],
+          },
+          tip: 'Run kubectl get pods --watch before deleting to see the respawn happen in real time.',
+        },
+        {
+          id: 'p1-m5-s5',
+          title: 'Scale the ReplicaSet',
+          instruction: 'Scale to 5 replicas imperatively.',
+          command: 'kubectl scale rs nginx-rs --replicas=5',
+          output: ['replicaset.apps/nginx-rs scaled'],
+          explanation: 'kubectl scale updates spec.replicas. The controller creates 2 new pods to reach desired=5.',
+          clusterState: {
+            pods: [
+              { id: 'rs2', name: 'nginx-rs-def34', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'rs3', name: 'nginx-rs-ghi56', namespace: 'default', node: 'node-2' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'rs4', name: 'nginx-rs-xyz99', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'rs5', name: 'nginx-rs-aaa11', namespace: 'default', node: 'node-2' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+              { id: 'rs6', name: 'nginx-rs-bbb22', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: ['nginx-rs-aaa11 scheduled', 'nginx-rs-bbb22 scheduled'],
+          },
+        },
+        {
+          id: 'p1-m5-s6',
+          title: 'Clean up',
+          instruction: 'Delete the ReplicaSet. All owned pods are deleted too.',
+          command: 'kubectl delete rs nginx-rs',
+          output: ['replicaset.apps/nginx-rs deleted'],
+          explanation: 'Deleting the RS cascades to owned pods. Use --cascade=orphan to keep pods (they become unmanaged).',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+      ],
+      quiz: [
+        {
+          id: 'p1-m5-q1',
+          question: 'What happens when you delete a pod that is owned by a ReplicaSet?',
+          options: [
+            'The RS decrements its desired count to match',
+            'The RS immediately creates a replacement pod',
+            'The pod is recreated by the kubelet directly',
+            'Nothing — the RS only acts on scale changes',
+          ],
+          answer: 1,
+          explanation: 'The ReplicaSet controller continuously reconciles actual vs desired. Deleting a pod causes actual < desired, so a new pod is created within seconds.',
+        },
+        {
+          id: 'p1-m5-q2',
+          question: 'Why is creating a ReplicaSet directly (without a Deployment) unusual in practice?',
+          options: [
+            'ReplicaSets are deprecated and will be removed',
+            'ReplicaSets have no rolling update or rollback capability',
+            'ReplicaSets cannot span multiple namespaces',
+            'ReplicaSets require a Service to function',
+          ],
+          answer: 1,
+          explanation: 'ReplicaSets only maintain pod count. Deployments add rolling updates, rollback, revision history, and pause/resume — all built on top of ReplicaSets. Always use Deployments unless you have a specific reason not to.',
+        },
+        {
+          id: 'p1-m5-q3',
+          question: 'A ReplicaSet with replicas: 3 shows READY=1. What does this indicate?',
+          options: [
+            'Two pods are still being scheduled',
+            'Two pods exist but are not passing their readiness checks',
+            'The RS is malfunctioning',
+            'Two pods are in Completed state',
+          ],
+          answer: 1,
+          explanation: 'READY counts pods passing readiness probes. If CURRENT=3 but READY=1, two pods exist but are unhealthy (failing readiness probe, starting, or in error). Check kubectl describe pod <name> for details.',
+        },
+        {
+          id: 'p1-m5-q4',
+          question: 'What happens if you create a pod with labels that match a ReplicaSet selector, but there are already enough replicas?',
+          options: [
+            'The RS ignores the manually created pod',
+            'The RS adopts the pod and deletes one of the existing replicas to maintain desired count',
+            'kubectl apply rejects the pod creation',
+            'The RS creates an additional pod to maintain its own copies',
+          ],
+          answer: 1,
+          explanation: 'The RS controller adopts any matching pod. Since adopting it makes CURRENT > DESIRED, it deletes one pod (often the manually created one) to restore desired count.',
+        },
+        {
+          id: 'p1-m5-q5',
+          question: 'Which kubectl command shows the ReplicaSet that a Deployment created?',
+          options: [
+            'kubectl get pods -l app=myapp',
+            'kubectl describe deployment myapp',
+            'kubectl get rs',
+            'kubectl get deployment myapp -o yaml',
+          ],
+          answer: 2,
+          explanation: 'kubectl get rs lists all ReplicaSets. The RS name is the Deployment name plus a hash (e.g. myapp-6d4b7f8c9). kubectl describe deployment also shows the current RS in the Events section.',
+        },
+        {
+          id: 'p1-m5-q6',
+          question: 'You need spec.selector to match spec.template.metadata.labels in a ReplicaSet. What happens if they do not match?',
+          options: [
+            'The RS is created but immediately deleted',
+            'kubectl apply returns a validation error',
+            'The RS keeps creating pods forever because its selector never finds matching pods',
+            'The RS falls back to selecting all pods in the namespace',
+          ],
+          answer: 1,
+          explanation: 'The API server validates that selector and template labels match at creation time. If they do not match, kubectl apply returns: "The ReplicaSet selector does not match the template labels". This is a hard validation error.',
+        },
+      ],
+      exercises: [
+        {
+          id: 'p1-m5-e1',
+          title: 'Self-healing observation',
+          kind: 'challenge' as const,
+          goal: 'Prove that a ReplicaSet maintains pod count under failure',
+          commands: [
+            'kubectl apply -f rs.yaml',
+            'kubectl get pods --watch &',
+            "kubectl delete pod $(kubectl get pods -l app=nginx -o jsonpath='{.items[0].metadata.name}')",
+            'kubectl get rs nginx-rs',
+          ],
+          verify: ['kubectl get rs nginx-rs shows READY=3 after deletion', 'A new pod was created with a different random suffix'],
+          expectedOutcome: 'Three pods always running despite one being deleted',
+          cleanup: ['kubectl delete rs nginx-rs'],
+        },
+      ],
+    },
+
+    {
+      id: 'p1-m6',
+      slug: 'cronjobs',
+      title: 'CronJobs — Scheduled Work',
+      description: 'Run Jobs on a time schedule using standard cron syntax. Essential for backups, cleanups, and reports.',
+      duration: '45 min',
+      difficulty: 'beginner' as const,
+      masteryChecks: [
+        'Write a CronJob manifest with valid cron schedule syntax',
+        'Describe the CronJob → Job → Pod hierarchy',
+        'Trigger a CronJob manually with kubectl create job',
+        'Explain concurrencyPolicy Allow/Forbid/Replace',
+        'Inspect completed jobs and their pod logs',
+        'Suspend and resume a CronJob',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: If your backup CronJob runs every hour but takes 90 minutes to complete, what happens at the next scheduled run? Should the old job be killed? Allowed to run in parallel? Think about concurrencyPolicy before reading.
+
+## CronJob → Job → Pod
+
+CronJobs create **Jobs** on a schedule. Jobs run **Pods** to completion.
+
+\`\`\`
+CronJob (schedule: "0 * * * *")
+ └── Job nginx-backup-1730000000  (created each hour)
+      └── Pod nginx-backup-1730000000-abc12  (runs task, exits 0)
+\`\`\`
+
+## Cron Schedule Syntax
+
+\`\`\`
+┌─── minute (0-59)
+│ ┌─── hour (0-23)
+│ │ ┌─── day of month (1-31)
+│ │ │ ┌─── month (1-12)
+│ │ │ │ ┌─── day of week (0-6, Sun=0)
+│ │ │ │ │
+* * * * *
+
+Examples:
+"0 * * * *"    every hour at :00
+"*/5 * * * *"  every 5 minutes
+"0 2 * * *"    every day at 02:00
+"0 0 * * 0"    every Sunday at midnight
+\`\`\`
+
+## Key Fields
+
+| Field | Default | Meaning |
+|-------|---------|---------|
+| \`concurrencyPolicy\` | Allow | Allow/Forbid/Replace concurrent runs |
+| \`successfulJobsHistoryLimit\` | 3 | Keep N completed jobs |
+| \`failedJobsHistoryLimit\` | 1 | Keep N failed jobs |
+| \`startingDeadlineSeconds\` | nil | Miss window → skip |
+| \`suspend\` | false | Pause scheduling |
+
+## concurrencyPolicy
+
+- **Allow**: new job starts even if previous still running
+- **Forbid**: skip new run if previous still running
+- **Replace**: kill previous run, start new one`,
+      labSteps: [
+        {
+          id: 'p1-m6-s1',
+          title: 'Write a CronJob manifest',
+          instruction: 'Create cronjob.yaml. This runs a simple date echo every minute.',
+          yamlContent: `apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: date-printer
+spec:
+  schedule: "* * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: date
+            image: busybox:1.36
+            command: ["/bin/sh", "-c", "date; echo Job done"]`,
+          output: [],
+          explanation: 'jobTemplate.spec is a Job spec. The CronJob wraps it with a schedule. restartPolicy must be OnFailure or Never for Jobs (not Always).',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+        {
+          id: 'p1-m6-s2',
+          title: 'Create the CronJob',
+          instruction: 'Apply and inspect it.',
+          command: 'kubectl apply -f cronjob.yaml',
+          output: ['cronjob.batch/date-printer created'],
+          explanation: 'The CronJob is created. No Job runs yet — it waits for the next cron tick.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: ['date-printer CronJob created'] },
+        },
+        {
+          id: 'p1-m6-s3',
+          title: 'Inspect the CronJob',
+          instruction: 'See the schedule and last run time.',
+          command: 'kubectl get cronjob date-printer',
+          output: [
+            'NAME           SCHEDULE    TIMEZONE   SUSPEND   ACTIVE   LAST SCHEDULE   AGE',
+            'date-printer   * * * * *   <none>     False     0        <none>          5s',
+          ],
+          explanation: 'ACTIVE=0 means no Job is running right now. LAST SCHEDULE shows when the last Job was triggered. SUSPEND=False means scheduling is active.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+        {
+          id: 'p1-m6-s4',
+          title: 'Trigger manually',
+          instruction: 'Do not wait for the schedule — trigger a Job run right now.',
+          command: 'kubectl create job date-printer-manual --from=cronjob/date-printer',
+          output: ['job.batch/date-printer-manual created'],
+          explanation: '--from=cronjob copies the jobTemplate from the CronJob. Useful for testing your job before waiting for the schedule.',
+          clusterState: {
+            pods: [
+              { id: 'cj1', name: 'date-printer-manual-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { job: 'date-printer-manual' }, image: 'busybox:1.36', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: ['date-printer-manual job created'],
+          },
+        },
+        {
+          id: 'p1-m6-s5',
+          title: 'Check logs',
+          instruction: 'Read the output of the completed pod.',
+          command: 'kubectl logs job/date-printer-manual',
+          output: [
+            'Thu Jun  5 14:30:01 UTC 2026',
+            'Job done',
+          ],
+          explanation: 'kubectl logs job/<name> automatically finds the pod created by the job. You can also use kubectl logs <pod-name> directly.',
+          clusterState: {
+            pods: [
+              { id: 'cj1', name: 'date-printer-manual-abc12', namespace: 'default', node: 'node-1' as const, status: 'Terminated' as const, labels: { job: 'date-printer-manual' }, image: 'busybox:1.36', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+        },
+        {
+          id: 'p1-m6-s6',
+          title: 'Suspend and clean up',
+          instruction: 'Suspend the CronJob to stop future runs, then delete.',
+          command: `kubectl patch cronjob date-printer -p '{"spec":{"suspend":true}}'`,
+          output: ['cronjob.batch/date-printer patched'],
+          explanation: 'suspend: true stops new Jobs from being created. Existing running Jobs continue. Use this for maintenance windows.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: ['date-printer suspended'] },
+          tip: 'Clean up: kubectl delete cronjob date-printer job/date-printer-manual',
+        },
+      ],
+      quiz: [
+        {
+          id: 'p1-m6-q1',
+          question: 'What is the correct restartPolicy for a pod in a CronJob?',
+          options: ['Always', 'Never or OnFailure', 'OnFailure only', 'Any policy works'],
+          answer: 1,
+          explanation: 'Jobs (and CronJobs) require restartPolicy: Never or OnFailure. Always is for long-running services. If you use Always in a Job, kubectl apply will return a validation error.',
+        },
+        {
+          id: 'p1-m6-q2',
+          question: 'concurrencyPolicy: Forbid is set. The current run takes 90 minutes. What happens at the next hourly trigger?',
+          options: [
+            'A new Job starts in parallel',
+            'The scheduled run is skipped',
+            'The running Job is killed and restarted',
+            'The CronJob enters a suspended state',
+          ],
+          answer: 1,
+          explanation: 'Forbid skips the new run if any Job from this CronJob is still active. The missed run is not retried — it is simply skipped.',
+        },
+        {
+          id: 'p1-m6-q3',
+          question: 'How do you trigger a CronJob run immediately without waiting for the schedule?',
+          options: [
+            'kubectl run --from=cronjob/<name>',
+            'kubectl create job <name> --from=cronjob/<name>',
+            'kubectl exec cronjob/<name> -- /bin/sh',
+            'kubectl apply -f cronjob.yaml --force',
+          ],
+          answer: 1,
+          explanation: 'kubectl create job <jobname> --from=cronjob/<cronjobname> copies the jobTemplate and creates a Job immediately. This is the standard way to test a CronJob without waiting.',
+        },
+        {
+          id: 'p1-m6-q4',
+          question: 'successfulJobsHistoryLimit: 3 is set. A 4th Job completes successfully. What happens?',
+          options: [
+            'The CronJob stops scheduling until you manually delete a Job',
+            'The oldest completed Job (and its pods) is deleted',
+            'All 4 Jobs are kept — the limit is advisory only',
+            'The 4th Job is rejected',
+          ],
+          answer: 1,
+          explanation: 'The CronJob controller prunes completed Jobs to stay within successfulJobsHistoryLimit. The oldest completed Job is deleted first. This keeps the namespace clean.',
+        },
+        {
+          id: 'p1-m6-q5',
+          question: 'What cron expression runs a job every day at 3:30 AM?',
+          options: ['"30 3 * * *"', '"3 30 * * *"', '"* * 3 30 *"', '"0 3 30 * *"'],
+          answer: 0,
+          explanation: 'Cron format: minute hour day month weekday. "30 3 * * *" = minute 30, hour 3, every day, every month, every weekday = 03:30 daily.',
+        },
+        {
+          id: 'p1-m6-q6',
+          question: 'How do you pause a CronJob so no new Jobs are created, without deleting it?',
+          options: [
+            'kubectl delete cronjob <name>',
+            `kubectl patch cronjob <name> -p '{"spec":{"suspend":true}}'`,
+            'kubectl cordon cronjob/<name>',
+            'kubectl scale cronjob <name> --replicas=0',
+          ],
+          answer: 1,
+          explanation: 'Setting spec.suspend: true halts new Job creation. Existing Jobs continue running. You can resume with suspend: false. This is the standard maintenance mode for CronJobs.',
+        },
+      ],
+      exercises: [
+        {
+          id: 'p1-m6-e1',
+          title: 'Scheduled backup simulation',
+          kind: 'challenge' as const,
+          goal: 'Create a CronJob that simulates a backup task running every 2 minutes, with Forbid concurrency',
+          commands: [
+            'kubectl apply -f cronjob.yaml',
+            'kubectl create job test-backup --from=cronjob/date-printer',
+            'kubectl logs job/test-backup',
+            'kubectl get jobs',
+          ],
+          verify: [
+            'kubectl get jobs shows a completed job',
+            'kubectl logs job/test-backup shows output',
+            'kubectl get cronjob shows SUSPEND=False',
+          ],
+          expectedOutcome: 'A working CronJob that runs on schedule and can be triggered manually',
+          cleanup: ['kubectl delete cronjob date-printer', 'kubectl delete jobs --all'],
+        },
+      ],
+    },
+
+    {
+      id: 'p1-m7',
+      slug: 'multi-container-patterns',
+      title: 'Multi-Container Patterns',
+      description: 'Sidecar, init, adapter, and ambassador patterns: when to use multiple containers in one Pod.',
+      duration: '60 min',
+      difficulty: 'intermediate' as const,
+      masteryChecks: [
+        'Explain why containers in the same Pod share network and volumes',
+        'Describe the sidecar pattern with a real example (log shipping)',
+        'Write a Pod manifest with a sidecar container sharing an emptyDir volume',
+        'Describe the ambassador pattern',
+        'Describe the adapter pattern',
+        'Exec into a specific container in a multi-container pod with -c flag',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: Two containers in the same Pod share the same IP address. Container A listens on port 8080. Can Container B also listen on port 8080? What does "shared network namespace" mean for service communication?
+
+## Why Multiple Containers?
+
+Containers in the same Pod share:
+- **Network namespace** — same IP, communicate via localhost
+- **Volumes** — can mount the same emptyDir or PVC
+- **Lifecycle** — start and stop together
+
+Use multiple containers to add cross-cutting concerns without modifying the main app image.
+
+## The Four Patterns
+
+### 1. Sidecar
+Augments the main container. Runs alongside it throughout the Pod lifetime.
+
+\`\`\`
+Pod
+├── App Container      → writes logs to /var/log/app/
+└── Sidecar Container  → reads /var/log/app/, ships to Elasticsearch
+        (shared emptyDir volume)
+\`\`\`
+
+**Examples**: log shipping, metrics collection, TLS proxy, config reloader.
+
+### 2. Init Container
+Runs to completion **before** the main container starts. Use for prerequisites.
+
+\`\`\`
+Init Container 1: wait for DB to be ready   → exit 0
+Init Container 2: run migrations            → exit 0
+Main Container:   start application         → (runs forever)
+\`\`\`
+
+### 3. Ambassador
+Proxies outbound connections. Main container talks to localhost; ambassador forwards to the real backend.
+
+\`\`\`
+Pod
+├── App Container    → connects to localhost:6379
+└── Ambassador       → forwards :6379 to Redis Cluster
+\`\`\`
+
+Benefit: swap the backend without changing the app.
+
+### 4. Adapter
+Normalizes output format from the main container for external consumers (e.g. monitoring).
+
+\`\`\`
+Pod
+├── App Container   → exposes metrics at /metrics in proprietary format
+└── Adapter         → reads /metrics, converts to Prometheus format, exposes :9090
+\`\`\`
+
+## Key Constraint
+
+Containers cannot listen on the same port within a Pod (shared network namespace). Assign different ports to each container.`,
+      labSteps: [
+        {
+          id: 'p1-m7-s1',
+          title: 'Write a sidecar pod manifest',
+          instruction: 'Create sidecar.yaml. The app writes logs to a shared emptyDir; the sidecar reads and prints them.',
+          yamlContent: `apiVersion: v1
+kind: Pod
+metadata:
+  name: sidecar-demo
+spec:
+  volumes:
+  - name: shared-logs
+    emptyDir: {}
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["/bin/sh", "-c"]
+    args: ["while true; do echo $(date) >> /var/log/app.log; sleep 5; done"]
+    volumeMounts:
+    - name: shared-logs
+      mountPath: /var/log
+  - name: log-reader
+    image: busybox:1.36
+    command: ["/bin/sh", "-c"]
+    args: ["tail -f /var/log/app.log"]
+    volumeMounts:
+    - name: shared-logs
+      mountPath: /var/log`,
+          output: [],
+          explanation: 'Both containers mount the same emptyDir volume at /var/log. The app container writes; the log-reader sidecar tails. In production, replace log-reader with a Fluentd or Filebeat image.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+        {
+          id: 'p1-m7-s2',
+          title: 'Create the sidecar pod',
+          instruction: 'Apply the manifest.',
+          command: 'kubectl apply -f sidecar.yaml',
+          output: ['pod/sidecar-demo created'],
+          explanation: 'Both containers start. Kubernetes starts them in parallel — init containers are the only ones with guaranteed ordering.',
+          clusterState: {
+            pods: [
+              { id: 'sd', name: 'sidecar-demo', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: ['sidecar-demo scheduled → node-1'],
+          },
+        },
+        {
+          id: 'p1-m7-s3',
+          title: 'Verify both containers run',
+          instruction: 'See both containers in the pod.',
+          command: "kubectl get pod sidecar-demo -o jsonpath='{.spec.containers[*].name}'",
+          output: ['app log-reader'],
+          explanation: 'Two containers in one pod. Both share the same IP — kubectl exec sidecar-demo -c app and kubectl exec sidecar-demo -c log-reader both reach the same network namespace.',
+          clusterState: {
+            pods: [
+              { id: 'sd', name: 'sidecar-demo', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+        },
+        {
+          id: 'p1-m7-s4',
+          title: 'Read sidecar logs',
+          instruction: 'Check what the log-reader sidecar is printing.',
+          command: 'kubectl logs sidecar-demo -c log-reader',
+          output: [
+            'Thu Jun  5 14:30:05 UTC 2026',
+            'Thu Jun  5 14:30:10 UTC 2026',
+            'Thu Jun  5 14:30:15 UTC 2026',
+          ],
+          explanation: 'The -c flag selects which container to read logs from. Without -c on a multi-container pod, kubectl logs requires you to specify the container name.',
+          clusterState: {
+            pods: [
+              { id: 'sd', name: 'sidecar-demo', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+          tip: 'In a multi-container pod, kubectl logs <pod> without -c returns: "error: a container name must be specified".',
+        },
+        {
+          id: 'p1-m7-s5',
+          title: 'Exec into a specific container',
+          instruction: 'Open a shell in the app container to inspect the shared volume.',
+          command: 'kubectl exec sidecar-demo -c app -- cat /var/log/app.log',
+          output: [
+            'Thu Jun  5 14:30:05 UTC 2026',
+            'Thu Jun  5 14:30:10 UTC 2026',
+            'Thu Jun  5 14:30:15 UTC 2026',
+            'Thu Jun  5 14:30:20 UTC 2026',
+          ],
+          explanation: 'Both containers share /var/log via the emptyDir volume. Writes from the app container are immediately visible to the log-reader sidecar.',
+          clusterState: {
+            pods: [
+              { id: 'sd', name: 'sidecar-demo', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 },
+            ],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+        },
+        {
+          id: 'p1-m7-s6',
+          title: 'Clean up',
+          instruction: 'Delete the pod.',
+          command: 'kubectl delete pod sidecar-demo',
+          output: ['pod "sidecar-demo" deleted'],
+          explanation: 'Deleting the pod terminates all containers simultaneously. The emptyDir volume is also destroyed — its data is ephemeral.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+      ],
+      quiz: [
+        {
+          id: 'p1-m7-q1',
+          question: 'Two containers in the same Pod both try to listen on port 8080. What happens?',
+          options: [
+            'Kubernetes assigns different IPs so both can use port 8080',
+            'The second container to start fails with "address already in use"',
+            'Kubernetes automatically remaps one container to port 8081',
+            'Both containers can listen on port 8080 — they are isolated',
+          ],
+          answer: 1,
+          explanation: 'Containers in the same Pod share the network namespace — same IP, same port space. The second container trying to bind port 8080 gets EADDRINUSE and crashes.',
+        },
+        {
+          id: 'p1-m7-q2',
+          question: 'In the sidecar pattern, how does the sidecar typically communicate with the main container?',
+          options: [
+            'Via a Kubernetes Service',
+            'Via a shared volume or localhost network',
+            'Via environment variables set at startup',
+            'Via the Kubernetes API',
+          ],
+          answer: 1,
+          explanation: 'Sidecars use shared volumes (e.g. emptyDir for log files) or localhost network (same IP, different ports). No Service needed — they are co-located in the same pod.',
+        },
+        {
+          id: 'p1-m7-q3',
+          question: 'How do you read logs from a specific container in a multi-container pod?',
+          options: [
+            'kubectl logs <pod> --container=<name>',
+            'kubectl logs <pod> -c <name>',
+            'kubectl logs <pod>/<name>',
+            'Both A and B are valid',
+          ],
+          answer: 3,
+          explanation: 'Both --container=<name> and -c <name> are valid flags for kubectl logs. Without specifying a container, kubectl returns an error asking you to pick one.',
+        },
+        {
+          id: 'p1-m7-q4',
+          question: 'What is the ambassador pattern?',
+          options: [
+            'A sidecar that ships logs to a central logging system',
+            'A container that proxies outbound requests from the main app to an external service',
+            'A container that normalizes the main app output format',
+            'A container that runs prerequisites before the main app starts',
+          ],
+          answer: 1,
+          explanation: 'The ambassador acts as a local proxy. The main app connects to localhost:<port>; the ambassador forwards to the real backend. This decouples the app from backend details (cluster address, TLS, sharding).',
+        },
+        {
+          id: 'p1-m7-q5',
+          question: 'An emptyDir volume is used between two containers. What happens to the data when the pod is deleted?',
+          options: [
+            'Data persists on the node until manually cleaned up',
+            'Data is deleted — emptyDir is ephemeral and tied to pod lifetime',
+            'Data is backed up to etcd',
+            'Data persists until the node is rebooted',
+          ],
+          answer: 1,
+          explanation: 'emptyDir is created when the pod starts and deleted when the pod terminates. It survives container crashes (within the same pod lifetime) but not pod deletion. Use a PersistentVolume for durable storage.',
+        },
+        {
+          id: 'p1-m7-q6',
+          question: 'What is the key difference between an init container and a sidecar container?',
+          options: [
+            'Init containers run in parallel; sidecars run sequentially',
+            'Init containers run to completion before the main container starts; sidecars run alongside the main container',
+            'Init containers cannot access volumes; sidecars can',
+            'Sidecars are only for logging; init containers are for any prereq task',
+          ],
+          answer: 1,
+          explanation: 'Init containers run serially to completion before any regular containers start. Sidecars start with the main container and run for the pod lifetime. This is the fundamental lifecycle difference.',
+        },
+      ],
+      exercises: [
+        {
+          id: 'p1-m7-e1',
+          title: 'Build a metrics adapter',
+          kind: 'challenge' as const,
+          goal: 'Create a 2-container pod where a main app writes metrics to a file and an adapter container reads and prints them in a different format',
+          commands: [
+            'kubectl apply -f sidecar.yaml',
+            'kubectl get pod sidecar-demo',
+            'kubectl logs sidecar-demo -c log-reader',
+            'kubectl exec sidecar-demo -c app -- cat /var/log/app.log',
+          ],
+          verify: [
+            'kubectl get pod sidecar-demo shows READY 2/2',
+            'kubectl logs sidecar-demo -c log-reader shows timestamped lines',
+          ],
+          expectedOutcome: 'Two containers sharing a volume, logs visible from sidecar',
+          cleanup: ['kubectl delete pod sidecar-demo'],
+        },
+      ],
+    },
+
   ],
 }
 

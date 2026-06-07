@@ -256,6 +256,102 @@ const sourceRefs = {
     checkedAt,
     scope: 'concepts',
   },
+  replicaSets: {
+    title: 'ReplicaSets',
+    url: 'https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/',
+    checkedAt,
+    scope: 'concepts',
+  },
+  cronJobs: {
+    title: 'CronJobs',
+    url: 'https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/',
+    checkedAt,
+    scope: 'concepts',
+  },
+  multiContainer: {
+    title: 'Multi-container Pods',
+    url: 'https://kubernetes.io/docs/concepts/workloads/pods/#how-pods-manage-multiple-containers',
+    checkedAt,
+    scope: 'concepts',
+  },
+  serviceTypes: {
+    title: 'Service Types',
+    url: 'https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types',
+    checkedAt,
+    scope: 'concepts',
+  },
+  dns: {
+    title: 'DNS for Services and Pods',
+    url: 'https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/',
+    checkedAt,
+    scope: 'concepts',
+  },
+  limitRange: {
+    title: 'LimitRange',
+    url: 'https://kubernetes.io/docs/concepts/policy/limit-range/',
+    checkedAt,
+    scope: 'concepts',
+  },
+  resourceQuota: {
+    title: 'ResourceQuota',
+    url: 'https://kubernetes.io/docs/concepts/policy/resource-quotas/',
+    checkedAt,
+    scope: 'concepts',
+  },
+  securityContext: {
+    title: 'Security Context',
+    url: 'https://kubernetes.io/docs/tasks/configure-pod-container/security-context/',
+    checkedAt,
+    scope: 'concepts',
+  },
+  podSecurity: {
+    title: 'Pod Security Standards',
+    url: 'https://kubernetes.io/docs/concepts/security/pod-security-standards/',
+    checkedAt,
+    scope: 'concepts',
+  },
+  nodeManagement: {
+    title: 'Node management and safe draining',
+    url: 'https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/',
+    checkedAt,
+    scope: 'tutorial',
+  },
+  kubeadm: {
+    title: 'kubeadm — bootstrapping a cluster',
+    url: 'https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/',
+    checkedAt,
+    scope: 'tutorial',
+  },
+  etcd: {
+    title: 'Operating etcd for Kubernetes',
+    url: 'https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/',
+    checkedAt,
+    scope: 'tutorial',
+  },
+  clusterUpgrade: {
+    title: 'Upgrading kubeadm clusters',
+    url: 'https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/',
+    checkedAt,
+    scope: 'tutorial',
+  },
+  pki: {
+    title: 'PKI certificates and requirements',
+    url: 'https://kubernetes.io/docs/setup/best-practices/certificates/',
+    checkedAt,
+    scope: 'concepts',
+  },
+  troubleshootingApps: {
+    title: 'Troubleshooting Applications',
+    url: 'https://kubernetes.io/docs/tasks/debug/debug-application/',
+    checkedAt,
+    scope: 'tutorial',
+  },
+  troubleshootingCluster: {
+    title: 'Troubleshooting Clusters',
+    url: 'https://kubernetes.io/docs/tasks/debug/debug-cluster/',
+    checkedAt,
+    scope: 'tutorial',
+  },
 } satisfies Record<string, SourceRef>
 
 function coverage(topic: string, extras: Partial<TopicCoverage> = {}): TopicCoverage {
@@ -459,6 +555,123 @@ export const moduleReviews: Record<string, ModuleReview> = {
   'phase-6/ckad': review('phase-6', 'ckad', 'p6-m3', [sourceRefs.cncfCerts, sourceRefs.pods, sourceRefs.configmaps, sourceRefs.secrets, sourceRefs.probes, sourceRefs.jobs], 'CKAD application tasks', {
     supplementalCommands: ['kubectl explain pod.spec.containers', 'kubectl explain pod.spec.initContainers', 'kubectl create configmap ckad-config --from-literal=MODE=review', 'kubectl create secret generic ckad-secret --from-literal=password=s3cr3t', 'kubectl create job ckad-job --image=busybox:1.36 -- echo done', 'kubectl delete configmap ckad-config', 'kubectl delete secret ckad-secret', 'kubectl delete job ckad-job'],
   }),
+  'phase-0/local-setup': review('phase-0', 'local-setup', 'p0-m0', [sourceRefs.minikube, sourceRefs.minikube101, sourceRefs.kubectl], 'local cluster setup with minikube', {
+    minikubePrerequisites: [],
+    supplementalCommands: ['kubectl version --client', 'minikube version', 'minikube start --cpus=2 --memory=4096', 'kubectl cluster-info', 'kubectl get nodes', 'minikube addons enable metrics-server'],
+  }),
+
+  'phase-1/replicasets': review('phase-1', 'replicasets', 'p1-m5', [sourceRefs.replicaSets, sourceRefs.deployments], 'ReplicaSets and self-healing', {
+    supplementalCommands: ['kubectl explain replicaset', 'kubectl get rs', 'kubectl describe rs nginx-rs', "kubectl delete pod $(kubectl get pods -l app=nginx -o jsonpath='{.items[0].metadata.name}')", 'kubectl scale rs nginx-rs --replicas=5', 'kubectl delete rs nginx-rs --ignore-not-found'],
+  }),
+
+  'phase-1/cronjobs': review('phase-1', 'cronjobs', 'p1-m6', [sourceRefs.cronJobs, sourceRefs.jobs], 'CronJobs and scheduled work', {
+    supplementalCommands: ['kubectl explain cronjob.spec.schedule', 'kubectl get cronjobs', 'kubectl create job manual-run --from=cronjob/date-printer', 'kubectl logs job/manual-run', 'kubectl delete cronjob date-printer --ignore-not-found', 'kubectl delete jobs --all --ignore-not-found'],
+  }),
+
+  'phase-1/multi-container-patterns': review('phase-1', 'multi-container-patterns', 'p1-m7', [sourceRefs.multiContainer, sourceRefs.pods, sourceRefs.initContainers], 'multi-container pod patterns', {
+    supplementalCommands: ['kubectl explain pod.spec.containers', "kubectl get pod sidecar-demo -o jsonpath='{.spec.containers[*].name}'", 'kubectl logs sidecar-demo -c log-reader', 'kubectl exec sidecar-demo -c app -- cat /var/log/app.log', 'kubectl delete pod sidecar-demo --ignore-not-found'],
+  }),
+
+  'phase-2/service-types': review('phase-2', 'service-types', 'p2-m7', [sourceRefs.serviceTypes, sourceRefs.services, sourceRefs.minikubeAccess], 'Service types: ClusterIP, NodePort, LoadBalancer, ExternalName, Headless', {
+    minikubePrerequisites: ['minikube start --kubernetes-version=v1.36.1', 'kubectl create deployment nginx --image=nginx:1.27'],
+    supplementalCommands: ['kubectl explain service.spec.type', 'kubectl get svc', 'kubectl get endpoints', 'minikube service nginx-nodeport --url', 'kubectl delete svc nginx-clusterip nginx-nodeport --ignore-not-found'],
+  }),
+
+  'phase-2/dns-coredns': review('phase-2', 'dns-coredns', 'p2-m8', [sourceRefs.dns, sourceRefs.services], 'Kubernetes DNS and CoreDNS', {
+    supplementalCommands: ['kubectl get pods -n kube-system -l k8s-app=kube-dns', 'kubectl get configmap coredns -n kube-system -o yaml', 'kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup kubernetes', 'kubectl logs -n kube-system -l k8s-app=kube-dns --tail=20'],
+  }),
+
+  'phase-2/resource-quotas': review('phase-2', 'resource-quotas', 'p2-m9', [sourceRefs.limitRange, sourceRefs.resourceQuota, sourceRefs.resources], 'LimitRange and ResourceQuota', {
+    supplementalCommands: ['kubectl explain limitrange', 'kubectl explain resourcequota', 'kubectl describe resourcequota -n quota-test', 'kubectl describe limitrange -n quota-test', 'kubectl delete namespace quota-test --ignore-not-found'],
+  }),
+
+  'phase-3/persistent-volumes': review('phase-3', 'persistent-volumes', 'p3-m6', [sourceRefs.persistentVolumes, sourceRefs.volumes], 'PersistentVolumes, PVCs, and StorageClasses', {
+    supplementalCommands: ['kubectl get storageclass', 'kubectl explain persistentvolumeclaim', 'kubectl get pv,pvc', 'kubectl describe pvc my-pvc', 'kubectl delete pvc my-pvc --ignore-not-found', 'kubectl delete pod pvc-writer --ignore-not-found'],
+  }),
+
+  'phase-4/security-context': review('phase-4', 'security-context', 'p4-m6', [sourceRefs.securityContext, sourceRefs.podSecurity, sourceRefs.pods], 'SecurityContext pod and container hardening', {
+    supplementalCommands: ['kubectl explain pod.spec.securityContext', 'kubectl explain pod.spec.containers.securityContext', 'kubectl exec nonroot-pod -- id', 'kubectl exec readonly-pod -- sh -c "echo test > /etc/hack"', 'kubectl delete pod nonroot-pod readonly-pod --ignore-not-found'],
+  }),
+
+  'phase-4/node-management': review('phase-4', 'node-management', 'p4-m7', [sourceRefs.nodeManagement, sourceRefs.scheduling, sourceRefs.taints], 'Node cordon, drain, uncordon, taints', {
+    supplementalCommands: ['kubectl get nodes', 'kubectl cordon minikube', 'kubectl drain minikube --ignore-daemonsets --delete-emptydir-data', 'kubectl uncordon minikube', 'kubectl taint nodes minikube env=prod:NoSchedule', 'kubectl taint nodes minikube env=prod:NoSchedule-'],
+  }),
+
+  'phase-7/cluster-setup': review('phase-7', 'cluster-setup', 'p7-m1', [sourceRefs.kubeadm, sourceRefs.components], 'bootstrapping a cluster with kubeadm', {
+    coverage: coverage('cluster setup and node joining', {
+      commands: ['kubeadm init', 'kubeadm join', 'kubectl apply -f <cni>', 'kubectl get nodes'],
+      architecture: ['kubeadm preflight', 'control plane static pods', 'bootstrap tokens', 'CNI plugin'],
+      toolsAndPlugins: ['kubeadm', 'kubectl', 'flannel/calico'],
+      scenarios: ['single control plane setup', 'worker node join', 'post-init verification'],
+    }),
+    supplementalCommands: ['kubeadm version', 'kubeadm init --dry-run', 'kubectl get nodes -o wide', 'kubectl get pods -n kube-system'],
+  }),
+
+  'phase-7/etcd-operations': review('phase-7', 'etcd-operations', 'p7-m2', [sourceRefs.etcd, sourceRefs.components], 'etcd backup, restore, and health checks', {
+    coverage: coverage('etcd operations', {
+      commands: ['etcdctl snapshot save', 'etcdctl snapshot restore', 'etcdctl endpoint health', 'etcdctl snapshot status'],
+      toolsAndPlugins: ['etcdctl', 'kubectl'],
+      scenarios: ['scheduled backup', 'disaster recovery', 'health monitoring'],
+    }),
+    supplementalCommands: ['export ETCDCTL_API=3', 'kubectl get pods -n kube-system | grep etcd', 'etcdctl --endpoints=https://127.0.0.1:2379 --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key endpoint health'],
+  }),
+
+  'phase-7/cluster-upgrades': review('phase-7', 'cluster-upgrades', 'p7-m3', [sourceRefs.clusterUpgrade, sourceRefs.kubeadm, sourceRefs.nodeManagement], 'upgrading a cluster with kubeadm', {
+    coverage: coverage('cluster upgrade process', {
+      commands: ['kubeadm upgrade plan', 'kubeadm upgrade apply', 'kubectl drain', 'kubectl uncordon', 'systemctl restart kubelet'],
+      procedures: ['check upgrade path', 'upgrade control plane', 'drain worker', 'upgrade kubelet/kubectl', 'uncordon'],
+      scenarios: ['minor version upgrade', 'control plane first', 'rolling worker upgrade'],
+    }),
+    supplementalCommands: ['kubeadm upgrade plan', 'kubectl get nodes', 'kubectl drain minikube --ignore-daemonsets', 'kubectl uncordon minikube'],
+  }),
+
+  'phase-7/certificate-management': review('phase-7', 'certificate-management', 'p7-m4', [sourceRefs.pki, sourceRefs.kubeadm], 'PKI and certificate management', {
+    coverage: coverage('certificate lifecycle management', {
+      commands: ['kubeadm certs check-expiration', 'kubeadm certs renew', 'openssl x509 -text', 'kubectl config view'],
+      architecture: ['Kubernetes PKI', 'CA chain', 'component certificates', 'ServiceAccount tokens'],
+      scenarios: ['pre-expiry renewal', 'certificate inspection', 'kubeconfig verification'],
+    }),
+    supplementalCommands: ['kubeadm certs check-expiration', 'ls /etc/kubernetes/pki/', 'openssl x509 -in /etc/kubernetes/pki/apiserver.crt -text -noout | grep -A2 Validity', 'kubeadm certs renew --dry-run apiserver'],
+  }),
+
+  'phase-8/troubleshooting-pods': review('phase-8', 'troubleshooting-pods', 'p8-m1', [sourceRefs.troubleshootingApps, sourceRefs.pods, sourceRefs.debugging], 'pod troubleshooting: CrashLoopBackOff, OOMKilled, ImagePullBackOff', {
+    coverage: coverage('pod failure diagnosis', {
+      commands: ['kubectl get pods', 'kubectl describe pod', 'kubectl logs', 'kubectl logs --previous', 'kubectl exec', 'kubectl get events'],
+      techniques: ['read status field', 'check events section', 'check previous container logs', 'exec to inspect state'],
+      cases: ['CrashLoopBackOff', 'OOMKilled', 'ImagePullBackOff', 'Pending no resources', 'Init container failure'],
+      scenarios: ['application crash', 'resource exhaustion', 'image registry issue', 'cluster resource shortage'],
+    }),
+    supplementalCommands: ['kubectl get pods -A', 'kubectl describe pod <name>', 'kubectl logs <pod> --previous', 'kubectl get events --sort-by=.lastTimestamp', 'kubectl run debug --image=busybox:1.36 --rm -it -- sh'],
+  }),
+
+  'phase-8/troubleshooting-networking': review('phase-8', 'troubleshooting-networking', 'p8-m2', [sourceRefs.troubleshootingApps, sourceRefs.serviceTypes, sourceRefs.dns, sourceRefs.debugging], 'network troubleshooting: service unreachable, DNS failures', {
+    coverage: coverage('network failure diagnosis', {
+      commands: ['kubectl get endpoints', 'kubectl exec -- curl', 'kubectl exec -- nslookup', 'kubectl port-forward', 'kubectl logs -n kube-system coredns'],
+      techniques: ['check endpoints', 'verify selector matches', 'test DNS from pod', 'inspect CoreDNS logs'],
+      cases: ['empty endpoints', 'wrong selector', 'DNS timeout', 'NetworkPolicy blocking', 'wrong port'],
+    }),
+    supplementalCommands: ['kubectl get endpoints', 'kubectl run debug --image=curlimages/curl --rm -it --restart=Never -- sh', 'kubectl logs -n kube-system -l k8s-app=kube-dns', 'kubectl get networkpolicies'],
+  }),
+
+  'phase-8/troubleshooting-nodes': review('phase-8', 'troubleshooting-nodes', 'p8-m3', [sourceRefs.troubleshootingCluster, sourceRefs.nodeManagement, sourceRefs.debugging], 'node troubleshooting: NotReady, kubelet, disk pressure', {
+    coverage: coverage('node failure diagnosis', {
+      commands: ['kubectl get nodes', 'kubectl describe node', 'systemctl status kubelet', 'journalctl -u kubelet', 'kubectl cordon'],
+      architecture: ['node conditions', 'kubelet process', 'container runtime', 'disk/memory pressure'],
+      cases: ['NotReady', 'MemoryPressure', 'DiskPressure', 'kubelet crash', 'network unavailable'],
+    }),
+    supplementalCommands: ['kubectl get nodes -o wide', 'kubectl describe node minikube', 'kubectl get events -A --sort-by=.lastTimestamp | grep -i node'],
+  }),
+
+  'phase-8/troubleshooting-cluster': review('phase-8', 'troubleshooting-cluster', 'p8-m4', [sourceRefs.troubleshootingCluster, sourceRefs.components, sourceRefs.etcd, sourceRefs.debugging], 'cluster component troubleshooting: control plane, static pods, etcd', {
+    coverage: coverage('control plane failure diagnosis', {
+      commands: ['kubectl get pods -n kube-system', 'kubectl logs -n kube-system', 'ls /etc/kubernetes/manifests', 'etcdctl endpoint health'],
+      architecture: ['static pod manifests', 'kube-apiserver', 'kube-scheduler', 'kube-controller-manager', 'etcd health'],
+      toolsAndPlugins: ['kubectl', 'etcdctl', 'systemctl', 'journalctl'],
+      cases: ['broken static pod manifest', 'wrong flag in apiserver', 'etcd unreachable', 'controller-manager crash'],
+    }),
+    supplementalCommands: ['kubectl get pods -n kube-system', 'ls /etc/kubernetes/manifests/', 'kubectl logs -n kube-system kube-apiserver-minikube', 'kubectl get componentstatuses 2>/dev/null || true'],
+  }),
+
 }
 
 export function getModuleReview(phaseSlug: string, moduleSlug: string): ModuleReview | undefined {

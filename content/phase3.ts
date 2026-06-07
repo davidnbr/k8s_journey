@@ -2283,6 +2283,260 @@ EOF`,
         },
       ],
     },
+    {
+      id: 'p3-m6',
+      slug: 'persistent-volumes',
+      title: 'PersistentVolumes — Storage Lifecycle',
+      description: 'Decouple storage from pods: PersistentVolumes, PersistentVolumeClaims, and StorageClasses for dynamic provisioning.',
+      duration: '60 min',
+      difficulty: 'intermediate' as const,
+      masteryChecks: [
+        'Explain the PV → PVC → Pod binding lifecycle',
+        'Create a PersistentVolume and bind a PVC to it',
+        'Mount a PVC in a pod and verify data persists across pod restarts',
+        'Describe the three access modes: RWO, ROX, RWX',
+        'Describe the three reclaim policies: Retain, Delete, Recycle',
+        'Use a StorageClass for dynamic provisioning on minikube',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: A pod crashes and is rescheduled to a different node. An emptyDir volume is gone. A hostPath volume might have data on the wrong node. What storage abstraction would let the pod resume with the same data regardless of which node it lands on?
+
+## The Storage Abstraction Stack
+
+\`\`\`
+Pod
+ └── Volume (PVC reference)
+      └── PersistentVolumeClaim (namespace-scoped request)
+           └── PersistentVolume (cluster-scoped actual storage)
+                └── Storage backend (NFS, cloud disk, hostPath...)
+\`\`\`
+
+**PV**: Cluster-scoped storage resource. Provisioned by an admin or dynamically.
+**PVC**: Namespace-scoped claim by a workload. Specifies size, access mode, StorageClass.
+**StorageClass**: Defines a provisioner. Enables dynamic PV creation on demand.
+
+## Binding
+
+PVC binding is automatic when a PV matches:
+1. PVC requested size ≤ PV capacity
+2. Access modes overlap
+3. StorageClass matches (or both empty)
+
+Once bound, the PVC and PV are exclusive to each other.
+
+## Access Modes
+
+| Mode | Short | Meaning |
+|------|-------|---------|
+| ReadWriteOnce | RWO | One node, read+write |
+| ReadOnlyMany | ROX | Many nodes, read-only |
+| ReadWriteMany | RWX | Many nodes, read+write |
+
+Most cloud block devices only support RWO. NFS supports RWX.
+
+## Reclaim Policies
+
+| Policy | After PVC deleted |
+|--------|-----------------|
+| **Retain** | PV stays, data kept, must manually reclaim |
+| **Delete** | PV and backing storage deleted |
+| **Recycle** | Deprecated — rm -rf then reuse |
+
+## Dynamic Provisioning with StorageClass
+
+Instead of pre-creating PVs, a StorageClass provisions them on demand:
+
+\`\`\`
+PVC created → StorageClass provisioner creates PV → PVC binds to PV
+\`\`\`
+
+minikube has a default StorageClass (standard) backed by hostPath.`,
+      labSteps: [
+        {
+          id: 'p3-m6-s1',
+          title: 'List available StorageClasses',
+          instruction: 'See what StorageClasses minikube provides.',
+          command: 'kubectl get storageclasses',
+          output: [
+            'NAME                 PROVISIONER                RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE',
+            'standard (default)   k8s.io/minikube-hostpath   Delete          Immediate           false                  45m',
+          ],
+          explanation: 'The "standard" StorageClass is marked (default). Any PVC without a storageClassName gets this class. RECLAIMPOLICY=Delete means the PV is deleted when the PVC is deleted.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+        {
+          id: 'p3-m6-s2',
+          title: 'Create a PVC using dynamic provisioning',
+          instruction: 'Request 1Gi of storage — the StorageClass creates the PV automatically.',
+          yamlContent: `apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi`,
+          output: [],
+          explanation: 'No storageClassName specified → uses the default (standard). The provisioner creates a PV and binds it immediately.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: ['my-pvc created, bound to pvc-abc12'] },
+        },
+        {
+          id: 'p3-m6-s3',
+          title: 'Verify PVC is Bound',
+          instruction: 'Check PVC status.',
+          command: 'kubectl get pvc my-pvc',
+          output: [
+            'NAME     STATUS   VOLUME           CAPACITY   ACCESS MODES   STORAGECLASS   AGE',
+            'my-pvc   Bound    pvc-abc12-def5   1Gi        RWO            standard       8s',
+          ],
+          explanation: 'STATUS=Bound means a PV was found/created and exclusively paired with this PVC. VOLUME shows the auto-generated PV name. If STATUS=Pending, the provisioner is working or no matching PV exists.',
+          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+        },
+        {
+          id: 'p3-m6-s4',
+          title: 'Mount the PVC in a Pod',
+          instruction: 'Create a pod that writes to the PVC.',
+          yamlContent: `apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-writer
+spec:
+  containers:
+  - name: writer
+    image: busybox:1.36
+    command: ["/bin/sh", "-c"]
+    args: ["echo 'persistent data' > /data/file.txt && sleep 3600"]
+    volumeMounts:
+    - name: storage
+      mountPath: /data
+  volumes:
+  - name: storage
+    persistentVolumeClaim:
+      claimName: my-pvc`,
+          output: [],
+          explanation: 'The pod mounts my-pvc at /data. Any writes to /data survive pod restarts and rescheduling (to the same node, for RWO).',
+          clusterState: {
+            pods: [{ id: 'pw', name: 'pvc-writer', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 }],
+            services: [], deployments: [], namespaces: ['default'], events: ['pvc-writer scheduled → node-1'],
+          },
+        },
+        {
+          id: 'p3-m6-s5',
+          title: 'Verify data persists after pod restart',
+          instruction: 'Delete the pod and create a new one — the data should still be there.',
+          command: 'kubectl delete pod pvc-writer && kubectl apply -f pod-with-pvc.yaml',
+          output: ['pod "pvc-writer" deleted', 'pod/pvc-writer created'],
+          explanation: 'The PVC (and PV) survive pod deletion. A new pod mounting the same PVC finds the existing data. This is the key difference from emptyDir.',
+          clusterState: {
+            pods: [{ id: 'pw2', name: 'pvc-writer', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 }],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+        },
+        {
+          id: 'p3-m6-s6',
+          title: 'Verify file contents',
+          instruction: 'Read the file from the new pod to confirm persistence.',
+          command: 'kubectl exec pvc-writer -- cat /data/file.txt',
+          output: ['persistent data'],
+          explanation: 'The file written by the first pod is still there. This confirms the PVC persisted data across pod deletion and recreation.',
+          clusterState: {
+            pods: [{ id: 'pw2', name: 'pvc-writer', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 }],
+            services: [], deployments: [], namespaces: ['default'], events: [],
+          },
+          tip: 'Clean up: kubectl delete pod pvc-writer && kubectl delete pvc my-pvc',
+        },
+      ],
+      quiz: [
+        {
+          id: 'p3-m6-q1',
+          question: 'A PVC is Pending. What is the most likely cause?',
+          options: [
+            'The pod mounting it has not been created yet',
+            'No PV matches the PVC requirements (size, access mode, StorageClass)',
+            'The namespace does not allow PVCs',
+            'PVCs always start Pending and become Bound after 30 seconds',
+          ],
+          answer: 1,
+          explanation: 'Pending means no available PV matches the PVC\'s requirements. Check: is the requested size ≤ available PV? Do access modes overlap? Is the StorageClass correct? For dynamic provisioning: is the provisioner running?',
+        },
+        {
+          id: 'p3-m6-q2',
+          question: 'A PVC with RWO access mode is Bound. Two pods try to mount it simultaneously on different nodes. What happens?',
+          options: [
+            'Both pods mount successfully',
+            'The second pod stays Pending — RWO allows only one node at a time',
+            'The first pod is evicted to make room for the second',
+            'The PVC is automatically upgraded to RWX',
+          ],
+          answer: 1,
+          explanation: 'ReadWriteOnce allows only one node to mount the volume for writing. The second pod on a different node stays Pending. On the same node, multiple pods can mount RWO (depends on the storage driver).',
+        },
+        {
+          id: 'p3-m6-q3',
+          question: 'A PVC is deleted with reclaimPolicy: Retain. What state is the PV in?',
+          options: [
+            'Deleted — both PVC and PV are gone',
+            'Released — PV exists but is not available for new PVCs',
+            'Available — PV is recycled and ready for a new PVC',
+            'Bound — PV stays bound until explicitly released',
+          ],
+          answer: 1,
+          explanation: 'With Retain, the PV moves to Released state. The data is preserved on the underlying storage. A new PVC cannot bind to it (Released ≠ Available). An admin must manually clean up and recycle it.',
+        },
+        {
+          id: 'p3-m6-q4',
+          question: 'What does a StorageClass do?',
+          options: [
+            'Limits the amount of storage a namespace can request',
+            'Defines a provisioner and parameters for dynamic PV creation',
+            'Assigns storage QoS to pods',
+            'Maps physical disk partitions to namespaces',
+          ],
+          answer: 1,
+          explanation: 'StorageClass specifies which provisioner to use (e.g. AWS EBS, GCE PD, minikube hostpath) and its parameters (e.g. disk type, zone). When a PVC references a StorageClass, the provisioner creates the PV automatically.',
+        },
+        {
+          id: 'p3-m6-q5',
+          question: 'You delete a pod that was using a PVC. What happens to the data?',
+          options: [
+            'Data is deleted with the pod',
+            'Data persists in the PVC/PV — only deleting the PVC removes it',
+            'Data is copied to etcd for backup',
+            'Data persists only if the pod had restartPolicy: Never',
+          ],
+          answer: 1,
+          explanation: 'PVCs are independent of pod lifecycle. Deleting a pod does not delete the PVC. The data persists until the PVC itself is deleted (and depending on reclaimPolicy, until the PV is also deleted).',
+        },
+        {
+          id: 'p3-m6-q6',
+          question: 'Which access mode allows multiple nodes to read AND write simultaneously?',
+          options: ['ReadWriteOnce (RWO)', 'ReadOnlyMany (ROX)', 'ReadWriteMany (RWX)', 'ReadWriteAll (RWA)'],
+          answer: 2,
+          explanation: 'ReadWriteMany (RWX) allows multiple nodes to mount the volume for reading and writing simultaneously. NFS and some cloud file systems support RWX. Most block storage (AWS EBS, GCE PD) only supports RWO.',
+        },
+      ],
+      exercises: [
+        {
+          id: 'p3-m6-e1',
+          title: 'Prove PVC data survives pod deletion',
+          kind: 'guided' as const,
+          goal: 'Write data to a PVC, delete the pod, create a new pod, read the data back',
+          commands: [
+            'kubectl apply -f pvc.yaml',
+            'kubectl apply -f pod-pvc.yaml',
+            'kubectl exec pvc-writer -- sh -c "echo hello > /data/test.txt"',
+            'kubectl delete pod pvc-writer',
+            'kubectl apply -f pod-pvc.yaml',
+            'kubectl exec pvc-writer -- cat /data/test.txt',
+          ],
+          verify: ['Second pod reads "hello" from /data/test.txt', 'kubectl get pvc shows STATUS=Bound throughout'],
+          expectedOutcome: 'Data persists across pod restart via PVC',
+          cleanup: ['kubectl delete pod pvc-writer', 'kubectl delete pvc my-pvc'],
+        },
+      ],
+    },
+
   ],
 }
 
