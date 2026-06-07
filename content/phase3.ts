@@ -1,7 +1,11 @@
 import type { Phase, ClusterState } from '@/lib/types'
 
 const emptyCluster: ClusterState = {
-  pods: [], services: [], deployments: [], namespaces: ['default'], events: [],
+  pods: [],
+  services: [],
+  deployments: [],
+  namespaces: ['default'],
+  events: [],
 }
 
 const phase3: Phase = {
@@ -9,7 +13,8 @@ const phase3: Phase = {
   slug: 'phase-3',
   title: 'Storage, Ingress & Advanced Workloads',
   shortTitle: 'Storage & Ingress',
-  description: 'Persist data with Volumes and PersistentVolumes, expose apps externally with Ingress, and run stateful and node-level workloads.',
+  description:
+    'Persist data with Volumes and PersistentVolumes, expose apps externally with Ingress, and run stateful and node-level workloads.',
   weeks: 'Week 5–6',
   hours: '~10 hours',
   color: 'text-orange-400',
@@ -20,7 +25,8 @@ const phase3: Phase = {
       id: 'p3-m1',
       slug: 'volumes',
       title: 'Volumes & PersistentVolumes',
-      description: 'Understand ephemeral vs persistent storage and provision durable disks with PVCs and StorageClasses.',
+      description:
+        'Understand ephemeral vs persistent storage and provision durable disks with PVCs and StorageClasses.',
       duration: '75 min',
       difficulty: 'intermediate',
       theory: `> 🧠 **Brain Warm-Up**: If a Pod request for a PVC fails with a "Pending" status because there are no matching PersistentVolumes, how does the Kubernetes control plane determine which volume storage class and provisioner to invoke, and what happens at the Node-level OS filesystem when the volume is eventually attached?
@@ -154,7 +160,8 @@ Kubelet then configures the container runtime (CRI gRPC API) to launch the conta
         {
           id: 'p3-m1-s1',
           title: 'Create a Pod with an emptyDir volume',
-          instruction: 'Generate a Pod spec dry-run, add an emptyDir volume and a volumeMount, then apply it.',
+          instruction:
+            'Generate a Pod spec dry-run, add an emptyDir volume and a volumeMount, then apply it.',
           command: 'kubectl apply -f scratch-pod.yaml',
           yamlContent: `apiVersion: v1
 kind: Pod
@@ -171,15 +178,28 @@ spec:
   - name: scratch-vol
     emptyDir: {}`,
           output: ['pod/scratch created'],
-          explanation: 'The emptyDir volume is created when the Pod starts and mounted at /scratch inside the container. Both the volume and its data live and die with the Pod — if the container crashes and restarts, the data survives. If the Pod is deleted, the data is gone.',
+          explanation:
+            'The emptyDir volume is created when the Pod starts and mounted at /scratch inside the container. Both the volume and its data live and die with the Pod — if the container crashes and restarts, the data survives. If the Pod is deleted, the data is gone.',
           clusterState: {
             pods: [
-              { id: 'scratch-xyz', name: 'scratch', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'scratch-xyz',
+                name: 'scratch',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: ['Pod scratch scheduled → node-1', 'emptyDir volume scratch-vol mounted at /scratch'],
+            events: [
+              'Pod scratch scheduled → node-1',
+              'emptyDir volume scratch-vol mounted at /scratch',
+            ],
             highlightedComponent: 'kubelet',
           },
           tip: 'Use kubectl run scratch --image=nginx:1.27 --dry-run=client -o yaml > scratch-pod.yaml to generate the base spec, then add the volumes and volumeMounts sections.',
@@ -188,12 +208,23 @@ spec:
           id: 'p3-m1-s2',
           title: 'Write and read a file inside the emptyDir',
           instruction: 'Exec into the pod, write a file to /scratch, and read it back.',
-          command: 'kubectl exec scratch -- sh -c "echo hello > /scratch/test.txt && cat /scratch/test.txt"',
+          command:
+            'kubectl exec scratch -- sh -c "echo hello > /scratch/test.txt && cat /scratch/test.txt"',
           output: ['hello'],
-          explanation: 'The file is written to the emptyDir volume, not to the container\'s root filesystem. This distinction matters: the container layer is discarded on restart, but the emptyDir survives a container restart within the same Pod.',
+          explanation:
+            "The file is written to the emptyDir volume, not to the container's root filesystem. This distinction matters: the container layer is discarded on restart, but the emptyDir survives a container restart within the same Pod.",
           clusterState: {
             pods: [
-              { id: 'scratch-xyz', name: 'scratch', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'scratch-xyz',
+                name: 'scratch',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -205,28 +236,44 @@ spec:
           id: 'p3-m1-s3',
           title: 'Prove emptyDir is ephemeral with the Pod',
           instruction: 'Delete the Pod, recreate it, and try to read the file — it will be gone.',
-          command: 'kubectl delete pod scratch && kubectl apply -f scratch-pod.yaml && kubectl exec scratch -- cat /scratch/test.txt',
+          command:
+            'kubectl delete pod scratch && kubectl apply -f scratch-pod.yaml && kubectl exec scratch -- cat /scratch/test.txt',
           output: [
             'pod "scratch" deleted',
             'pod/scratch created',
             'cat: /scratch/test.txt: No such file or directory',
           ],
-          explanation: 'emptyDir is tied to the Pod, not the container. When the Pod was deleted, its emptyDir was destroyed. The new Pod got a fresh, empty directory. This is why emptyDir is only suitable for temporary scratch space, not for data you need to keep.',
+          explanation:
+            'emptyDir is tied to the Pod, not the container. When the Pod was deleted, its emptyDir was destroyed. The new Pod got a fresh, empty directory. This is why emptyDir is only suitable for temporary scratch space, not for data you need to keep.',
           clusterState: {
             pods: [
-              { id: 'scratch-abc2', name: 'scratch', namespace: 'default', node: 'node-2', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'scratch-abc2',
+                name: 'scratch',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: {},
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: ['Pod scratch deleted', 'Pod scratch recreated → node-2', 'emptyDir is empty — data lost'],
+            events: [
+              'Pod scratch deleted',
+              'Pod scratch recreated → node-2',
+              'emptyDir is empty — data lost',
+            ],
           },
-          tip: 'Notice the Pod may land on a different node this time. Even if it landed on the same node, the emptyDir data would still be gone because it was tied to the previous Pod\'s lifecycle.',
+          tip: "Notice the Pod may land on a different node this time. Even if it landed on the same node, the emptyDir data would still be gone because it was tied to the previous Pod's lifecycle.",
         },
         {
           id: 'p3-m1-s4',
           title: 'Create a PersistentVolumeClaim',
-          instruction: 'Create a PVC requesting 1Gi of ReadWriteOnce storage from the standard StorageClass.',
+          instruction:
+            'Create a PVC requesting 1Gi of ReadWriteOnce storage from the standard StorageClass.',
           command: 'kubectl apply -f data-pvc.yaml',
           yamlContent: `apiVersion: v1
 kind: PersistentVolumeClaim
@@ -245,15 +292,27 @@ spec:
             'NAME       STATUS   VOLUME       CAPACITY   ACCESS MODES   STORAGECLASS   AGE',
             'data-vol   Bound    pv-abc123    1Gi        RWO            standard       3s',
           ],
-          explanation: 'The PVC was immediately Bound because the StorageClass "standard" supports dynamic provisioning — it automatically created a PV (pv-abc123) to satisfy the request. The PVC is now exclusively reserved for your use in the default namespace.',
+          explanation:
+            'The PVC was immediately Bound because the StorageClass "standard" supports dynamic provisioning — it automatically created a PV (pv-abc123) to satisfy the request. The PVC is now exclusively reserved for your use in the default namespace.',
           clusterState: {
             pods: [],
             services: [
-              { id: 'pv-abc123', name: 'pv-abc123 (PV)', namespace: 'default', type: 'ClusterIP', selector: {}, port: 0, clusterIP: '—' },
+              {
+                id: 'pv-abc123',
+                name: 'pv-abc123 (PV)',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: {},
+                port: 0,
+                clusterIP: '—',
+              },
             ],
             deployments: [],
             namespaces: ['default'],
-            events: ['PVC data-vol: Bound to pv-abc123', 'StorageClass standard dynamically provisioned pv-abc123'],
+            events: [
+              'PVC data-vol: Bound to pv-abc123',
+              'StorageClass standard dynamically provisioned pv-abc123',
+            ],
             highlightedComponent: 'controller',
           },
           tip: 'If a PVC stays in Pending, it means no PV matched the requested storageClass, accessMode, and size. Check kubectl describe pvc data-vol for the exact reason.',
@@ -261,7 +320,8 @@ spec:
         {
           id: 'p3-m1-s5',
           title: 'Mount the PVC in a Pod',
-          instruction: 'Create a Pod that references the PVC by name — data will now persist across Pod restarts.',
+          instruction:
+            'Create a Pod that references the PVC by name — data will now persist across Pod restarts.',
           command: 'kubectl apply -f pvc-pod.yaml',
           yamlContent: `apiVersion: v1
 kind: Pod
@@ -279,17 +339,38 @@ spec:
     persistentVolumeClaim:
       claimName: data-vol`,
           output: ['pod/data-pod created'],
-          explanation: 'The key difference from emptyDir: the volume source is persistentVolumeClaim.claimName. Kubernetes looks up the PVC, finds the bound PV (pv-abc123), and tells kubelet to mount that real disk. If you delete this Pod and create another Pod referencing the same PVC, the data will still be there.',
+          explanation:
+            'The key difference from emptyDir: the volume source is persistentVolumeClaim.claimName. Kubernetes looks up the PVC, finds the bound PV (pv-abc123), and tells kubelet to mount that real disk. If you delete this Pod and create another Pod referencing the same PVC, the data will still be there.',
           clusterState: {
             pods: [
-              { id: 'data-pod-xyz', name: 'data-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'data-pod-xyz',
+                name: 'data-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'pv-abc123', name: 'pv-abc123 (PV)', namespace: 'default', type: 'ClusterIP', selector: {}, port: 0, clusterIP: '—' },
+              {
+                id: 'pv-abc123',
+                name: 'pv-abc123 (PV)',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: {},
+                port: 0,
+                clusterIP: '—',
+              },
             ],
             deployments: [],
             namespaces: ['default'],
-            events: ['PVC data-vol: Bound to pv-abc123', 'Pod data-pod mounting PVC data-vol at /data'],
+            events: [
+              'PVC data-vol: Bound to pv-abc123',
+              'Pod data-pod mounting PVC data-vol at /data',
+            ],
             highlightedComponent: 'kubelet',
           },
         },
@@ -302,13 +383,31 @@ spec:
             'NAME        CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM              STORAGECLASS   AGE',
             'pv-abc123   1Gi        RWO            Delete           Bound    default/data-vol   standard       5m',
           ],
-          explanation: 'The PV shows RECLAIM POLICY: Delete — when you delete the PVC data-vol, Kubernetes will automatically delete this PV and the underlying storage. If you needed to keep the data even after deleting the PVC (e.g., for audit), you would patch the PV\'s reclaimPolicy to Retain before deleting the PVC.',
+          explanation:
+            "The PV shows RECLAIM POLICY: Delete — when you delete the PVC data-vol, Kubernetes will automatically delete this PV and the underlying storage. If you needed to keep the data even after deleting the PVC (e.g., for audit), you would patch the PV's reclaimPolicy to Retain before deleting the PVC.",
           clusterState: {
             pods: [
-              { id: 'data-pod-xyz', name: 'data-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'data-pod-xyz',
+                name: 'data-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'pv-abc123', name: 'pv-abc123 (PV)', namespace: 'default', type: 'ClusterIP', selector: {}, port: 0, clusterIP: '—' },
+              {
+                id: 'pv-abc123',
+                name: 'pv-abc123 (PV)',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: {},
+                port: 0,
+                clusterIP: '—',
+              },
             ],
             deployments: [],
             namespaces: ['default'],
@@ -320,7 +419,8 @@ spec:
       quiz: [
         {
           id: 'p3-m1-q1',
-          question: 'You have two containers in the same Pod that need to share files. Which volume type is best?',
+          question:
+            'You have two containers in the same Pod that need to share files. Which volume type is best?',
           options: [
             'hostPath — mounts the node filesystem so both containers see the same files',
             'emptyDir — created when the Pod starts and shared between all containers in the Pod',
@@ -328,7 +428,8 @@ spec:
             'configMap — designed for sharing configuration files between containers',
           ],
           answer: 1,
-          explanation: 'emptyDir is exactly the right tool for sharing files between containers in the same Pod. It is created when the Pod starts and is accessible to every container in that Pod. Both containers mount the same emptyDir volume at their respective mountPaths.',
+          explanation:
+            'emptyDir is exactly the right tool for sharing files between containers in the same Pod. It is created when the Pod starts and is accessible to every container in that Pod. Both containers mount the same emptyDir volume at their respective mountPaths.',
         },
         {
           id: 'p3-m1-q2',
@@ -340,11 +441,13 @@ spec:
             'PVCs always start in Pending before moving to Bound after 60 seconds',
           ],
           answer: 1,
-          explanation: 'A PVC stays Pending when no suitable PV exists and the StorageClass cannot dynamically provision one — usually because the storageClassName does not exist, the accessMode is not supported, or the cluster has no provisioner configured. Use kubectl describe pvc <name> to see the exact event.',
+          explanation:
+            'A PVC stays Pending when no suitable PV exists and the StorageClass cannot dynamically provision one — usually because the storageClassName does not exist, the accessMode is not supported, or the cluster has no provisioner configured. Use kubectl describe pvc <name> to see the exact event.',
         },
         {
           id: 'p3-m1-q3',
-          question: 'What access mode allows a volume to be mounted ReadWrite by multiple nodes simultaneously?',
+          question:
+            'What access mode allows a volume to be mounted ReadWrite by multiple nodes simultaneously?',
           options: [
             'ReadWriteOnce (RWO)',
             'ReadOnlyMany (ROX)',
@@ -352,11 +455,13 @@ spec:
             'ReadWriteAll (RWA)',
           ],
           answer: 2,
-          explanation: 'ReadWriteMany (RWX) allows the volume to be mounted as read-write by many nodes at the same time. Most block storage drivers (AWS EBS, GCE PD) only support ReadWriteOnce. NFS and cloud file systems like Azure Files or AWS EFS support RWX.',
+          explanation:
+            'ReadWriteMany (RWX) allows the volume to be mounted as read-write by many nodes at the same time. Most block storage drivers (AWS EBS, GCE PD) only support ReadWriteOnce. NFS and cloud file systems like Azure Files or AWS EFS support RWX.',
         },
         {
           id: 'p3-m1-q4',
-          question: 'What happens to data on a PV with reclaimPolicy: Retain when the PVC is deleted?',
+          question:
+            'What happens to data on a PV with reclaimPolicy: Retain when the PVC is deleted?',
           options: [
             'The PV and its data are immediately deleted',
             'The PV is released and its data is preserved — the PV must be manually reclaimed',
@@ -364,18 +469,55 @@ spec:
             'The data is archived to object storage before the PV is deleted',
           ],
           answer: 1,
-          explanation: 'With reclaimPolicy: Retain, deleting the PVC moves the PV to Released state but does NOT delete the PV or the underlying data. An administrator must manually inspect the data, clean it up if needed, and then delete the PV object before it can be reused.',
+          explanation:
+            'With reclaimPolicy: Retain, deleting the PVC moves the PV to Released state but does NOT delete the PV or the underlying data. An administrator must manually inspect the data, clean it up if needed, and then delete the PV object before it can be reused.',
         },
       ],
       coverage: {
-        concepts: ['emptyDir for ephemeral shared storage', 'PersistentVolume (PV) as cluster resource', 'PersistentVolumeClaim (PVC) as namespace claim', 'StorageClass for dynamic provisioning', 'access modes: ReadWriteOnce/ReadOnlyMany/ReadWriteMany', 'reclaimPolicy: Retain/Delete'],
-        commands: ['kubectl get pv', 'kubectl get pvc', 'kubectl get storageclass', 'kubectl describe pv', 'kubectl describe pvc', 'kubectl apply -f pvc.yaml'],
-        architecture: ['PV cluster-scoped, PVC namespace-scoped', 'StorageClass provisioner creates PV on demand', 'PVC binding: capacity + accessMode + storageClass matching', 'kubelet mounts PV onto node before pod starts'],
-        techniques: ['dynamic provisioning via StorageClass', 'static PV provisioning', 'mounting PVC in pod volumeMounts', 'verifying data persistence across pod delete/recreate'],
-        procedures: ['create PVC with StorageClass', 'mount PVC in pod', 'write data, delete pod, recreate pod, verify data persists', 'inspect PV reclaimPolicy after PVC delete'],
+        concepts: [
+          'emptyDir for ephemeral shared storage',
+          'PersistentVolume (PV) as cluster resource',
+          'PersistentVolumeClaim (PVC) as namespace claim',
+          'StorageClass for dynamic provisioning',
+          'access modes: ReadWriteOnce/ReadOnlyMany/ReadWriteMany',
+          'reclaimPolicy: Retain/Delete',
+        ],
+        commands: [
+          'kubectl get pv',
+          'kubectl get pvc',
+          'kubectl get storageclass',
+          'kubectl describe pv',
+          'kubectl describe pvc',
+          'kubectl apply -f pvc.yaml',
+        ],
+        architecture: [
+          'PV cluster-scoped, PVC namespace-scoped',
+          'StorageClass provisioner creates PV on demand',
+          'PVC binding: capacity + accessMode + storageClass matching',
+          'kubelet mounts PV onto node before pod starts',
+        ],
+        techniques: [
+          'dynamic provisioning via StorageClass',
+          'static PV provisioning',
+          'mounting PVC in pod volumeMounts',
+          'verifying data persistence across pod delete/recreate',
+        ],
+        procedures: [
+          'create PVC with StorageClass',
+          'mount PVC in pod',
+          'write data, delete pod, recreate pod, verify data persists',
+          'inspect PV reclaimPolicy after PVC delete',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube', 'minikube storage-provisioner addon'],
-        cases: ['PVC stays Pending — no matching StorageClass or capacity', 'pod Pending — PVC not bound yet', 'data deleted silently with reclaimPolicy: Delete after PVC removed'],
-        scenarios: ['persist data across pod restarts on minikube', 'debug PVC stuck in Pending: wrong StorageClass name'],
+        cases: [
+          'PVC stays Pending — no matching StorageClass or capacity',
+          'pod Pending — PVC not bound yet',
+          'data deleted silently with reclaimPolicy: Delete after PVC removed',
+        ],
+        scenarios: [
+          'persist data across pod restarts on minikube',
+          'debug PVC stuck in Pending: wrong StorageClass name',
+        ],
       },
       exercises: [
         {
@@ -441,11 +583,25 @@ EOF`,
             'kubectl get pod task-pv-pod',
             'kubectl exec -it task-pv-pod -- /bin/bash -c "curl http://localhost/"',
           ],
-          verify: ['After PV create: STATUS shows Available', 'After PVC create: PV STATUS changes to Bound, CLAIM shows default/task-pv-claim', 'PVC STATUS shows Bound, VOLUME shows task-pv-volume', 'curl inside pod returns "Hello from Kubernetes storage"'],
+          verify: [
+            'After PV create: STATUS shows Available',
+            'After PVC create: PV STATUS changes to Bound, CLAIM shows default/task-pv-claim',
+            'PVC STATUS shows Bound, VOLUME shows task-pv-volume',
+            'curl inside pod returns "Hello from Kubernetes storage"',
+          ],
           expectedOutcome: 'Full PV → PVC → Pod bind chain confirmed; node data served via nginx.',
-          cleanup: ['kubectl delete pod task-pv-pod --ignore-not-found', 'kubectl delete pvc task-pv-claim --ignore-not-found', 'kubectl delete pv task-pv-volume --ignore-not-found'],
+          cleanup: [
+            'kubectl delete pod task-pv-pod --ignore-not-found',
+            'kubectl delete pvc task-pv-claim --ignore-not-found',
+            'kubectl delete pv task-pv-volume --ignore-not-found',
+          ],
           sourceRefs: [
-            { title: 'Kubernetes: Configure a Pod to Use a PersistentVolume for Storage', url: 'https://kubernetes.io/docs/tutorials/configuration/configure-persistent-volume-storage/', checkedAt: '2026-06', scope: 'tutorial' },
+            {
+              title: 'Kubernetes: Configure a Pod to Use a PersistentVolume for Storage',
+              url: 'https://kubernetes.io/docs/tutorials/configuration/configure-persistent-volume-storage/',
+              checkedAt: '2026-06',
+              scope: 'tutorial',
+            },
           ],
         },
         {
@@ -488,7 +644,10 @@ EOF`,
           ],
           verify: ['PVC bound', 'Pod running', 'cat returns hello'],
           expectedOutcome: 'PVC and pod written from memory and working correctly.',
-          cleanup: ['kubectl delete pod challenge-pod --ignore-not-found', 'kubectl delete pvc challenge-pvc'],
+          cleanup: [
+            'kubectl delete pod challenge-pod --ignore-not-found',
+            'kubectl delete pvc challenge-pvc',
+          ],
         },
         {
           id: 'p3-m1-e3',
@@ -513,7 +672,10 @@ EOF`,
             'kubectl describe pvc broken-pvc',
             'kubectl get storageclass',
           ],
-          verify: ['PVC stays in Pending', 'describe shows no provisioner event or StorageClass not found'],
+          verify: [
+            'PVC stays in Pending',
+            'describe shows no provisioner event or StorageClass not found',
+          ],
           expectedOutcome: 'StorageClass mismatch identified as root cause of Pending PVC.',
           cleanup: ['kubectl delete pvc broken-pvc'],
         },
@@ -540,7 +702,8 @@ EOF`,
       id: 'p3-m2',
       slug: 'statefulsets',
       title: 'StatefulSets',
-      description: 'Run databases and clustered apps that need stable identities, ordered startup, and per-Pod persistent storage.',
+      description:
+        'Run databases and clustered apps that need stable identities, ordered startup, and per-Pod persistent storage.',
       duration: '75 min',
       difficulty: 'intermediate',
       theory: `> 🧠 **Brain Warm-Up**: When a StatefulSet Pod (e.g., \`mysql-1\`) crashes or its host node becomes unreachable, how does Kubernetes guarantee that a replacement Pod doesn't start on another node and access the same raw block storage volume concurrently, potentially causing data corruption?
@@ -631,7 +794,8 @@ If a node hosting a StatefulSet Pod (e.g., \`web-1\`) loses connection to the AP
         {
           id: 'p3-m2-s1',
           title: 'Create the Headless Service',
-          instruction: 'A StatefulSet requires a Headless Service (clusterIP: None) to provide stable DNS entries for each Pod.',
+          instruction:
+            'A StatefulSet requires a Headless Service (clusterIP: None) to provide stable DNS entries for each Pod.',
           command: 'kubectl apply -f web-headless-svc.yaml',
           yamlContent: `apiVersion: v1
 kind: Service
@@ -645,11 +809,20 @@ spec:
   - port: 80
     name: http`,
           output: ['service/web created'],
-          explanation: 'A Headless Service does not get a virtual cluster IP — clusterIP: None tells Kubernetes to skip IP allocation. When a client does a DNS lookup for "web.default.svc.cluster.local", DNS returns all Pod IPs directly. The StatefulSet controller uses this service to build the stable per-Pod DNS names.',
+          explanation:
+            'A Headless Service does not get a virtual cluster IP — clusterIP: None tells Kubernetes to skip IP allocation. When a client does a DNS lookup for "web.default.svc.cluster.local", DNS returns all Pod IPs directly. The StatefulSet controller uses this service to build the stable per-Pod DNS names.',
           clusterState: {
             pods: [],
             services: [
-              { id: 'web-headless', name: 'web', namespace: 'default', type: 'ClusterIP', selector: { app: 'web' }, port: 80, clusterIP: 'None' },
+              {
+                id: 'web-headless',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: 'None',
+              },
             ],
             deployments: [],
             namespaces: ['default'],
@@ -660,7 +833,8 @@ spec:
         {
           id: 'p3-m2-s2',
           title: 'Create the StatefulSet',
-          instruction: 'Apply a StatefulSet with 3 replicas and a volumeClaimTemplate that gives each Pod its own 1Gi PVC.',
+          instruction:
+            'Apply a StatefulSet with 3 replicas and a volumeClaimTemplate that gives each Pod its own 1Gi PVC.',
           command: 'kubectl apply -f web-statefulset.yaml',
           yamlContent: `apiVersion: apps/v1
 kind: StatefulSet
@@ -692,13 +866,31 @@ spec:
         requests:
           storage: 1Gi`,
           output: ['statefulset.apps/web created'],
-          explanation: 'The serviceName field links the StatefulSet to the Headless Service, enabling stable DNS. The volumeClaimTemplates section is like a PVC template — Kubernetes creates data-web-0, data-web-1, and data-web-2 automatically. Pods are created one at a time in order: web-0 must be Running before web-1 starts.',
+          explanation:
+            'The serviceName field links the StatefulSet to the Headless Service, enabling stable DNS. The volumeClaimTemplates section is like a PVC template — Kubernetes creates data-web-0, data-web-1, and data-web-2 automatically. Pods are created one at a time in order: web-0 must be Running before web-1 starts.',
           clusterState: {
             pods: [
-              { id: 'web-0', name: 'web-0', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'web-0',
+                name: 'web-0',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'web-headless', name: 'web', namespace: 'default', type: 'ClusterIP', selector: { app: 'web' }, port: 80, clusterIP: 'None' },
+              {
+                id: 'web-headless',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: 'None',
+              },
             ],
             deployments: [],
             namespaces: ['default'],
@@ -710,7 +902,8 @@ spec:
         {
           id: 'p3-m2-s3',
           title: 'Watch ordered Pod startup',
-          instruction: 'List pods — they should be named web-0, web-1, web-2 and started in that exact order.',
+          instruction:
+            'List pods — they should be named web-0, web-1, web-2 and started in that exact order.',
           command: 'kubectl get pods',
           output: [
             'NAME    READY   STATUS    RESTARTS   AGE',
@@ -718,15 +911,51 @@ spec:
             'web-1   1/1     Running   0          60s',
             'web-2   1/1     Running   0          30s',
           ],
-          explanation: 'Each Pod has a stable, predictable name: web-0, web-1, web-2. This is fundamentally different from a Deployment where you would see names like web-7d4f9b-xk2p. The age difference shows ordered startup — web-0 was Running before web-1 was created.',
+          explanation:
+            'Each Pod has a stable, predictable name: web-0, web-1, web-2. This is fundamentally different from a Deployment where you would see names like web-7d4f9b-xk2p. The age difference shows ordered startup — web-0 was Running before web-1 was created.',
           clusterState: {
             pods: [
-              { id: 'web-0', name: 'web-0', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'web-1', name: 'web-1', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'web-2', name: 'web-2', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'web-0',
+                name: 'web-0',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'web-1',
+                name: 'web-1',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'web-2',
+                name: 'web-2',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'web-headless', name: 'web', namespace: 'default', type: 'ClusterIP', selector: { app: 'web' }, port: 80, clusterIP: 'None' },
+              {
+                id: 'web-headless',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: 'None',
+              },
             ],
             deployments: [],
             namespaces: ['default'],
@@ -744,25 +973,66 @@ spec:
             'data-web-1   Bound    pv-bb2222    1Gi        RWO            standard       60s',
             'data-web-2   Bound    pv-cc3333    1Gi        RWO            standard       30s',
           ],
-          explanation: 'Three separate PVCs — data-web-0, data-web-1, data-web-2 — each bound to its own PV. This is the power of volumeClaimTemplates: each Pod replica gets isolated storage. web-0\'s data is never visible to web-1 or web-2.',
+          explanation:
+            "Three separate PVCs — data-web-0, data-web-1, data-web-2 — each bound to its own PV. This is the power of volumeClaimTemplates: each Pod replica gets isolated storage. web-0's data is never visible to web-1 or web-2.",
           clusterState: {
             pods: [
-              { id: 'web-0', name: 'web-0', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'web-1', name: 'web-1', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'web-2', name: 'web-2', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'web-0',
+                name: 'web-0',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'web-1',
+                name: 'web-1',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'web-2',
+                name: 'web-2',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'web-headless', name: 'web', namespace: 'default', type: 'ClusterIP', selector: { app: 'web' }, port: 80, clusterIP: 'None' },
+              {
+                id: 'web-headless',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: 'None',
+              },
             ],
             deployments: [],
             namespaces: ['default'],
-            events: ['PVC data-web-0: Bound to pv-aa1111', 'PVC data-web-1: Bound to pv-bb2222', 'PVC data-web-2: Bound to pv-cc3333'],
+            events: [
+              'PVC data-web-0: Bound to pv-aa1111',
+              'PVC data-web-1: Bound to pv-bb2222',
+              'PVC data-web-2: Bound to pv-cc3333',
+            ],
           },
         },
         {
           id: 'p3-m2-s5',
           title: 'Delete a Pod — it returns with the same name',
-          instruction: 'Delete web-1 and watch it come back with the exact same name and reconnect to its PVC.',
+          instruction:
+            'Delete web-1 and watch it come back with the exact same name and reconnect to its PVC.',
           command: 'kubectl delete pod web-1 && kubectl get pods -w',
           output: [
             'pod "web-1" deleted',
@@ -774,19 +1044,59 @@ spec:
             'web-1   0/1     ContainerCreating   0          1s',
             'web-1   1/1     Running             0          4s',
           ],
-          explanation: 'The replacement Pod is named web-1 — not web-1-abcde or any random suffix. It automatically rebinds to the PVC data-web-1, recovering all its data. The stable DNS name web-1.web.default.svc.cluster.local also resolves to the new Pod immediately. Other pods that relied on this DNS name are unaffected.',
+          explanation:
+            'The replacement Pod is named web-1 — not web-1-abcde or any random suffix. It automatically rebinds to the PVC data-web-1, recovering all its data. The stable DNS name web-1.web.default.svc.cluster.local also resolves to the new Pod immediately. Other pods that relied on this DNS name are unaffected.',
           clusterState: {
             pods: [
-              { id: 'web-0', name: 'web-0', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'web-1', name: 'web-1', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'web-2', name: 'web-2', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'web-0',
+                name: 'web-0',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'web-1',
+                name: 'web-1',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'web-2',
+                name: 'web-2',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'web-headless', name: 'web', namespace: 'default', type: 'ClusterIP', selector: { app: 'web' }, port: 80, clusterIP: 'None' },
+              {
+                id: 'web-headless',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: 'None',
+              },
             ],
             deployments: [],
             namespaces: ['default'],
-            events: ['web-1 deleted', 'web-1 recreated → rebound to data-web-1', 'DNS web-1.web.default.svc.cluster.local still resolves'],
+            events: [
+              'web-1 deleted',
+              'web-1 recreated → rebound to data-web-1',
+              'DNS web-1.web.default.svc.cluster.local still resolves',
+            ],
             highlightedComponent: 'controller',
           },
           tip: 'Stable DNS name format: <pod-name>.<service-name>.<namespace>.svc.cluster.local. For web-1: web-1.web.default.svc.cluster.local.',
@@ -803,7 +1113,8 @@ spec:
             'The StatefulSet does not recreate it — you must recreate manually',
           ],
           answer: 1,
-          explanation: 'StatefulSets always recreate a deleted Pod with the same ordinal name. mysql-2 is recreated as mysql-2, not mysql-3 or mysql-2-abcde. This stable identity is the core guarantee of a StatefulSet.',
+          explanation:
+            'StatefulSets always recreate a deleted Pod with the same ordinal name. mysql-2 is recreated as mysql-2, not mysql-3 or mysql-2-abcde. This stable identity is the core guarantee of a StatefulSet.',
         },
         {
           id: 'p3-m2-q2',
@@ -815,7 +1126,8 @@ spec:
             'To prevent Pods from receiving any traffic during startup',
           ],
           answer: 2,
-          explanation: 'A Headless Service (clusterIP: None) causes DNS to return individual Pod IPs instead of a single virtual IP. Combined with a StatefulSet, each Pod gets a stable DNS name like mysql-0.mysql.default.svc.cluster.local. This allows apps to address a specific replica directly — essential for database clustering.',
+          explanation:
+            'A Headless Service (clusterIP: None) causes DNS to return individual Pod IPs instead of a single virtual IP. Combined with a StatefulSet, each Pod gets a stable DNS name like mysql-0.mysql.default.svc.cluster.local. This allows apps to address a specific replica directly — essential for database clustering.',
         },
         {
           id: 'p3-m2-q3',
@@ -827,11 +1139,13 @@ spec:
             'Random order determined by the scheduler',
           ],
           answer: 2,
-          explanation: 'StatefulSets start Pods in ascending ordinal order: 0 → 1 → 2. Each Pod must be in Running and Ready state before the next one is created. Shutdown happens in reverse (2 → 1 → 0). This ordered lifecycle lets databases elect a primary before replicas start.',
+          explanation:
+            'StatefulSets start Pods in ascending ordinal order: 0 → 1 → 2. Each Pod must be in Running and Ready state before the next one is created. Shutdown happens in reverse (2 → 1 → 0). This ordered lifecycle lets databases elect a primary before replicas start.',
         },
         {
           id: 'p3-m2-q4',
-          question: 'How is volumeClaimTemplates different from a regular volumes entry in a StatefulSet?',
+          question:
+            'How is volumeClaimTemplates different from a regular volumes entry in a StatefulSet?',
           options: [
             'There is no functional difference — both can be used interchangeably',
             'volumeClaimTemplates creates a separate PVC for each Pod replica; a regular volumes entry shares one PVC across all Pods',
@@ -839,18 +1153,56 @@ spec:
             'A regular volumes entry supports more StorageClasses than volumeClaimTemplates',
           ],
           answer: 1,
-          explanation: 'volumeClaimTemplates acts as a PVC factory: it creates data-pod-0, data-pod-1, data-pod-2 — one unique PVC per Pod. A regular volumes.persistentVolumeClaim entry references one existing PVC that all Pods would share (which breaks isolation for databases).',
+          explanation:
+            'volumeClaimTemplates acts as a PVC factory: it creates data-pod-0, data-pod-1, data-pod-2 — one unique PVC per Pod. A regular volumes.persistentVolumeClaim entry references one existing PVC that all Pods would share (which breaks isolation for databases).',
         },
       ],
       coverage: {
-        concepts: ['StatefulSet ordinal pod identity (pod-0, pod-1)', 'stable network identity via headless service', 'per-pod storage via volumeClaimTemplates', 'ordered pod creation: 0→1→2', 'ordered deletion: 2→1→0', 'PodManagementPolicy: OrderedReady vs Parallel'],
-        commands: ['kubectl get statefulsets', 'kubectl describe statefulset', 'kubectl scale statefulset', 'kubectl get pods -l (ordinal names visible)', 'kubectl get pvc (one per pod)', 'kubectl delete pod <ss>-0'],
-        architecture: ['StatefulSet controller: ordinal → pod name → PVC name binding', 'headless service (clusterIP: None) for per-pod DNS', 'volumeClaimTemplate creates data-<ss>-<n> PVC per pod', 'ordered scale-up/down ensures safe primary election'],
-        techniques: ['headless service for stable pod DNS', 'volumeClaimTemplates for isolated per-pod storage', 'ordered startup for database primary election', 'manual PVC cleanup required after StatefulSet delete'],
-        procedures: ['create headless service', 'create StatefulSet with volumeClaimTemplates', 'verify per-pod DNS names', 'scale StatefulSet up and down', 'verify PVC per pod exists'],
+        concepts: [
+          'StatefulSet ordinal pod identity (pod-0, pod-1)',
+          'stable network identity via headless service',
+          'per-pod storage via volumeClaimTemplates',
+          'ordered pod creation: 0→1→2',
+          'ordered deletion: 2→1→0',
+          'PodManagementPolicy: OrderedReady vs Parallel',
+        ],
+        commands: [
+          'kubectl get statefulsets',
+          'kubectl describe statefulset',
+          'kubectl scale statefulset',
+          'kubectl get pods -l (ordinal names visible)',
+          'kubectl get pvc (one per pod)',
+          'kubectl delete pod <ss>-0',
+        ],
+        architecture: [
+          'StatefulSet controller: ordinal → pod name → PVC name binding',
+          'headless service (clusterIP: None) for per-pod DNS',
+          'volumeClaimTemplate creates data-<ss>-<n> PVC per pod',
+          'ordered scale-up/down ensures safe primary election',
+        ],
+        techniques: [
+          'headless service for stable pod DNS',
+          'volumeClaimTemplates for isolated per-pod storage',
+          'ordered startup for database primary election',
+          'manual PVC cleanup required after StatefulSet delete',
+        ],
+        procedures: [
+          'create headless service',
+          'create StatefulSet with volumeClaimTemplates',
+          'verify per-pod DNS names',
+          'scale StatefulSet up and down',
+          'verify PVC per pod exists',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube'],
-        cases: ['StatefulSet pod stuck Pending — volumeClaimTemplate PVC stuck', 'pod-0 deleted — replacement gets same name and reattaches same PVC', 'leftover PVCs after StatefulSet deleted — manual cleanup needed'],
-        scenarios: ['3-replica database with separate storage per replica', 'verify stable DNS name pod-0.<headless-svc> survives pod restart'],
+        cases: [
+          'StatefulSet pod stuck Pending — volumeClaimTemplate PVC stuck',
+          'pod-0 deleted — replacement gets same name and reattaches same PVC',
+          'leftover PVCs after StatefulSet deleted — manual cleanup needed',
+        ],
+        scenarios: [
+          '3-replica database with separate storage per replica',
+          'verify stable DNS name pod-0.<headless-svc> survives pod restart',
+        ],
       },
       exercises: [
         {
@@ -918,11 +1270,27 @@ EOF`,
             'kubectl patch statefulset web -p \'{"spec":{"replicas":3}}\'',
             'kubectl get pods --watch -l app=nginx',
           ],
-          verify: ['Pods created in order: web-0 then web-1 (watch confirms sequential)', 'kubectl get statefulset web shows READY 2/2', 'exec hostname returns web-0 and web-1 respectively', 'scale to 5 creates web-2, web-3, web-4 in order', 'scale down to 3 deletes web-4 then web-3 in reverse order'],
-          expectedOutcome: 'Ordered creation/deletion and stable hostname identity confirmed following official tutorial.',
-          cleanup: ['kubectl delete statefulset web', 'kubectl delete service nginx', 'kubectl delete pvc -l app=nginx --ignore-not-found'],
+          verify: [
+            'Pods created in order: web-0 then web-1 (watch confirms sequential)',
+            'kubectl get statefulset web shows READY 2/2',
+            'exec hostname returns web-0 and web-1 respectively',
+            'scale to 5 creates web-2, web-3, web-4 in order',
+            'scale down to 3 deletes web-4 then web-3 in reverse order',
+          ],
+          expectedOutcome:
+            'Ordered creation/deletion and stable hostname identity confirmed following official tutorial.',
+          cleanup: [
+            'kubectl delete statefulset web',
+            'kubectl delete service nginx',
+            'kubectl delete pvc -l app=nginx --ignore-not-found',
+          ],
           sourceRefs: [
-            { title: 'Kubernetes: StatefulSet Basics', url: 'https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/', checkedAt: '2026-06', scope: 'tutorial' },
+            {
+              title: 'Kubernetes: StatefulSet Basics',
+              url: 'https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/',
+              checkedAt: '2026-06',
+              scope: 'tutorial',
+            },
           ],
         },
         {
@@ -936,7 +1304,11 @@ EOF`,
             'kubectl exec web-ss-0 -- hostname',
             'kubectl get pvc | grep data-web-ss-0',
           ],
-          verify: ['Replacement pod gets exact name web-ss-0', 'hostname still returns web-ss-0', 'PVC data-web-ss-0 still Bound to same pod'],
+          verify: [
+            'Replacement pod gets exact name web-ss-0',
+            'hostname still returns web-ss-0',
+            'PVC data-web-ss-0 still Bound to same pod',
+          ],
           expectedOutcome: 'Stable identity — name, DNS, and storage — survives pod restart.',
           cleanup: [],
         },
@@ -982,9 +1354,16 @@ EOF`,
             'kubectl get pvc | grep broken-ss',
             'kubectl describe pvc data-broken-ss-0',
           ],
-          verify: ['Pod stays Pending', 'PVC data-broken-ss-0 stays Pending', 'describe pvc shows StorageClass not found'],
+          verify: [
+            'Pod stays Pending',
+            'PVC data-broken-ss-0 stays Pending',
+            'describe pvc shows StorageClass not found',
+          ],
           expectedOutcome: 'Trace StatefulSet Pending to PVC Pending to StorageClass mismatch.',
-          cleanup: ['kubectl delete statefulset broken-ss --ignore-not-found', 'kubectl delete pvc data-broken-ss-0 --ignore-not-found'],
+          cleanup: [
+            'kubectl delete statefulset broken-ss --ignore-not-found',
+            'kubectl delete pvc data-broken-ss-0 --ignore-not-found',
+          ],
         },
         {
           id: 'p3-m2-e4',
@@ -996,7 +1375,10 @@ EOF`,
             'kubectl explain statefulset.spec.serviceName',
             'kubectl explain statefulset.spec.podManagementPolicy',
           ],
-          verify: ['explain returns field descriptions', 'Can state: ordinal name, per-pod PVC, headless service purpose'],
+          verify: [
+            'explain returns field descriptions',
+            'Can state: ordinal name, per-pod PVC, headless service purpose',
+          ],
           expectedOutcome: 'StatefulSet guarantees recalled accurately without notes.',
           cleanup: [],
         },
@@ -1008,7 +1390,8 @@ EOF`,
       id: 'p3-m3',
       slug: 'daemonsets',
       title: 'DaemonSets',
-      description: 'Run exactly one Pod on every node for cluster-wide infrastructure like log collectors and monitoring agents.',
+      description:
+        'Run exactly one Pod on every node for cluster-wide infrastructure like log collectors and monitoring agents.',
       duration: '45 min',
       difficulty: 'intermediate',
       theory: `> 🧠 **Brain Warm-Up**: How does a DaemonSet bypass a node's \`NoSchedule\` taints to run system-critical pods (like network plugins or log agents) on master or cordoned nodes, and why does the default scheduler handle DaemonSet pods differently than normal application pods?
@@ -1092,7 +1475,8 @@ System daemons should always be defined with **Guaranteed QoS** (requests = limi
         {
           id: 'p3-m3-s1',
           title: 'Create a DaemonSet for log collection',
-          instruction: 'Apply a DaemonSet using the Fluent Bit image — one Pod will be scheduled on every node.',
+          instruction:
+            'Apply a DaemonSet using the Fluent Bit image — one Pod will be scheduled on every node.',
           command: 'kubectl apply -f log-collector-ds.yaml',
           yamlContent: `apiVersion: apps/v1
 kind: DaemonSet
@@ -1115,16 +1499,39 @@ spec:
             memory: 128Mi
             cpu: 100m`,
           output: ['daemonset.apps/log-collector created'],
-          explanation: 'The DaemonSet spec looks similar to a Deployment but has no replicas field. The scheduler decides how many Pods to run based on the node count. For a 3-node cluster (node-1, node-2, controlplane), 3 Pods will be created.',
+          explanation:
+            'The DaemonSet spec looks similar to a Deployment but has no replicas field. The scheduler decides how many Pods to run based on the node count. For a 3-node cluster (node-1, node-2, controlplane), 3 Pods will be created.',
           clusterState: {
             pods: [
-              { id: 'log-node1', name: 'log-collector-node1', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'log-collector' }, image: 'fluent/fluent-bit:3.3', restarts: 0 },
-              { id: 'log-node2', name: 'log-collector-node2', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'log-collector' }, image: 'fluent/fluent-bit:3.3', restarts: 0 },
+              {
+                id: 'log-node1',
+                name: 'log-collector-node1',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'log-collector' },
+                image: 'fluent/fluent-bit:3.3',
+                restarts: 0,
+              },
+              {
+                id: 'log-node2',
+                name: 'log-collector-node2',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'log-collector' },
+                image: 'fluent/fluent-bit:3.3',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: ['DaemonSet log-collector created', 'Pod scheduled on node-1', 'Pod scheduled on node-2'],
+            events: [
+              'DaemonSet log-collector created',
+              'Pod scheduled on node-1',
+              'Pod scheduled on node-2',
+            ],
             highlightedComponent: 'controller',
           },
           tip: 'DaemonSet Pods are also scheduled on the control plane node by default if no taint is present. In managed Kubernetes (EKS, GKE, AKS) the control plane is hidden and only worker nodes receive DaemonSet Pods.',
@@ -1140,11 +1547,30 @@ spec:
             'log-collector-9mwqr         1/1     Running   0          node-2         30s',
             'log-collector-vt7nz         1/1     Running   0          controlplane   30s',
           ],
-          explanation: 'One Pod per node — exactly what a DaemonSet guarantees. Each Pod has a random suffix (4hxkp, 9mwqr, vt7nz) appended to the DaemonSet name, unlike StatefulSets which use ordinal numbers. The NODE column confirms the 1:1 mapping. Note: this sample illustrates a 3-node cluster — on your single-node minikube you\'ll see exactly one log-collector Pod, scheduled on the `minikube` node.',
+          explanation:
+            "One Pod per node — exactly what a DaemonSet guarantees. Each Pod has a random suffix (4hxkp, 9mwqr, vt7nz) appended to the DaemonSet name, unlike StatefulSets which use ordinal numbers. The NODE column confirms the 1:1 mapping. Note: this sample illustrates a 3-node cluster — on your single-node minikube you'll see exactly one log-collector Pod, scheduled on the `minikube` node.",
           clusterState: {
             pods: [
-              { id: 'log-4hxkp', name: 'log-collector-4hxkp', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'log-collector' }, image: 'fluent/fluent-bit:3.3', restarts: 0 },
-              { id: 'log-9mwqr', name: 'log-collector-9mwqr', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'log-collector' }, image: 'fluent/fluent-bit:3.3', restarts: 0 },
+              {
+                id: 'log-4hxkp',
+                name: 'log-collector-4hxkp',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'log-collector' },
+                image: 'fluent/fluent-bit:3.3',
+                restarts: 0,
+              },
+              {
+                id: 'log-9mwqr',
+                name: 'log-collector-9mwqr',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'log-collector' },
+                image: 'fluent/fluent-bit:3.3',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -1161,11 +1587,30 @@ spec:
             'NAME            DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE',
             'log-collector   3         3         3       3            3           <none>          2m',
           ],
-          explanation: 'DESIRED=3 because the cluster has 3 nodes. CURRENT and READY both equal 3, confirming all Pods are healthy. NODE SELECTOR is <none> meaning no nodeSelector is set — the DaemonSet targets every node. If you add a nodeSelector, only matching nodes show up in DESIRED.',
+          explanation:
+            'DESIRED=3 because the cluster has 3 nodes. CURRENT and READY both equal 3, confirming all Pods are healthy. NODE SELECTOR is <none> meaning no nodeSelector is set — the DaemonSet targets every node. If you add a nodeSelector, only matching nodes show up in DESIRED.',
           clusterState: {
             pods: [
-              { id: 'log-4hxkp', name: 'log-collector-4hxkp', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'log-collector' }, image: 'fluent/fluent-bit:3.3', restarts: 0 },
-              { id: 'log-9mwqr', name: 'log-collector-9mwqr', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'log-collector' }, image: 'fluent/fluent-bit:3.3', restarts: 0 },
+              {
+                id: 'log-4hxkp',
+                name: 'log-collector-4hxkp',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'log-collector' },
+                image: 'fluent/fluent-bit:3.3',
+                restarts: 0,
+              },
+              {
+                id: 'log-9mwqr',
+                name: 'log-collector-9mwqr',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'log-collector' },
+                image: 'fluent/fluent-bit:3.3',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -1176,7 +1621,8 @@ spec:
         {
           id: 'p3-m3-s4',
           title: 'Describe the DaemonSet',
-          instruction: 'Use describe to inspect the update strategy and confirm no nodeSelector is set.',
+          instruction:
+            'Use describe to inspect the update strategy and confirm no nodeSelector is set.',
           command: 'kubectl describe daemonset log-collector',
           output: [
             'Name:           log-collector',
@@ -1190,11 +1636,30 @@ spec:
             'Update Strategy: RollingUpdate',
             '  Rolling Update Max Unavailable: 1',
           ],
-          explanation: 'Update Strategy: RollingUpdate with maxUnavailable: 1 means during an update, at most 1 node\'s Pod is unavailable at any time. Node-Selector: <none> means all nodes are targeted. To restrict to specific nodes, add a nodeSelector: with a label that matches only the desired nodes.',
+          explanation:
+            "Update Strategy: RollingUpdate with maxUnavailable: 1 means during an update, at most 1 node's Pod is unavailable at any time. Node-Selector: <none> means all nodes are targeted. To restrict to specific nodes, add a nodeSelector: with a label that matches only the desired nodes.",
           clusterState: {
             pods: [
-              { id: 'log-4hxkp', name: 'log-collector-4hxkp', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'log-collector' }, image: 'fluent/fluent-bit:3.3', restarts: 0 },
-              { id: 'log-9mwqr', name: 'log-collector-9mwqr', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'log-collector' }, image: 'fluent/fluent-bit:3.3', restarts: 0 },
+              {
+                id: 'log-4hxkp',
+                name: 'log-collector-4hxkp',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'log-collector' },
+                image: 'fluent/fluent-bit:3.3',
+                restarts: 0,
+              },
+              {
+                id: 'log-9mwqr',
+                name: 'log-collector-9mwqr',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'log-collector' },
+                image: 'fluent/fluent-bit:3.3',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -1207,7 +1672,8 @@ spec:
       quiz: [
         {
           id: 'p3-m3-q1',
-          question: 'You add a new node to the cluster. What does the DaemonSet controller do automatically?',
+          question:
+            'You add a new node to the cluster. What does the DaemonSet controller do automatically?',
           options: [
             'Nothing — you must manually scale the DaemonSet',
             'It schedules one DaemonSet Pod on the new node automatically',
@@ -1215,7 +1681,8 @@ spec:
             'It scales down an existing Pod on another node to rebalance',
           ],
           answer: 1,
-          explanation: 'The DaemonSet controller watches for new nodes and automatically schedules the DaemonSet Pod on them. No manual action is needed. This is a key operational advantage: your monitoring agent or log collector is running on every node the moment it joins the cluster.',
+          explanation:
+            'The DaemonSet controller watches for new nodes and automatically schedules the DaemonSet Pod on them. No manual action is needed. This is a key operational advantage: your monitoring agent or log collector is running on every node the moment it joins the cluster.',
         },
         {
           id: 'p3-m3-q2',
@@ -1227,11 +1694,13 @@ spec:
             'Is only available in the kube-system namespace',
           ],
           answer: 1,
-          explanation: 'A Deployment schedules N replicas wherever the scheduler finds capacity. A DaemonSet schedules exactly 1 Pod per node — the replica count automatically matches the node count. They serve fundamentally different purposes: application scaling vs node-level infrastructure.',
+          explanation:
+            'A Deployment schedules N replicas wherever the scheduler finds capacity. A DaemonSet schedules exactly 1 Pod per node — the replica count automatically matches the node count. They serve fundamentally different purposes: application scaling vs node-level infrastructure.',
         },
         {
           id: 'p3-m3-q3',
-          question: 'Which DaemonSet update strategy gives you the most control over when nodes are updated?',
+          question:
+            'Which DaemonSet update strategy gives you the most control over when nodes are updated?',
           options: [
             'RollingUpdate — it lets you set exact per-node timing',
             'OnDelete — the new Pod version is only applied when you manually delete the old Pod',
@@ -1239,7 +1708,8 @@ spec:
             'BlueGreen — old and new versions run side-by-side until you switch',
           ],
           answer: 1,
-          explanation: 'OnDelete gives you complete control: the DaemonSet only runs the new Pod template when you manually delete the old Pod on that specific node. This is useful when you want to coordinate the update with a node maintenance window or other operational procedure.',
+          explanation:
+            'OnDelete gives you complete control: the DaemonSet only runs the new Pod template when you manually delete the old Pod on that specific node. This is useful when you want to coordinate the update with a node maintenance window or other operational procedure.',
         },
         {
           id: 'p3-m3-q4',
@@ -1251,18 +1721,54 @@ spec:
             'A frontend application and a CDN cache',
           ],
           answer: 1,
-          explanation: 'Log collectors (Fluentd, Filebeat) and node metrics exporters (Prometheus node-exporter) are the canonical DaemonSet use cases — they need to run on every node to collect data from that node\'s filesystem and hardware. Network plugins (Calico, Cilium) are another classic example.',
+          explanation:
+            "Log collectors (Fluentd, Filebeat) and node metrics exporters (Prometheus node-exporter) are the canonical DaemonSet use cases — they need to run on every node to collect data from that node's filesystem and hardware. Network plugins (Calico, Cilium) are another classic example.",
         },
       ],
       coverage: {
-        concepts: ['DaemonSet: one pod per eligible node', 'updateStrategy: RollingUpdate vs OnDelete', 'tolerations for tainted/master nodes', 'nodeSelector and nodeAffinity for targeting subsets', 'DaemonSet vs Deployment for node-local workloads'],
-        commands: ['kubectl get daemonsets', 'kubectl describe daemonset', 'kubectl get pods -o wide (verify one per node)', 'kubectl rollout status daemonset', 'kubectl rollout history daemonset', 'kubectl get ds -A'],
-        architecture: ['DaemonSet controller watches node list', 'pod created automatically on new node', 'pod removed automatically when node removed', 'system DaemonSets use tolerations to bypass NoSchedule taints'],
-        techniques: ['nodeSelector to target subset of nodes', 'toleration to schedule on master/control-plane nodes', 'OnDelete strategy for controlled per-node rollout', 'hostPath volume for node-local log access'],
-        procedures: ['create DaemonSet', 'verify one pod per node with -o wide', 'update DaemonSet image', 'watch rolling update status'],
+        concepts: [
+          'DaemonSet: one pod per eligible node',
+          'updateStrategy: RollingUpdate vs OnDelete',
+          'tolerations for tainted/master nodes',
+          'nodeSelector and nodeAffinity for targeting subsets',
+          'DaemonSet vs Deployment for node-local workloads',
+        ],
+        commands: [
+          'kubectl get daemonsets',
+          'kubectl describe daemonset',
+          'kubectl get pods -o wide (verify one per node)',
+          'kubectl rollout status daemonset',
+          'kubectl rollout history daemonset',
+          'kubectl get ds -A',
+        ],
+        architecture: [
+          'DaemonSet controller watches node list',
+          'pod created automatically on new node',
+          'pod removed automatically when node removed',
+          'system DaemonSets use tolerations to bypass NoSchedule taints',
+        ],
+        techniques: [
+          'nodeSelector to target subset of nodes',
+          'toleration to schedule on master/control-plane nodes',
+          'OnDelete strategy for controlled per-node rollout',
+          'hostPath volume for node-local log access',
+        ],
+        procedures: [
+          'create DaemonSet',
+          'verify one pod per node with -o wide',
+          'update DaemonSet image',
+          'watch rolling update status',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube'],
-        cases: ['DaemonSet pod not on control-plane node — needs toleration', 'new node added — DaemonSet pod automatically scheduled', 'OnDelete: new template not applied until you manually delete the old pod'],
-        scenarios: ['deploy a log agent to all nodes', 'update log agent version with OnDelete for safe per-node rollout'],
+        cases: [
+          'DaemonSet pod not on control-plane node — needs toleration',
+          'new node added — DaemonSet pod automatically scheduled',
+          'OnDelete: new template not applied until you manually delete the old pod',
+        ],
+        scenarios: [
+          'deploy a log agent to all nodes',
+          'update log agent version with OnDelete for safe per-node rollout',
+        ],
       },
       exercises: [
         {
@@ -1294,7 +1800,11 @@ EOF`,
             'kubectl get pods -l app=log-agent -o wide',
             'kubectl logs -l app=log-agent',
           ],
-          verify: ['DESIRED and CURRENT counts match node count', 'Each pod on a different node (NODE column)', 'logs show hostname output'],
+          verify: [
+            'DESIRED and CURRENT counts match node count',
+            'Each pod on a different node (NODE column)',
+            'logs show hostname output',
+          ],
           expectedOutcome: 'DaemonSet running one pod per node confirmed.',
           cleanup: ['kubectl delete daemonset log-agent'],
         },
@@ -1329,7 +1839,10 @@ EOF`,
             'kubectl rollout status daemonset/log-agent-v2',
             'kubectl rollout history daemonset/log-agent-v2',
           ],
-          verify: ['rollout status shows successfully rolled out', 'rollout history shows revision 2'],
+          verify: [
+            'rollout status shows successfully rolled out',
+            'rollout history shows revision 2',
+          ],
           expectedOutcome: 'DaemonSet image updated via rolling update across all nodes.',
           cleanup: ['kubectl delete daemonset log-agent-v2'],
         },
@@ -1343,8 +1856,13 @@ EOF`,
             'kubectl describe daemonset kube-proxy -n kube-system | grep -A10 Tolerations',
             'kubectl get pods -n kube-system -o wide | grep kube-proxy',
           ],
-          verify: ['kube-proxy DaemonSet visible in kube-system', 'Tolerations include node-role.kubernetes.io/control-plane or similar', 'kube-proxy pod running on the minikube node'],
-          expectedOutcome: 'Understand how system DaemonSets use tolerations to run on all nodes including control-plane.',
+          verify: [
+            'kube-proxy DaemonSet visible in kube-system',
+            'Tolerations include node-role.kubernetes.io/control-plane or similar',
+            'kube-proxy pod running on the minikube node',
+          ],
+          expectedOutcome:
+            'Understand how system DaemonSets use tolerations to run on all nodes including control-plane.',
           cleanup: [],
         },
         {
@@ -1357,7 +1875,10 @@ EOF`,
             'kubectl get pods -A -o wide | grep -i daemon',
             'kubectl explain daemonset.spec.updateStrategy',
           ],
-          verify: ['System DaemonSets visible in kube-system', 'updateStrategy types listed in explain output'],
+          verify: [
+            'System DaemonSets visible in kube-system',
+            'updateStrategy types listed in explain output',
+          ],
           expectedOutcome: 'DaemonSet commands recalled without notes.',
           cleanup: [],
         },
@@ -1369,7 +1890,8 @@ EOF`,
       id: 'p3-m4',
       slug: 'ingress',
       title: 'Ingress',
-      description: 'Route external HTTP/HTTPS traffic to multiple services with a single entry point and path-based rules.',
+      description:
+        'Route external HTTP/HTTPS traffic to multiple services with a single entry point and path-based rules.',
       duration: '75 min',
       difficulty: 'intermediate',
       theory: `> 🧠 **Brain Warm-Up**: When a client sends an HTTP request to \`myapp.local/api\` via Ingress, does the Ingress Controller forward the packet to the Service's ClusterIP, or does it bypass the Kubernetes service mesh routing? How does this impact load-balancing algorithms and connection keep-alives?
@@ -1484,7 +2006,8 @@ Modern ingress controllers (like Ingress-Nginx) avoid restarting the web server 
           id: 'p3-m4-s1',
           title: 'Install the nginx IngressController',
           instruction: 'Apply the official nginx IngressController manifest for a kind cluster.',
-          command: 'kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0/deploy/static/provider/kind/deploy.yaml',
+          command:
+            'kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0/deploy/static/provider/kind/deploy.yaml',
           output: [
             'namespace/ingress-nginx created',
             'serviceaccount/ingress-nginx created',
@@ -1492,13 +2015,31 @@ Modern ingress controllers (like Ingress-Nginx) avoid restarting the web server 
             'deployment.apps/ingress-nginx-controller created',
             'service/ingress-nginx-controller created',
           ],
-          explanation: 'The IngressController is a Deployment (not a CRD or built-in controller) that runs in the ingress-nginx namespace. It watches for Ingress resources cluster-wide and configures an nginx process to route traffic accordingly. Without this, Ingress resources are just inert config objects.',
+          explanation:
+            'The IngressController is a Deployment (not a CRD or built-in controller) that runs in the ingress-nginx namespace. It watches for Ingress resources cluster-wide and configures an nginx process to route traffic accordingly. Without this, Ingress resources are just inert config objects.',
           clusterState: {
             pods: [
-              { id: 'ingress-ctrl', name: 'ingress-nginx-controller-7d4bc', namespace: 'default', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.12.0', restarts: 0 },
+              {
+                id: 'ingress-ctrl',
+                name: 'ingress-nginx-controller-7d4bc',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.12.0',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'ingress-svc', name: 'ingress-nginx-controller', namespace: 'default', type: 'NodePort', selector: { 'app.kubernetes.io/name': 'ingress-nginx' }, port: 80, clusterIP: '10.96.1.100' },
+              {
+                id: 'ingress-svc',
+                name: 'ingress-nginx-controller',
+                namespace: 'default',
+                type: 'NodePort',
+                selector: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                port: 80,
+                clusterIP: '10.96.1.100',
+              },
             ],
             deployments: [],
             namespaces: ['default', 'ingress-nginx'],
@@ -1510,36 +2051,93 @@ Modern ingress controllers (like Ingress-Nginx) avoid restarting the web server 
         {
           id: 'p3-m4-s2',
           title: 'Deploy two backend services',
-          instruction: 'Create two Deployments and expose them as ClusterIP services — the Ingress will route to both.',
-          command: 'kubectl create deployment web --image=nginx:1.27 && kubectl expose deployment web --port=80 && kubectl create deployment api --image=hashicorp/http-echo:latest --port=5678 && kubectl expose deployment api --port=80 --target-port=5678',
+          instruction:
+            'Create two Deployments and expose them as ClusterIP services — the Ingress will route to both.',
+          command:
+            'kubectl create deployment web --image=nginx:1.27 && kubectl expose deployment web --port=80 && kubectl create deployment api --image=hashicorp/http-echo:latest --port=5678 && kubectl expose deployment api --port=80 --target-port=5678',
           output: [
             'deployment.apps/web created',
             'service/web created',
             'deployment.apps/api created',
             'service/api created',
           ],
-          explanation: 'Both services are ClusterIP — they are not directly accessible from outside the cluster. The Ingress will be the single external entry point that routes /api to the api service and / to the web service. This is the N:1 pattern that makes Ingress cost-effective.',
+          explanation:
+            'Both services are ClusterIP — they are not directly accessible from outside the cluster. The Ingress will be the single external entry point that routes /api to the api service and / to the web service. This is the N:1 pattern that makes Ingress cost-effective.',
           clusterState: {
             pods: [
-              { id: 'web-abc12', name: 'web-abc12', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'api-def34', name: 'api-def34', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'api' }, image: 'hashicorp/http-echo:latest', restarts: 0 },
+              {
+                id: 'web-abc12',
+                name: 'web-abc12',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'api-def34',
+                name: 'api-def34',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'api' },
+                image: 'hashicorp/http-echo:latest',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'web-svc', name: 'web', namespace: 'default', type: 'ClusterIP', selector: { app: 'web' }, port: 80, clusterIP: '10.96.10.10' },
-              { id: 'api-svc', name: 'api', namespace: 'default', type: 'ClusterIP', selector: { app: 'api' }, port: 80, clusterIP: '10.96.10.11' },
+              {
+                id: 'web-svc',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: '10.96.10.10',
+              },
+              {
+                id: 'api-svc',
+                name: 'api',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'api' },
+                port: 80,
+                clusterIP: '10.96.10.11',
+              },
             ],
             deployments: [
-              { id: 'web-deploy', name: 'web', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' },
-              { id: 'api-deploy', name: 'api', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'hashicorp/http-echo:latest' },
+              {
+                id: 'web-deploy',
+                name: 'web',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+              {
+                id: 'api-deploy',
+                name: 'api',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'hashicorp/http-echo:latest',
+              },
             ],
             namespaces: ['default', 'ingress-nginx'],
-            events: ['Deployment web created', 'Service web exposed on port 80', 'Deployment api created', 'Service api exposed on port 80'],
+            events: [
+              'Deployment web created',
+              'Service web exposed on port 80',
+              'Deployment api created',
+              'Service api exposed on port 80',
+            ],
           },
         },
         {
           id: 'p3-m4-s3',
           title: 'Create the Ingress routing rules',
-          instruction: 'Apply an Ingress that routes / to the web service and /api to the api service, both for host myapp.local.',
+          instruction:
+            'Apply an Ingress that routes / to the web service and /api to the api service, both for host myapp.local.',
           command: 'kubectl apply -f myapp-ingress.yaml',
           yamlContent: `apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -1568,20 +2166,77 @@ spec:
             port:
               number: 80`,
           output: ['ingress.networking.k8s.io/myapp created'],
-          explanation: 'The Ingress resource is just configuration — the IngressController reads it and reconfigures nginx. ingressClassName: nginx tells Kubernetes which controller should own this Ingress. The rewrite-target annotation strips the /api prefix before forwarding to the api service.',
+          explanation:
+            'The Ingress resource is just configuration — the IngressController reads it and reconfigures nginx. ingressClassName: nginx tells Kubernetes which controller should own this Ingress. The rewrite-target annotation strips the /api prefix before forwarding to the api service.',
           clusterState: {
             pods: [
-              { id: 'web-abc12', name: 'web-abc12', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'api-def34', name: 'api-def34', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'api' }, image: 'hashicorp/http-echo:latest', restarts: 0 },
+              {
+                id: 'web-abc12',
+                name: 'web-abc12',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'api-def34',
+                name: 'api-def34',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'api' },
+                image: 'hashicorp/http-echo:latest',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'web-svc', name: 'web', namespace: 'default', type: 'ClusterIP', selector: { app: 'web' }, port: 80, clusterIP: '10.96.10.10' },
-              { id: 'api-svc', name: 'api', namespace: 'default', type: 'ClusterIP', selector: { app: 'api' }, port: 80, clusterIP: '10.96.10.11' },
-              { id: 'ingress-ctrl-svc', name: 'ingress-nginx-controller', namespace: 'default', type: 'ClusterIP', selector: { 'app.kubernetes.io/name': 'ingress-nginx' }, port: 80, clusterIP: '10.96.1.100' },
+              {
+                id: 'web-svc',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: '10.96.10.10',
+              },
+              {
+                id: 'api-svc',
+                name: 'api',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'api' },
+                port: 80,
+                clusterIP: '10.96.10.11',
+              },
+              {
+                id: 'ingress-ctrl-svc',
+                name: 'ingress-nginx-controller',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                port: 80,
+                clusterIP: '10.96.1.100',
+              },
             ],
             deployments: [
-              { id: 'web-deploy', name: 'web', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' },
-              { id: 'api-deploy', name: 'api', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'hashicorp/http-echo:latest' },
+              {
+                id: 'web-deploy',
+                name: 'web',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+              {
+                id: 'api-deploy',
+                name: 'api',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'hashicorp/http-echo:latest',
+              },
             ],
             namespaces: ['default', 'ingress-nginx'],
             events: ['Ingress rule: / → web:80', 'Ingress rule: /api → api:80'],
@@ -1590,36 +2245,99 @@ spec:
         {
           id: 'p3-m4-s4',
           title: 'Verify the Ingress ADDRESS is populated',
-          instruction: 'List Ingress resources — the ADDRESS column should show the IngressController\'s IP once it is ready.',
+          instruction:
+            "List Ingress resources — the ADDRESS column should show the IngressController's IP once it is ready.",
           command: 'kubectl get ingress',
           output: [
             'NAME    CLASS   HOSTS         ADDRESS        PORTS   AGE',
             'myapp   nginx   myapp.local   192.168.49.2   80      45s',
           ],
-          explanation: 'The ADDRESS column shows the IP of the IngressController\'s LoadBalancer or NodePort service. If ADDRESS is empty, the IngressController is not yet ready or no external IP has been assigned. In a kind cluster, the address is the Docker container IP of the control plane node.',
+          explanation:
+            "The ADDRESS column shows the IP of the IngressController's LoadBalancer or NodePort service. If ADDRESS is empty, the IngressController is not yet ready or no external IP has been assigned. In a kind cluster, the address is the Docker container IP of the control plane node.",
           clusterState: {
             pods: [
-              { id: 'web-abc12', name: 'web-abc12', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'api-def34', name: 'api-def34', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'api' }, image: 'hashicorp/http-echo:latest', restarts: 0 },
+              {
+                id: 'web-abc12',
+                name: 'web-abc12',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'api-def34',
+                name: 'api-def34',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'api' },
+                image: 'hashicorp/http-echo:latest',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'web-svc', name: 'web', namespace: 'default', type: 'ClusterIP', selector: { app: 'web' }, port: 80, clusterIP: '10.96.10.10' },
-              { id: 'api-svc', name: 'api', namespace: 'default', type: 'ClusterIP', selector: { app: 'api' }, port: 80, clusterIP: '10.96.10.11' },
-              { id: 'ingress-ctrl-svc', name: 'ingress-nginx-controller', namespace: 'default', type: 'ClusterIP', selector: { 'app.kubernetes.io/name': 'ingress-nginx' }, port: 80, clusterIP: '10.96.1.100' },
+              {
+                id: 'web-svc',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: '10.96.10.10',
+              },
+              {
+                id: 'api-svc',
+                name: 'api',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'api' },
+                port: 80,
+                clusterIP: '10.96.10.11',
+              },
+              {
+                id: 'ingress-ctrl-svc',
+                name: 'ingress-nginx-controller',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                port: 80,
+                clusterIP: '10.96.1.100',
+              },
             ],
             deployments: [
-              { id: 'web-deploy', name: 'web', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' },
-              { id: 'api-deploy', name: 'api', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'hashicorp/http-echo:latest' },
+              {
+                id: 'web-deploy',
+                name: 'web',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+              {
+                id: 'api-deploy',
+                name: 'api',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'hashicorp/http-echo:latest',
+              },
             ],
             namespaces: ['default', 'ingress-nginx'],
-            events: ['Ingress myapp: ADDRESS=192.168.49.2', 'Ingress rule: / → web:80', 'Ingress rule: /api → api:80'],
+            events: [
+              'Ingress myapp: ADDRESS=192.168.49.2',
+              'Ingress rule: / → web:80',
+              'Ingress rule: /api → api:80',
+            ],
           },
           tip: 'Test the routing locally by adding "192.168.49.2 myapp.local" to /etc/hosts, then: curl http://myapp.local and curl http://myapp.local/api',
         },
         {
           id: 'p3-m4-s5',
           title: 'Inspect the routing rules',
-          instruction: 'Use describe to see the full routing table the IngressController is applying.',
+          instruction:
+            'Use describe to see the full routing table the IngressController is applying.',
           command: 'kubectl describe ingress myapp',
           output: [
             'Name:             myapp',
@@ -1634,20 +2352,77 @@ spec:
             '               /api    api:80 (10.244.1.8:5678)',
             'Annotations:  nginx.ingress.kubernetes.io/rewrite-target: /',
           ],
-          explanation: 'The Rules table confirms the routing: requests to myapp.local/ go to the web Service (which resolves to Pod IP 10.244.0.12), and requests to myapp.local/api go to the api Service. The annotation rewrite-target: / is also shown here.',
+          explanation:
+            'The Rules table confirms the routing: requests to myapp.local/ go to the web Service (which resolves to Pod IP 10.244.0.12), and requests to myapp.local/api go to the api Service. The annotation rewrite-target: / is also shown here.',
           clusterState: {
             pods: [
-              { id: 'web-abc12', name: 'web-abc12', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'api-def34', name: 'api-def34', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'api' }, image: 'hashicorp/http-echo:latest', restarts: 0 },
+              {
+                id: 'web-abc12',
+                name: 'web-abc12',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'api-def34',
+                name: 'api-def34',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'api' },
+                image: 'hashicorp/http-echo:latest',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'web-svc', name: 'web', namespace: 'default', type: 'ClusterIP', selector: { app: 'web' }, port: 80, clusterIP: '10.96.10.10' },
-              { id: 'api-svc', name: 'api', namespace: 'default', type: 'ClusterIP', selector: { app: 'api' }, port: 80, clusterIP: '10.96.10.11' },
-              { id: 'ingress-ctrl-svc', name: 'ingress-nginx-controller', namespace: 'default', type: 'ClusterIP', selector: { 'app.kubernetes.io/name': 'ingress-nginx' }, port: 80, clusterIP: '10.96.1.100' },
+              {
+                id: 'web-svc',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: '10.96.10.10',
+              },
+              {
+                id: 'api-svc',
+                name: 'api',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'api' },
+                port: 80,
+                clusterIP: '10.96.10.11',
+              },
+              {
+                id: 'ingress-ctrl-svc',
+                name: 'ingress-nginx-controller',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                port: 80,
+                clusterIP: '10.96.1.100',
+              },
             ],
             deployments: [
-              { id: 'web-deploy', name: 'web', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' },
-              { id: 'api-deploy', name: 'api', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'hashicorp/http-echo:latest' },
+              {
+                id: 'web-deploy',
+                name: 'web',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+              {
+                id: 'api-deploy',
+                name: 'api',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'hashicorp/http-echo:latest',
+              },
             ],
             namespaces: ['default', 'ingress-nginx'],
             events: ['Ingress rule: / → web:80', 'Ingress rule: /api → api:80'],
@@ -1656,7 +2431,8 @@ spec:
         {
           id: 'p3-m4-s6',
           title: 'Add TLS to the Ingress',
-          instruction: 'Create a TLS Secret and update the Ingress spec to terminate HTTPS at the IngressController.',
+          instruction:
+            'Create a TLS Secret and update the Ingress spec to terminate HTTPS at the IngressController.',
           command: 'kubectl create secret tls myapp-tls --cert=tls.crt --key=tls.key',
           yamlContent: `# First create the TLS secret:
 # kubectl create secret tls myapp-tls --cert=tls.crt --key=tls.key
@@ -1680,31 +2456,94 @@ spec:
             port:
               number: 80`,
           output: ['secret/myapp-tls created'],
-          explanation: 'The spec.tls section references the Secret containing the certificate and private key. The IngressController reads the Secret, configures an HTTPS listener, and terminates TLS before forwarding plain HTTP to the backend Services. Backend Services never see TLS — they always receive plain HTTP. This is called TLS termination.',
+          explanation:
+            'The spec.tls section references the Secret containing the certificate and private key. The IngressController reads the Secret, configures an HTTPS listener, and terminates TLS before forwarding plain HTTP to the backend Services. Backend Services never see TLS — they always receive plain HTTP. This is called TLS termination.',
           clusterState: {
             pods: [
-              { id: 'web-abc12', name: 'web-abc12', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'api-def34', name: 'api-def34', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'api' }, image: 'hashicorp/http-echo:latest', restarts: 0 },
+              {
+                id: 'web-abc12',
+                name: 'web-abc12',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'api-def34',
+                name: 'api-def34',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'api' },
+                image: 'hashicorp/http-echo:latest',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'web-svc', name: 'web', namespace: 'default', type: 'ClusterIP', selector: { app: 'web' }, port: 80, clusterIP: '10.96.10.10' },
-              { id: 'api-svc', name: 'api', namespace: 'default', type: 'ClusterIP', selector: { app: 'api' }, port: 80, clusterIP: '10.96.10.11' },
-              { id: 'ingress-ctrl-svc', name: 'ingress-nginx-controller', namespace: 'default', type: 'ClusterIP', selector: { 'app.kubernetes.io/name': 'ingress-nginx' }, port: 80, clusterIP: '10.96.1.100' },
+              {
+                id: 'web-svc',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: '10.96.10.10',
+              },
+              {
+                id: 'api-svc',
+                name: 'api',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'api' },
+                port: 80,
+                clusterIP: '10.96.10.11',
+              },
+              {
+                id: 'ingress-ctrl-svc',
+                name: 'ingress-nginx-controller',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                port: 80,
+                clusterIP: '10.96.1.100',
+              },
             ],
             deployments: [
-              { id: 'web-deploy', name: 'web', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' },
-              { id: 'api-deploy', name: 'api', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'hashicorp/http-echo:latest' },
+              {
+                id: 'web-deploy',
+                name: 'web',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+              {
+                id: 'api-deploy',
+                name: 'api',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'hashicorp/http-echo:latest',
+              },
             ],
             namespaces: ['default', 'ingress-nginx'],
-            events: ['Secret myapp-tls created', 'Ingress myapp: TLS enabled for myapp.local', 'Ingress rule: / → web:80', 'Ingress rule: /api → api:80'],
+            events: [
+              'Secret myapp-tls created',
+              'Ingress myapp: TLS enabled for myapp.local',
+              'Ingress rule: / → web:80',
+              'Ingress rule: /api → api:80',
+            ],
           },
-          tip: 'For production, use cert-manager (cert-manager.io) to automatically provision and renew Let\'s Encrypt certificates instead of managing certs manually.',
+          tip: "For production, use cert-manager (cert-manager.io) to automatically provision and renew Let's Encrypt certificates instead of managing certs manually.",
         },
       ],
       quiz: [
         {
           id: 'p3-m4-q1',
-          question: 'You create an Ingress resource but traffic is not being routed. What is the most likely missing component?',
+          question:
+            'You create an Ingress resource but traffic is not being routed. What is the most likely missing component?',
           options: [
             'A NetworkPolicy is blocking traffic to the Ingress',
             'An IngressController — the Ingress resource is just config and does nothing without a running controller',
@@ -1712,11 +2551,13 @@ spec:
             'The Ingress needs a ClusterRoleBinding to read Service endpoints',
           ],
           answer: 1,
-          explanation: 'An Ingress resource without an IngressController is inert configuration. The IngressController (nginx, Traefik, etc.) is a separately installed component that watches Ingress resources and actually routes traffic. Creating the Ingress resource alone changes nothing until a controller is running and watching for it.',
+          explanation:
+            'An Ingress resource without an IngressController is inert configuration. The IngressController (nginx, Traefik, etc.) is a separately installed component that watches Ingress resources and actually routes traffic. Creating the Ingress resource alone changes nothing until a controller is running and watching for it.',
         },
         {
           id: 'p3-m4-q2',
-          question: 'What is the advantage of Ingress over creating a LoadBalancer Service for each app?',
+          question:
+            'What is the advantage of Ingress over creating a LoadBalancer Service for each app?',
           options: [
             'Ingress is faster because it bypasses kube-proxy',
             'Ingress uses one cloud load balancer for all Services instead of one per Service, which is more cost-effective',
@@ -1724,7 +2565,8 @@ spec:
             'Ingress automatically scales backends while LoadBalancer Services do not',
           ],
           answer: 1,
-          explanation: 'Each LoadBalancer Service creates a new cloud load balancer, which costs money and adds operational overhead. Ingress funnels all external traffic through a single IngressController (one load balancer), then routes to many backend Services based on host and path rules. This is the N:1 pattern.',
+          explanation:
+            'Each LoadBalancer Service creates a new cloud load balancer, which costs money and adds operational overhead. Ingress funnels all external traffic through a single IngressController (one load balancer), then routes to many backend Services based on host and path rules. This is the N:1 pattern.',
         },
         {
           id: 'p3-m4-q3',
@@ -1736,11 +2578,13 @@ spec:
             'Only exactly /api',
           ],
           answer: 2,
-          explanation: 'Prefix matching splits the URL on "/" boundaries. /api (Prefix) matches /api and /api/users (because /api is a path prefix of /api/users) but does NOT match /api-v2 (because "api-v2" is a different path segment from "api"). Use Exact if you want to match only /api with nothing after it.',
+          explanation:
+            'Prefix matching splits the URL on "/" boundaries. /api (Prefix) matches /api and /api/users (because /api is a path prefix of /api/users) but does NOT match /api-v2 (because "api-v2" is a different path segment from "api"). Use Exact if you want to match only /api with nothing after it.',
         },
         {
           id: 'p3-m4-q4',
-          question: 'Where do you configure controller-specific behaviors like URL rewriting or rate limiting?',
+          question:
+            'Where do you configure controller-specific behaviors like URL rewriting or rate limiting?',
           options: [
             'In the Ingress spec.rules section',
             'In a separate IngressConfig CRD',
@@ -1748,7 +2592,8 @@ spec:
             'In a ConfigMap in the kube-system namespace',
           ],
           answer: 2,
-          explanation: 'Controller-specific behaviour (rewrite-target, rate limiting, auth, timeouts) is configured via annotations on the Ingress resource. The annotations are prefixed with the controller name, e.g., nginx.ingress.kubernetes.io/rewrite-target. Kubernetes itself ignores annotations — only the IngressController reads them.',
+          explanation:
+            'Controller-specific behaviour (rewrite-target, rate limiting, auth, timeouts) is configured via annotations on the Ingress resource. The annotations are prefixed with the controller name, e.g., nginx.ingress.kubernetes.io/rewrite-target. Kubernetes itself ignores annotations — only the IngressController reads them.',
         },
         {
           id: 'p3-m4-q5',
@@ -1760,18 +2605,57 @@ spec:
             'Both the IngressController and each backend Service must have matching TLS certificates',
           ],
           answer: 1,
-          explanation: 'TLS termination at the Ingress means the IngressController handles the HTTPS connection from the client, decrypts it, and forwards plain HTTP to the backend Services. Backend Services do not need TLS certificates or HTTPS configuration. This simplifies backend development and centralises certificate management.',
+          explanation:
+            'TLS termination at the Ingress means the IngressController handles the HTTPS connection from the client, decrypts it, and forwards plain HTTP to the backend Services. Backend Services do not need TLS certificates or HTTPS configuration. This simplifies backend development and centralises certificate management.',
         },
       ],
       coverage: {
-        concepts: ['Ingress resource vs IngressController', 'path-based routing rules', 'host-based virtual hosting', 'TLS termination at IngressController', 'pathType: Prefix/Exact/ImplementationSpecific', 'IngressClass', 'controller-specific annotations'],
-        commands: ['minikube addons enable ingress', 'kubectl get ingress', 'kubectl describe ingress', 'kubectl get ingressclass', 'curl -H "Host: myapp.local" http://$(minikube ip)', 'kubectl apply -f ingress.yaml'],
-        architecture: ['IngressController as reverse proxy (nginx/traefik)', 'Ingress resource as declarative routing config', 'TLS termination: HTTPS→HTTP to backend', 'IngressController reads Service endpoints directly or via ClusterIP'],
-        techniques: ['path-based routing to multiple services', 'host-based virtual hosting with multiple rules', 'TLS Secret of type kubernetes.io/tls', 'rewrite-target annotation for path stripping', 'minikube ingress addon setup'],
-        procedures: ['enable ingress addon in minikube', 'create Ingress with path rules', 'test routing with curl and Host header', 'add TLS to existing Ingress'],
+        concepts: [
+          'Ingress resource vs IngressController',
+          'path-based routing rules',
+          'host-based virtual hosting',
+          'TLS termination at IngressController',
+          'pathType: Prefix/Exact/ImplementationSpecific',
+          'IngressClass',
+          'controller-specific annotations',
+        ],
+        commands: [
+          'minikube addons enable ingress',
+          'kubectl get ingress',
+          'kubectl describe ingress',
+          'kubectl get ingressclass',
+          'curl -H "Host: myapp.local" http://$(minikube ip)',
+          'kubectl apply -f ingress.yaml',
+        ],
+        architecture: [
+          'IngressController as reverse proxy (nginx/traefik)',
+          'Ingress resource as declarative routing config',
+          'TLS termination: HTTPS→HTTP to backend',
+          'IngressController reads Service endpoints directly or via ClusterIP',
+        ],
+        techniques: [
+          'path-based routing to multiple services',
+          'host-based virtual hosting with multiple rules',
+          'TLS Secret of type kubernetes.io/tls',
+          'rewrite-target annotation for path stripping',
+          'minikube ingress addon setup',
+        ],
+        procedures: [
+          'enable ingress addon in minikube',
+          'create Ingress with path rules',
+          'test routing with curl and Host header',
+          'add TLS to existing Ingress',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube', 'nginx IngressController'],
-        cases: ['Ingress ADDRESS stays empty — controller pod not running', 'path not routing — pathType mismatch (Prefix vs Exact)', 'TLS not working — Secret missing tls.crt or tls.key'],
-        scenarios: ['route /api and /web to different backend services on same host', 'add HTTPS termination to an existing HTTP Ingress'],
+        cases: [
+          'Ingress ADDRESS stays empty — controller pod not running',
+          'path not routing — pathType mismatch (Prefix vs Exact)',
+          'TLS not working — Secret missing tls.crt or tls.key',
+        ],
+        scenarios: [
+          'route /api and /web to different backend services on same host',
+          'add HTTPS termination to an existing HTTP Ingress',
+        ],
       },
       exercises: [
         {
@@ -1815,9 +2699,17 @@ EOF`,
             'kubectl get ingress app-ingress',
             'curl -H "Host: myapp.local" http://$(minikube ip)/web',
           ],
-          verify: ['Ingress shows ADDRESS populated', 'curl /web returns nginx response', 'kubectl describe ingress shows both path rules'],
+          verify: [
+            'Ingress shows ADDRESS populated',
+            'curl /web returns nginx response',
+            'kubectl describe ingress shows both path rules',
+          ],
           expectedOutcome: 'Path-based routing working via nginx IngressController.',
-          cleanup: ['kubectl delete ingress app-ingress', 'kubectl delete service web api', 'kubectl delete deployment web api'],
+          cleanup: [
+            'kubectl delete ingress app-ingress',
+            'kubectl delete service web api',
+            'kubectl delete deployment web api',
+          ],
         },
         {
           id: 'p3-m4-e2',
@@ -1830,9 +2722,17 @@ EOF`,
             `kubectl patch ingress app-ingress --type=json -p='[{"op":"add","path":"/spec/tls","value":[{"hosts":["myapp.local"],"secretName":"myapp-tls"}]}]'`,
             'kubectl describe ingress app-ingress | grep -A5 TLS',
           ],
-          verify: ['TLS section visible in describe ingress', 'Secret myapp-tls created with tls.crt and tls.key'],
+          verify: [
+            'TLS section visible in describe ingress',
+            'Secret myapp-tls created with tls.crt and tls.key',
+          ],
           expectedOutcome: 'TLS termination configured on Ingress with self-signed cert.',
-          cleanup: ['kubectl delete ingress app-ingress --ignore-not-found', 'kubectl delete secret myapp-tls --ignore-not-found', 'kubectl delete service web api --ignore-not-found', 'kubectl delete deployment web api --ignore-not-found'],
+          cleanup: [
+            'kubectl delete ingress app-ingress --ignore-not-found',
+            'kubectl delete secret myapp-tls --ignore-not-found',
+            'kubectl delete service web api --ignore-not-found',
+            'kubectl delete deployment web api --ignore-not-found',
+          ],
         },
         {
           id: 'p3-m4-e3',
@@ -1845,7 +2745,10 @@ EOF`,
             'kubectl get pods -n ingress-nginx',
             'kubectl get pods -n kube-system | grep ingress',
           ],
-          verify: ['Ingress shows no ADDRESS when controller is not running', 'kubectl get pods in ingress-nginx namespace shows controller pod status'],
+          verify: [
+            'Ingress shows no ADDRESS when controller is not running',
+            'kubectl get pods in ingress-nginx namespace shows controller pod status',
+          ],
           expectedOutcome: 'Empty Ingress ADDRESS traced to IngressController pod state.',
           cleanup: [],
         },
@@ -1859,7 +2762,10 @@ EOF`,
             'kubectl explain ingress.spec.rules',
             'kubectl explain ingress.spec.tls',
           ],
-          verify: ['IngressClass shows nginx controller', 'explain output shows rules and tls structure'],
+          verify: [
+            'IngressClass shows nginx controller',
+            'explain output shows rules and tls structure',
+          ],
           expectedOutcome: 'Ingress structure and routing concepts recalled without notes.',
           cleanup: [],
         },
@@ -1871,7 +2777,8 @@ EOF`,
       id: 'p3-m5',
       slug: 'network-policies',
       title: 'NetworkPolicies',
-      description: 'Implement namespace-level firewall rules to control which Pods can communicate with each other.',
+      description:
+        'Implement namespace-level firewall rules to control which Pods can communicate with each other.',
       duration: '60 min',
       difficulty: 'advanced',
       theory: `> 🧠 **Brain Warm-Up**: When you apply a NetworkPolicy blocking all ingress traffic, why does the Pod still receive packets, and at what layers of the Linux kernel or networking stack (e.g., eBPF, iptables chains, IPVS tables) is the traffic actually rejected or dropped?
@@ -1979,8 +2886,10 @@ NetworkPolicies operate statefully. The policy engine hooks into the Linux kerne
         {
           id: 'p3-m5-s1',
           title: 'Deploy two pods and verify open communication',
-          instruction: 'Create frontend and backend pods and confirm they can reach each other — the default flat network.',
-          command: 'kubectl run frontend --image=nginx:1.27 --labels=app=frontend && kubectl run backend --image=nginx:1.27 --labels=app=backend && kubectl exec frontend -- wget -qO- http://backend',
+          instruction:
+            'Create frontend and backend pods and confirm they can reach each other — the default flat network.',
+          command:
+            'kubectl run frontend --image=nginx:1.27 --labels=app=frontend && kubectl run backend --image=nginx:1.27 --labels=app=backend && kubectl exec frontend -- wget -qO- http://backend',
           output: [
             'pod/frontend created',
             'pod/backend created',
@@ -1989,11 +2898,30 @@ NetworkPolicies operate statefully. The policy engine hooks into the Linux kerne
             '<head><title>Welcome to nginx!</title></head>',
             '...',
           ],
-          explanation: 'By default, any Pod can reach any other Pod. The wget succeeded because there are no NetworkPolicies in this namespace — all traffic is allowed. This is convenient in development but a security risk in production.',
+          explanation:
+            'By default, any Pod can reach any other Pod. The wget succeeded because there are no NetworkPolicies in this namespace — all traffic is allowed. This is convenient in development but a security risk in production.',
           clusterState: {
             pods: [
-              { id: 'frontend-xyz', name: 'frontend', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'frontend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'backend-abc', name: 'backend', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'frontend-xyz',
+                name: 'frontend',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'frontend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'backend-abc',
+                name: 'backend',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -2005,7 +2933,8 @@ NetworkPolicies operate statefully. The policy engine hooks into the Linux kerne
         {
           id: 'p3-m5-s2',
           title: 'Apply a default-deny policy',
-          instruction: 'Apply a NetworkPolicy that denies ALL ingress traffic to every Pod in the default namespace.',
+          instruction:
+            'Apply a NetworkPolicy that denies ALL ingress traffic to every Pod in the default namespace.',
           command: 'kubectl apply -f default-deny.yaml',
           yamlContent: `apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -2017,16 +2946,38 @@ spec:
   policyTypes:
   - Ingress`,
           output: ['networkpolicy.networking.k8s.io/default-deny-ingress created'],
-          explanation: 'podSelector: {} (empty) selects ALL pods in the namespace. policyTypes: [Ingress] with no ingress rules means: deny all ingress traffic to every Pod. This is the starting point for a secure namespace — now you add explicit allow rules for only the traffic you need.',
+          explanation:
+            'podSelector: {} (empty) selects ALL pods in the namespace. policyTypes: [Ingress] with no ingress rules means: deny all ingress traffic to every Pod. This is the starting point for a secure namespace — now you add explicit allow rules for only the traffic you need.',
           clusterState: {
             pods: [
-              { id: 'frontend-xyz', name: 'frontend', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'frontend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'backend-abc', name: 'backend', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'frontend-xyz',
+                name: 'frontend',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'frontend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'backend-abc',
+                name: 'backend',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: ['NetworkPolicy default-deny-ingress applied', 'All ingress traffic BLOCKED for all pods in default'],
+            events: [
+              'NetworkPolicy default-deny-ingress applied',
+              'All ingress traffic BLOCKED for all pods in default',
+            ],
             highlightedComponent: 'kubelet',
           },
         },
@@ -2035,14 +2986,31 @@ spec:
           title: 'Confirm traffic is blocked',
           instruction: 'Try to reach backend from frontend — the connection should time out.',
           command: 'kubectl exec frontend -- wget -qO- http://backend --timeout=5',
-          output: [
-            'wget: download timed out',
-          ],
-          explanation: 'The default-deny policy is working. frontend can no longer reach backend because all ingress to backend is denied. The connection times out (not refused) because the CNI plugin silently drops the packets rather than sending a TCP RST.',
+          output: ['wget: download timed out'],
+          explanation:
+            'The default-deny policy is working. frontend can no longer reach backend because all ingress to backend is denied. The connection times out (not refused) because the CNI plugin silently drops the packets rather than sending a TCP RST.',
           clusterState: {
             pods: [
-              { id: 'frontend-xyz', name: 'frontend', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'frontend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'backend-abc', name: 'backend', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'frontend-xyz',
+                name: 'frontend',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'frontend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'backend-abc',
+                name: 'backend',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -2053,7 +3021,8 @@ spec:
         {
           id: 'p3-m5-s4',
           title: 'Allow frontend to reach backend',
-          instruction: 'Apply a NetworkPolicy that allows only frontend pods to send ingress traffic to backend pods.',
+          instruction:
+            'Apply a NetworkPolicy that allows only frontend pods to send ingress traffic to backend pods.',
           command: 'kubectl apply -f allow-frontend-to-backend.yaml',
           yamlContent: `apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -2072,23 +3041,48 @@ spec:
         matchLabels:
           app: frontend`,
           output: ['networkpolicy.networking.k8s.io/allow-frontend-to-backend created'],
-          explanation: 'This policy selects Pods with app=backend and allows ingress from Pods with app=frontend. The default-deny policy still applies to all other pods — only this specific frontend→backend flow is now permitted. All other pods in the namespace are still blocked from reaching backend.',
+          explanation:
+            'This policy selects Pods with app=backend and allows ingress from Pods with app=frontend. The default-deny policy still applies to all other pods — only this specific frontend→backend flow is now permitted. All other pods in the namespace are still blocked from reaching backend.',
           clusterState: {
             pods: [
-              { id: 'frontend-xyz', name: 'frontend', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'frontend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'backend-abc', name: 'backend', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'frontend-xyz',
+                name: 'frontend',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'frontend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'backend-abc',
+                name: 'backend',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: ['NetworkPolicy allow-frontend-to-backend applied', 'frontend → backend: ALLOWED', 'all others → backend: BLOCKED'],
+            events: [
+              'NetworkPolicy allow-frontend-to-backend applied',
+              'frontend → backend: ALLOWED',
+              'all others → backend: BLOCKED',
+            ],
           },
         },
         {
           id: 'p3-m5-s5',
           title: 'Verify allow and block simultaneously',
-          instruction: 'Confirm frontend can reach backend, and that a third "attacker" pod still cannot.',
-          command: 'kubectl exec frontend -- wget -qO- http://backend && kubectl run attacker --image=nginx:1.27 --labels=app=attacker --restart=Never && kubectl exec attacker -- wget -qO- http://backend --timeout=5',
+          instruction:
+            'Confirm frontend can reach backend, and that a third "attacker" pod still cannot.',
+          command:
+            'kubectl exec frontend -- wget -qO- http://backend && kubectl run attacker --image=nginx:1.27 --labels=app=attacker --restart=Never && kubectl exec attacker -- wget -qO- http://backend --timeout=5',
           output: [
             '<!DOCTYPE html>',
             '<html><head><title>Welcome to nginx!</title></head>',
@@ -2096,12 +3090,40 @@ spec:
             'pod/attacker created',
             'wget: download timed out',
           ],
-          explanation: 'frontend succeeds because it matches the allow policy (app=frontend). attacker times out because it has app=attacker — it does not match the allow rule, so the default-deny policy blocks it. This is the allowlist model in action: only explicitly permitted traffic is allowed.',
+          explanation:
+            'frontend succeeds because it matches the allow policy (app=frontend). attacker times out because it has app=attacker — it does not match the allow rule, so the default-deny policy blocks it. This is the allowlist model in action: only explicitly permitted traffic is allowed.',
           clusterState: {
             pods: [
-              { id: 'frontend-xyz', name: 'frontend', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'frontend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'backend-abc', name: 'backend', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'attacker-zzz', name: 'attacker', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'attacker' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'frontend-xyz',
+                name: 'frontend',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'frontend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'backend-abc',
+                name: 'backend',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'attacker-zzz',
+                name: 'attacker',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'attacker' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -2122,11 +3144,13 @@ spec:
             'Only if the pods have identical SecurityContext settings',
           ],
           answer: 1,
-          explanation: 'Kubernetes uses a flat network model by default: every Pod can reach every other Pod regardless of namespace. NetworkPolicies must be explicitly applied to restrict this. This is why applying a default-deny policy is a security best practice in production namespaces.',
+          explanation:
+            'Kubernetes uses a flat network model by default: every Pod can reach every other Pod regardless of namespace. NetworkPolicies must be explicitly applied to restrict this. This is why applying a default-deny policy is a security best practice in production namespaces.',
         },
         {
           id: 'p3-m5-q2',
-          question: 'You apply a NetworkPolicy with podSelector: {} and no ingress rules. What is the effect?',
+          question:
+            'You apply a NetworkPolicy with podSelector: {} and no ingress rules. What is the effect?',
           options: [
             'No effect — an empty policy is ignored',
             'All pods in the namespace have all ingress traffic denied',
@@ -2134,11 +3158,13 @@ spec:
             'Only pods without labels have ingress traffic denied',
           ],
           answer: 1,
-          explanation: 'podSelector: {} selects ALL pods in the namespace (the empty selector is a wildcard). Including Ingress in policyTypes with no ingress rules means: apply an ingress firewall to all pods, allowing nothing. This is the default-deny pattern — the foundation of secure namespace isolation.',
+          explanation:
+            'podSelector: {} selects ALL pods in the namespace (the empty selector is a wildcard). Including Ingress in policyTypes with no ingress rules means: apply an ingress firewall to all pods, allowing nothing. This is the default-deny pattern — the foundation of secure namespace isolation.',
         },
         {
           id: 'p3-m5-q3',
-          question: 'A NetworkPolicy uses namespaceSelector. What must be true about the target namespace for this to work?',
+          question:
+            'A NetworkPolicy uses namespaceSelector. What must be true about the target namespace for this to work?',
           options: [
             'The namespace name must exactly match the selector value',
             'The namespace must have a label that matches the namespaceSelector',
@@ -2146,11 +3172,13 @@ spec:
             'The namespace must have a NetworkPolicy of its own',
           ],
           answer: 1,
-          explanation: 'namespaceSelector matches on namespace labels, not names. The target namespace must have the label you are selecting. For example, if your policy uses namespaceSelector: {matchLabels: {env: monitoring}}, you must first run: kubectl label namespace monitoring env=monitoring.',
+          explanation:
+            'namespaceSelector matches on namespace labels, not names. The target namespace must have the label you are selecting. For example, if your policy uses namespaceSelector: {matchLabels: {env: monitoring}}, you must first run: kubectl label namespace monitoring env=monitoring.',
         },
         {
           id: 'p3-m5-q4',
-          question: 'Your cluster uses kindnet as the CNI. You apply NetworkPolicies. Are they enforced?',
+          question:
+            'Your cluster uses kindnet as the CNI. You apply NetworkPolicies. Are they enforced?',
           options: [
             'Yes — all CNI plugins enforce NetworkPolicies',
             'No — kindnet does not support NetworkPolicy enforcement; you need Calico, Cilium, or another compatible CNI',
@@ -2158,18 +3186,57 @@ spec:
             'Yes, but only within the same namespace',
           ],
           answer: 1,
-          explanation: 'kindnet (the default CNI for kind clusters) does not enforce NetworkPolicies. The resources are accepted by the Kubernetes API but have no effect on actual traffic. To enforce NetworkPolicies in a kind cluster, you must install Calico or Cilium as the CNI plugin instead of kindnet.',
+          explanation:
+            'kindnet (the default CNI for kind clusters) does not enforce NetworkPolicies. The resources are accepted by the Kubernetes API but have no effect on actual traffic. To enforce NetworkPolicies in a kind cluster, you must install Calico or Cilium as the CNI plugin instead of kindnet.',
         },
       ],
       coverage: {
-        concepts: ['NetworkPolicy as namespace-scoped firewall', 'default allow-all behavior with no policies', 'ingress rules: who can send TO selected pods', 'egress rules: where selected pods can send TO', 'podSelector, namespaceSelector, ipBlock', 'default deny-all ingress pattern', 'CNI plugin requirement for enforcement'],
-        commands: ['kubectl apply -f netpol.yaml', 'kubectl get networkpolicies', 'kubectl describe networkpolicy', 'kubectl exec -- wget -T2 http://<svc> (test connectivity)', 'kubectl run test-pod --image=busybox --restart=Never -- sleep 3600'],
-        architecture: ['NetworkPolicy enforced by CNI plugin (Calico/Cilium/Weave)', 'policy selects pods via podSelector', 'allow rules are additive — no explicit deny needed', 'missing CNI support = policies accepted by API but not enforced'],
-        techniques: ['default deny-all ingress with empty podSelector', 'allow only specific namespace traffic with namespaceSelector', 'allow only specific pod with podSelector in from/to', 'allow external CIDR with ipBlock', 'test connectivity before and after applying policy'],
-        procedures: ['apply default deny-all ingress policy', 'apply allow policy for specific source', 'verify allowed traffic passes', 'verify blocked traffic fails', 'label namespace for namespaceSelector'],
+        concepts: [
+          'NetworkPolicy as namespace-scoped firewall',
+          'default allow-all behavior with no policies',
+          'ingress rules: who can send TO selected pods',
+          'egress rules: where selected pods can send TO',
+          'podSelector, namespaceSelector, ipBlock',
+          'default deny-all ingress pattern',
+          'CNI plugin requirement for enforcement',
+        ],
+        commands: [
+          'kubectl apply -f netpol.yaml',
+          'kubectl get networkpolicies',
+          'kubectl describe networkpolicy',
+          'kubectl exec -- wget -T2 http://<svc> (test connectivity)',
+          'kubectl run test-pod --image=busybox --restart=Never -- sleep 3600',
+        ],
+        architecture: [
+          'NetworkPolicy enforced by CNI plugin (Calico/Cilium/Weave)',
+          'policy selects pods via podSelector',
+          'allow rules are additive — no explicit deny needed',
+          'missing CNI support = policies accepted by API but not enforced',
+        ],
+        techniques: [
+          'default deny-all ingress with empty podSelector',
+          'allow only specific namespace traffic with namespaceSelector',
+          'allow only specific pod with podSelector in from/to',
+          'allow external CIDR with ipBlock',
+          'test connectivity before and after applying policy',
+        ],
+        procedures: [
+          'apply default deny-all ingress policy',
+          'apply allow policy for specific source',
+          'verify allowed traffic passes',
+          'verify blocked traffic fails',
+          'label namespace for namespaceSelector',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube with calico addon or cilium CNI'],
-        cases: ['default minikube CNI does not enforce NetworkPolicy — policies have no effect', 'namespaceSelector requires namespace label — bare name not used', 'egress policy blocking DNS port 53 breaks service discovery'],
-        scenarios: ['isolate a namespace — deny all ingress, then selectively allow frontend → backend', 'debug why pod cannot reach a service after NetworkPolicy applied'],
+        cases: [
+          'default minikube CNI does not enforce NetworkPolicy — policies have no effect',
+          'namespaceSelector requires namespace label — bare name not used',
+          'egress policy blocking DNS port 53 breaks service discovery',
+        ],
+        scenarios: [
+          'isolate a namespace — deny all ingress, then selectively allow frontend → backend',
+          'debug why pod cannot reach a service after NetworkPolicy applied',
+        ],
       },
       exercises: [
         {
@@ -2196,7 +3263,10 @@ spec:
 EOF`,
             'kubectl exec client -n netpol-test -- wget -T2 -O- http://backend',
           ],
-          verify: ['Before policy: wget returns nginx page', 'After deny-all: wget times out with connection refused or timeout'],
+          verify: [
+            'Before policy: wget returns nginx page',
+            'After deny-all: wget times out with connection refused or timeout',
+          ],
           expectedOutcome: 'Default-deny ingress blocks all traffic to backend pod.',
           cleanup: ['kubectl delete namespace netpol-test'],
         },
@@ -2232,7 +3302,10 @@ EOF`,
             'kubectl exec frontend -n isolation-test -- wget -T2 -O- http://backend',
             'kubectl exec other -n isolation-test -- wget -T2 -O- http://backend',
           ],
-          verify: ['frontend pod reaches backend successfully', 'other pod times out — blocked by NetworkPolicy'],
+          verify: [
+            'frontend pod reaches backend successfully',
+            'other pod times out — blocked by NetworkPolicy',
+          ],
           expectedOutcome: 'Selective ingress allow — only matching pod label passes.',
           cleanup: ['kubectl delete namespace isolation-test'],
         },
@@ -2263,8 +3336,13 @@ EOF`,
             'kubectl get networkpolicies -n debug-netpol',
             'kubectl describe networkpolicy block-all -n debug-netpol',
           ],
-          verify: ['wget fails after policy applied', 'describe shows empty ingress rules (deny-all effect)', 'kubectl get networkpolicies shows the policy'],
-          expectedOutcome: 'Block-all policy identified as cause; describe shows no ingress allow rules.',
+          verify: [
+            'wget fails after policy applied',
+            'describe shows empty ingress rules (deny-all effect)',
+            'kubectl get networkpolicies shows the policy',
+          ],
+          expectedOutcome:
+            'Block-all policy identified as cause; describe shows no ingress allow rules.',
           cleanup: ['kubectl delete namespace debug-netpol'],
         },
         {
@@ -2277,8 +3355,12 @@ EOF`,
             'kubectl explain networkpolicy.spec.egress',
             'kubectl explain networkpolicy.spec.podSelector',
           ],
-          verify: ['explain returns from/to/ports fields', 'Can state: CNI plugin required, default allow-all without policies'],
-          expectedOutcome: 'NetworkPolicy structure and CNI enforcement requirement recalled without notes.',
+          verify: [
+            'explain returns from/to/ports fields',
+            'Can state: CNI plugin required, default allow-all without policies',
+          ],
+          expectedOutcome:
+            'NetworkPolicy structure and CNI enforcement requirement recalled without notes.',
           cleanup: [],
         },
       ],
@@ -2287,7 +3369,8 @@ EOF`,
       id: 'p3-m6',
       slug: 'persistent-volumes',
       title: 'PersistentVolumes — Storage Lifecycle',
-      description: 'Decouple storage from pods: PersistentVolumes, PersistentVolumeClaims, and StorageClasses for dynamic provisioning.',
+      description:
+        'Decouple storage from pods: PersistentVolumes, PersistentVolumeClaims, and StorageClasses for dynamic provisioning.',
       duration: '60 min',
       difficulty: 'intermediate' as const,
       masteryChecks: [
@@ -2360,8 +3443,15 @@ minikube has a default StorageClass (standard) backed by hostPath.`,
             'NAME                 PROVISIONER                RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE',
             'standard (default)   k8s.io/minikube-hostpath   Delete          Immediate           false                  45m',
           ],
-          explanation: 'The "standard" StorageClass is marked (default). Any PVC without a storageClassName gets this class. RECLAIMPOLICY=Delete means the PV is deleted when the PVC is deleted.',
-          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+          explanation:
+            'The "standard" StorageClass is marked (default). Any PVC without a storageClassName gets this class. RECLAIMPOLICY=Delete means the PV is deleted when the PVC is deleted.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
+          },
         },
         {
           id: 'p3-m6-s2',
@@ -2378,8 +3468,15 @@ spec:
     requests:
       storage: 1Gi`,
           output: [],
-          explanation: 'No storageClassName specified → uses the default (standard). The provisioner creates a PV and binds it immediately.',
-          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: ['my-pvc created, bound to pvc-abc12'] },
+          explanation:
+            'No storageClassName specified → uses the default (standard). The provisioner creates a PV and binds it immediately.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['my-pvc created, bound to pvc-abc12'],
+          },
         },
         {
           id: 'p3-m6-s3',
@@ -2390,8 +3487,15 @@ spec:
             'NAME     STATUS   VOLUME           CAPACITY   ACCESS MODES   STORAGECLASS   AGE',
             'my-pvc   Bound    pvc-abc12-def5   1Gi        RWO            standard       8s',
           ],
-          explanation: 'STATUS=Bound means a PV was found/created and exclusively paired with this PVC. VOLUME shows the auto-generated PV name. If STATUS=Pending, the provisioner is working or no matching PV exists.',
-          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+          explanation:
+            'STATUS=Bound means a PV was found/created and exclusively paired with this PVC. VOLUME shows the auto-generated PV name. If STATUS=Pending, the provisioner is working or no matching PV exists.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
+          },
         },
         {
           id: 'p3-m6-s4',
@@ -2415,10 +3519,25 @@ spec:
     persistentVolumeClaim:
       claimName: my-pvc`,
           output: [],
-          explanation: 'The pod mounts my-pvc at /data. Any writes to /data survive pod restarts and rescheduling (to the same node, for RWO).',
+          explanation:
+            'The pod mounts my-pvc at /data. Any writes to /data survive pod restarts and rescheduling (to the same node, for RWO).',
           clusterState: {
-            pods: [{ id: 'pw', name: 'pvc-writer', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 }],
-            services: [], deployments: [], namespaces: ['default'], events: ['pvc-writer scheduled → node-1'],
+            pods: [
+              {
+                id: 'pw',
+                name: 'pvc-writer',
+                namespace: 'default',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 0,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['pvc-writer scheduled → node-1'],
           },
         },
         {
@@ -2427,10 +3546,25 @@ spec:
           instruction: 'Delete the pod and create a new one — the data should still be there.',
           command: 'kubectl delete pod pvc-writer && kubectl apply -f pod-with-pvc.yaml',
           output: ['pod "pvc-writer" deleted', 'pod/pvc-writer created'],
-          explanation: 'The PVC (and PV) survive pod deletion. A new pod mounting the same PVC finds the existing data. This is the key difference from emptyDir.',
+          explanation:
+            'The PVC (and PV) survive pod deletion. A new pod mounting the same PVC finds the existing data. This is the key difference from emptyDir.',
           clusterState: {
-            pods: [{ id: 'pw2', name: 'pvc-writer', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 }],
-            services: [], deployments: [], namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'pw2',
+                name: 'pvc-writer',
+                namespace: 'default',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 0,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
           },
         },
         {
@@ -2439,10 +3573,25 @@ spec:
           instruction: 'Read the file from the new pod to confirm persistence.',
           command: 'kubectl exec pvc-writer -- cat /data/file.txt',
           output: ['persistent data'],
-          explanation: 'The file written by the first pod is still there. This confirms the PVC persisted data across pod deletion and recreation.',
+          explanation:
+            'The file written by the first pod is still there. This confirms the PVC persisted data across pod deletion and recreation.',
           clusterState: {
-            pods: [{ id: 'pw2', name: 'pvc-writer', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 }],
-            services: [], deployments: [], namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'pw2',
+                name: 'pvc-writer',
+                namespace: 'default',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 0,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
           },
           tip: 'Clean up: kubectl delete pod pvc-writer && kubectl delete pvc my-pvc',
         },
@@ -2458,11 +3607,13 @@ spec:
             'PVCs always start Pending and become Bound after 30 seconds',
           ],
           answer: 1,
-          explanation: 'Pending means no available PV matches the PVC\'s requirements. Check: is the requested size ≤ available PV? Do access modes overlap? Is the StorageClass correct? For dynamic provisioning: is the provisioner running?',
+          explanation:
+            "Pending means no available PV matches the PVC's requirements. Check: is the requested size ≤ available PV? Do access modes overlap? Is the StorageClass correct? For dynamic provisioning: is the provisioner running?",
         },
         {
           id: 'p3-m6-q2',
-          question: 'A PVC with RWO access mode is Bound. Two pods try to mount it simultaneously on different nodes. What happens?',
+          question:
+            'A PVC with RWO access mode is Bound. Two pods try to mount it simultaneously on different nodes. What happens?',
           options: [
             'Both pods mount successfully',
             'The second pod stays Pending — RWO allows only one node at a time',
@@ -2470,7 +3621,8 @@ spec:
             'The PVC is automatically upgraded to RWX',
           ],
           answer: 1,
-          explanation: 'ReadWriteOnce allows only one node to mount the volume for writing. The second pod on a different node stays Pending. On the same node, multiple pods can mount RWO (depends on the storage driver).',
+          explanation:
+            'ReadWriteOnce allows only one node to mount the volume for writing. The second pod on a different node stays Pending. On the same node, multiple pods can mount RWO (depends on the storage driver).',
         },
         {
           id: 'p3-m6-q3',
@@ -2482,7 +3634,8 @@ spec:
             'Bound — PV stays bound until explicitly released',
           ],
           answer: 1,
-          explanation: 'With Retain, the PV moves to Released state. The data is preserved on the underlying storage. A new PVC cannot bind to it (Released ≠ Available). An admin must manually clean up and recycle it.',
+          explanation:
+            'With Retain, the PV moves to Released state. The data is preserved on the underlying storage. A new PVC cannot bind to it (Released ≠ Available). An admin must manually clean up and recycle it.',
         },
         {
           id: 'p3-m6-q4',
@@ -2494,7 +3647,8 @@ spec:
             'Maps physical disk partitions to namespaces',
           ],
           answer: 1,
-          explanation: 'StorageClass specifies which provisioner to use (e.g. AWS EBS, GCE PD, minikube hostpath) and its parameters (e.g. disk type, zone). When a PVC references a StorageClass, the provisioner creates the PV automatically.',
+          explanation:
+            'StorageClass specifies which provisioner to use (e.g. AWS EBS, GCE PD, minikube hostpath) and its parameters (e.g. disk type, zone). When a PVC references a StorageClass, the provisioner creates the PV automatically.',
         },
         {
           id: 'p3-m6-q5',
@@ -2506,14 +3660,21 @@ spec:
             'Data persists only if the pod had restartPolicy: Never',
           ],
           answer: 1,
-          explanation: 'PVCs are independent of pod lifecycle. Deleting a pod does not delete the PVC. The data persists until the PVC itself is deleted (and depending on reclaimPolicy, until the PV is also deleted).',
+          explanation:
+            'PVCs are independent of pod lifecycle. Deleting a pod does not delete the PVC. The data persists until the PVC itself is deleted (and depending on reclaimPolicy, until the PV is also deleted).',
         },
         {
           id: 'p3-m6-q6',
           question: 'Which access mode allows multiple nodes to read AND write simultaneously?',
-          options: ['ReadWriteOnce (RWO)', 'ReadOnlyMany (ROX)', 'ReadWriteMany (RWX)', 'ReadWriteAll (RWA)'],
+          options: [
+            'ReadWriteOnce (RWO)',
+            'ReadOnlyMany (ROX)',
+            'ReadWriteMany (RWX)',
+            'ReadWriteAll (RWA)',
+          ],
           answer: 2,
-          explanation: 'ReadWriteMany (RWX) allows multiple nodes to mount the volume for reading and writing simultaneously. NFS and some cloud file systems support RWX. Most block storage (AWS EBS, GCE PD) only supports RWO.',
+          explanation:
+            'ReadWriteMany (RWX) allows multiple nodes to mount the volume for reading and writing simultaneously. NFS and some cloud file systems support RWX. Most block storage (AWS EBS, GCE PD) only supports RWO.',
         },
       ],
       exercises: [
@@ -2530,13 +3691,15 @@ spec:
             'kubectl apply -f pod-pvc.yaml',
             'kubectl exec pvc-writer -- cat /data/test.txt',
           ],
-          verify: ['Second pod reads "hello" from /data/test.txt', 'kubectl get pvc shows STATUS=Bound throughout'],
+          verify: [
+            'Second pod reads "hello" from /data/test.txt',
+            'kubectl get pvc shows STATUS=Bound throughout',
+          ],
           expectedOutcome: 'Data persists across pod restart via PVC',
           cleanup: ['kubectl delete pod pvc-writer', 'kubectl delete pvc my-pvc'],
         },
       ],
     },
-
   ],
 }
 

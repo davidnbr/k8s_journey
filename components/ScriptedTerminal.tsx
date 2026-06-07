@@ -149,7 +149,11 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
             <div
               key={s.id}
               className={`h-1 flex-1 rounded-full transition-all duration-500 ${
-                i < currentStep ? 'bg-emerald-500' : i === currentStep ? 'bg-blue-500' : 'bg-slate-700'
+                i < currentStep
+                  ? 'bg-emerald-500'
+                  : i === currentStep
+                    ? 'bg-blue-500'
+                    : 'bg-slate-700'
               }`}
             />
           ))}
@@ -158,9 +162,15 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
           {currentStep + 1}/{steps.length}
         </span>
         <button
-          onClick={() => { setChallengeMode(m => !m); setUserInput(''); setInputError(false) }}
+          onClick={() => {
+            setChallengeMode((m) => !m)
+            setUserInput('')
+            setInputError(false)
+          }}
           aria-pressed={challengeMode}
-          title={challengeMode ? 'Switch to type-the-command mode' : 'Switch to guided walkthrough mode'}
+          title={
+            challengeMode ? 'Switch to type-the-command mode' : 'Switch to guided walkthrough mode'
+          }
           className={`text-[10px] px-2 py-1 rounded border transition-all ${
             challengeMode
               ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
@@ -188,7 +198,9 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
           <div className="mt-3 bg-slate-950 rounded-lg border border-slate-700 p-3 overflow-x-auto">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs text-slate-500">pod.yaml</span>
-              <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">YAML</span>
+              <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
+                YAML
+              </span>
             </div>
             <pre className="text-xs font-mono text-slate-200 leading-[1.2]">
               {step.yamlContent.split('\n').map((line, i) => {
@@ -219,7 +231,10 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
       </div>
 
       {/* Terminal */}
-      <div ref={terminalRef} className="flex-1 overflow-y-auto p-4 font-mono text-sm space-y-1 min-h-0">
+      <div
+        ref={terminalRef}
+        className="flex-1 overflow-y-auto p-4 font-mono text-sm space-y-1 min-h-0"
+      >
         {/* History */}
         {history.map((h, hi) => (
           <div key={hi} className="space-y-0.5 opacity-70">
@@ -228,7 +243,9 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
               <span className="text-slate-200">{h.cmd}</span>
             </div>
             {h.output.map((line, li) => (
-              <div key={li} className="text-slate-400 pl-4 text-xs leading-5">{line}</div>
+              <div key={li} className="text-slate-400 pl-4 text-xs leading-5">
+                {line}
+              </div>
             ))}
           </div>
         ))}
@@ -258,23 +275,29 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
         )}
 
         {/* Idle prompt / challenge input */}
-        {phase === 'ready' && step.command && (
-          challengeMode ? (
+        {phase === 'ready' &&
+          step.command &&
+          (challengeMode ? (
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-emerald-400 select-none" aria-hidden="true">$</span>
+                <span className="text-emerald-400 select-none" aria-hidden="true">
+                  $
+                </span>
                 <input
                   ref={inputRef}
                   type="text"
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleChallengeSubmit() }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleChallengeSubmit()
+                  }}
                   aria-label="Enter kubectl command"
                   aria-invalid={inputError}
-                  aria-describedby={[
-                    inputError ? 'challenge-error' : null,
-                    showHint ? 'challenge-hint' : null,
-                  ].filter(Boolean).join(' ') || undefined}
+                  aria-describedby={
+                    [inputError ? 'challenge-error' : null, showHint ? 'challenge-hint' : null]
+                      .filter(Boolean)
+                      .join(' ') || undefined
+                  }
                   className={`bg-transparent font-mono text-sm outline-none flex-1 ml-2 ${
                     inputError ? 'text-red-400' : 'text-slate-100'
                   }`}
@@ -297,8 +320,7 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
               <span className="text-emerald-700 select-none">$</span>
               <span className="animate-blink text-slate-700">▌</span>
             </div>
-          )
-        )}
+          ))}
       </div>
 
       {/* Explanation & tip */}
@@ -307,7 +329,9 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
           <p className="text-slate-300 text-xs leading-relaxed">{step.explanation}</p>
           {step.tip && (
             <div className="mt-2 flex items-start gap-2">
-              <span className="text-yellow-400 text-xs" aria-hidden="true">💡</span>
+              <span className="text-yellow-400 text-xs" aria-hidden="true">
+                💡
+              </span>
               <p className="text-yellow-300/80 text-xs leading-relaxed">{step.tip}</p>
             </div>
           )}
@@ -367,7 +391,10 @@ export default function ScriptedTerminal({ steps, onStateChange, onComplete }: P
               aria-busy="true"
               className="flex items-center gap-2 bg-slate-700 text-slate-400 text-xs px-4 py-2 rounded-lg cursor-not-allowed"
             >
-              <span className="animate-spin inline-block" aria-hidden="true">⟳</span> Running…
+              <span className="animate-spin inline-block" aria-hidden="true">
+                ⟳
+              </span>{' '}
+              Running…
             </button>
           )}
 

@@ -60,8 +60,8 @@ export interface LabStep {
 export interface QuizQuestion {
   id: string
   question: string
-  options: string[]      // always multiple-choice
-  answer: number          // index into options[]
+  options: string[] // always multiple-choice
+  answer: number // index into options[]
   explanation: string
 }
 
@@ -72,7 +72,7 @@ export type ReviewStatus = 'verified' | 'needs-update' | 'blocked'
 export interface SourceRef {
   title: string
   url: string
-  checkedAt: string       // YYYY-MM
+  checkedAt: string // YYYY-MM
   scope: 'concepts' | 'commands' | 'tutorial' | 'tooling' | 'release'
 }
 
@@ -123,12 +123,12 @@ export interface Module {
   duration: string
   difficulty: 'beginner' | 'intermediate' | 'advanced'
   learningObjectives?: string[] // what the learner should be able to do after the module
-  keyConcepts?: string[]        // core concepts to retrieve during review
-  practicePrompts?: string[]    // short exercises that force prediction, recall, or transfer
-  masteryChecks?: string[]      // observable criteria for moving on
+  keyConcepts?: string[] // core concepts to retrieve during review
+  practicePrompts?: string[] // short exercises that force prediction, recall, or transfer
+  masteryChecks?: string[] // observable criteria for moving on
   coverage?: TopicCoverage
   exercises?: ExerciseTask[]
-  theory: string          // markdown-like text shown before the lab
+  theory: string // markdown-like text shown before the lab
   labSteps: LabStep[]
   quiz: QuizQuestion[]
 }
@@ -141,7 +141,7 @@ export interface Phase {
   description: string
   weeks: string
   hours: string
-  color: string           // tailwind border/text colour token
+  color: string // tailwind border/text colour token
   bgColor: string
   modules: Module[]
 }

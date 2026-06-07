@@ -11,8 +11,13 @@ import {
   spacedReviewCadence,
 } from '@/content/learningDesign'
 import {
-  markStepReached, markModuleCompleted, getModuleStatus,
-  markReviewDone, getNextReviewDue, getReviewProgress, REVIEW_INTERVALS,
+  markStepReached,
+  markModuleCompleted,
+  getModuleStatus,
+  markReviewDone,
+  getNextReviewDue,
+  getReviewProgress,
+  REVIEW_INTERVALS,
   type ReviewIntervalIndex,
 } from '@/lib/progress'
 import type { ClusterState } from '@/lib/types'
@@ -28,7 +33,11 @@ interface PageProps {
 const SAFE_LINK_SCHEME = /^(https?:\/\/|\/|#)/i
 
 function escapeAttr(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }
 
 // Allowlist-based: only <a>, <strong>, <code>, <br> survive — every other tag (script,
@@ -62,7 +71,10 @@ function formatInline(text: string): string {
       return `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline underline-offset-2">${label}</a>`
     })
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>')
-    .replace(/`(.+?)`/g, '<code class="bg-slate-800 text-blue-300 text-xs px-1.5 py-0.5 rounded font-mono">$1</code>')
+    .replace(
+      /`(.+?)`/g,
+      '<code class="bg-slate-800 text-blue-300 text-xs px-1.5 py-0.5 rounded font-mono">$1</code>'
+    )
   return sanitizeHtml(html)
 }
 
@@ -88,7 +100,10 @@ function TheoryContent({ text }: { text: string }) {
       } else {
         inCode = false
         elements.push(
-          <pre key={i} className="bg-slate-900 border border-slate-700 rounded-lg p-4 overflow-x-auto text-xs font-mono text-slate-300 leading-[1.2] mb-4">
+          <pre
+            key={i}
+            className="bg-slate-900 border border-slate-700 rounded-lg p-4 overflow-x-auto text-xs font-mono text-slate-300 leading-[1.2] mb-4"
+          >
             {codeLines.join('\n')}
           </pre>
         )
@@ -111,7 +126,10 @@ function TheoryContent({ text }: { text: string }) {
     // Headings
     if (line.startsWith('## ')) {
       elements.push(
-        <h2 key={i} className="text-lg font-bold text-slate-100 mt-6 mb-3 border-b border-slate-800 pb-2">
+        <h2
+          key={i}
+          className="text-lg font-bold text-slate-100 mt-6 mb-3 border-b border-slate-800 pb-2"
+        >
           {line.slice(3)}
         </h2>
       )
@@ -130,14 +148,20 @@ function TheoryContent({ text }: { text: string }) {
         i++
       }
       const [header, , ...rows] = tableLines
-      const headers = header.split('|').filter((c) => c.trim()).map((c) => c.trim())
+      const headers = header
+        .split('|')
+        .filter((c) => c.trim())
+        .map((c) => c.trim())
       elements.push(
         <div key={`table-${i}`} className="overflow-x-auto mb-4">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr>
                 {headers.map((h, hi) => (
-                  <th key={hi} className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-700 pb-2 pr-4">
+                  <th
+                    key={hi}
+                    className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-700 pb-2 pr-4"
+                  >
                     {h}
                   </th>
                 ))}
@@ -145,12 +169,18 @@ function TheoryContent({ text }: { text: string }) {
             </thead>
             <tbody>
               {rows.map((row, ri) => {
-                const cells = row.split('|').filter((c) => c.trim()).map((c) => c.trim())
+                const cells = row
+                  .split('|')
+                  .filter((c) => c.trim())
+                  .map((c) => c.trim())
                 return (
                   <tr key={ri}>
                     {cells.map((cell, ci) => (
-                      <td key={ci} className="text-slate-300 text-xs border-b border-slate-800 py-2 pr-4"
-                        dangerouslySetInnerHTML={{ __html: formatInline(cell) }} />
+                      <td
+                        key={ci}
+                        className="text-slate-300 text-xs border-b border-slate-800 py-2 pr-4"
+                        dangerouslySetInnerHTML={{ __html: formatInline(cell) }}
+                      />
                     ))}
                   </tr>
                 )
@@ -172,20 +202,49 @@ function TheoryContent({ text }: { text: string }) {
         i++
       }
       const colorMap: Record<string, { border: string; bg: string; text: string; icon: string }> = {
-        TIP: { border: 'border-emerald-500/30', bg: 'bg-emerald-500/5', text: 'text-emerald-300', icon: '💡' },
-        NOTE: { border: 'border-blue-500/30', bg: 'bg-blue-500/5', text: 'text-blue-300', icon: 'ℹ️' },
-        WARNING: { border: 'border-yellow-500/30', bg: 'bg-yellow-500/5', text: 'text-yellow-300', icon: '⚠️' },
-        IMPORTANT: { border: 'border-violet-500/30', bg: 'bg-violet-500/5', text: 'text-violet-300', icon: '❗' },
-        CAUTION: { border: 'border-red-500/30', bg: 'bg-red-500/5', text: 'text-red-300', icon: '🔴' },
+        TIP: {
+          border: 'border-emerald-500/30',
+          bg: 'bg-emerald-500/5',
+          text: 'text-emerald-300',
+          icon: '💡',
+        },
+        NOTE: {
+          border: 'border-blue-500/30',
+          bg: 'bg-blue-500/5',
+          text: 'text-blue-300',
+          icon: 'ℹ️',
+        },
+        WARNING: {
+          border: 'border-yellow-500/30',
+          bg: 'bg-yellow-500/5',
+          text: 'text-yellow-300',
+          icon: '⚠️',
+        },
+        IMPORTANT: {
+          border: 'border-violet-500/30',
+          bg: 'bg-violet-500/5',
+          text: 'text-violet-300',
+          icon: '❗',
+        },
+        CAUTION: {
+          border: 'border-red-500/30',
+          bg: 'bg-red-500/5',
+          text: 'text-red-300',
+          icon: '🔴',
+        },
       }
       const c = colorMap[type] ?? colorMap.NOTE
       elements.push(
         <div key={`callout-${i}`} className={`${c.bg} border ${c.border} rounded-lg p-4 mb-4`}>
-          <div className={`flex items-center gap-2 font-semibold text-xs uppercase tracking-wider ${c.text} mb-2`}>
+          <div
+            className={`flex items-center gap-2 font-semibold text-xs uppercase tracking-wider ${c.text} mb-2`}
+          >
             <span>{c.icon}</span> {type}
           </div>
-          <div className="text-slate-300 text-sm leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: calloutLines.map(formatInline).join('<br/>') }} />
+          <div
+            className="text-slate-300 text-sm leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: calloutLines.map(formatInline).join('<br/>') }}
+          />
         </div>
       )
       continue
@@ -201,19 +260,31 @@ function TheoryContent({ text }: { text: string }) {
       const isBrainWarmup = text.includes('🧠') || text.toLowerCase().includes('brain warm-up')
       if (isBrainWarmup) {
         elements.push(
-          <div key={`bq-${i}`} className="bg-violet-500/8 border border-violet-500/30 rounded-xl p-4 mb-5">
+          <div
+            key={`bq-${i}`}
+            className="bg-violet-500/8 border border-violet-500/30 rounded-xl p-4 mb-5"
+          >
             <div className="flex items-center gap-2 text-violet-300 text-xs font-bold uppercase tracking-widest mb-2">
               <span>🧠</span> Brain Warm-Up
             </div>
-            <div className="text-slate-200 text-sm leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: quoteLines.map(formatInline).join(' ')
-                .replace(/^🧠\s*\*\*Brain Warm-Up\*\*:\s*/i, '')
-                .replace(/^Brain Warm-Up:\s*/i, '') }} />
+            <div
+              className="text-slate-200 text-sm leading-relaxed"
+              dangerouslySetInnerHTML={{
+                __html: quoteLines
+                  .map(formatInline)
+                  .join(' ')
+                  .replace(/^🧠\s*\*\*Brain Warm-Up\*\*:\s*/i, '')
+                  .replace(/^Brain Warm-Up:\s*/i, ''),
+              }}
+            />
           </div>
         )
       } else {
         elements.push(
-          <blockquote key={`bq-${i}`} className="border-l-2 border-slate-600 pl-4 py-1 mb-3 text-slate-400 text-sm italic leading-relaxed">
+          <blockquote
+            key={`bq-${i}`}
+            className="border-l-2 border-slate-600 pl-4 py-1 mb-3 text-slate-400 text-sm italic leading-relaxed"
+          >
             {quoteLines.map((ql, qi) => (
               <span key={qi} dangerouslySetInnerHTML={{ __html: formatInline(ql) }} />
             ))}
@@ -230,11 +301,18 @@ function TheoryContent({ text }: { text: string }) {
         i++
       }
       elements.push(
-        <ol key={`ol-${i}`} className="list-decimal list-inside text-slate-300 text-sm space-y-1 mb-3 pl-2">
+        <ol
+          key={`ol-${i}`}
+          className="list-decimal list-inside text-slate-300 text-sm space-y-1 mb-3 pl-2"
+        >
           {items.map((item, ii) => (
-            <li key={ii} className="leading-relaxed" dangerouslySetInnerHTML={{
-              __html: formatInline(item)
-            }} />
+            <li
+              key={ii}
+              className="leading-relaxed"
+              dangerouslySetInnerHTML={{
+                __html: formatInline(item),
+              }}
+            />
           ))}
         </ol>
       )
@@ -243,7 +321,7 @@ function TheoryContent({ text }: { text: string }) {
     // Unordered lists (with nested support)
     else if (line.startsWith('- ') || line.startsWith('* ')) {
       const items: { text: string; indent: number }[] = []
-      while (i < lines.length && (/^(\s*)([-*])\s/.test(lines[i]))) {
+      while (i < lines.length && /^(\s*)([-*])\s/.test(lines[i])) {
         const match = lines[i].match(/^(\s*)([-*])\s(.*)/)
         if (match) {
           items.push({ text: match[3], indent: match[1].length })
@@ -281,7 +359,10 @@ function TheoryContent({ text }: { text: string }) {
         return result
       }
       elements.push(
-        <ul key={`ul-${i}`} className="list-disc list-inside text-slate-300 text-sm space-y-1 mb-3 pl-2">
+        <ul
+          key={`ul-${i}`}
+          className="list-disc list-inside text-slate-300 text-sm space-y-1 mb-3 pl-2"
+        >
           {renderList(items, items[0]?.indent ?? 0)}
         </ul>
       )
@@ -298,8 +379,11 @@ function TheoryContent({ text }: { text: string }) {
     // Normal paragraph
     else {
       elements.push(
-        <p key={i} className="text-slate-300 text-base leading-relaxed mb-4"
-          dangerouslySetInnerHTML={{ __html: formatInline(line) }} />
+        <p
+          key={i}
+          className="text-slate-300 text-base leading-relaxed mb-4"
+          dangerouslySetInnerHTML={{ __html: formatInline(line) }}
+        />
       )
     }
     i++
@@ -326,31 +410,49 @@ function PracticeTab({
     try {
       const stored = typeof window !== 'undefined' ? localStorage.getItem(masteryKey) : null
       return stored ? new Set<number>(JSON.parse(stored)) : new Set()
-    } catch { return new Set() }
+    } catch {
+      return new Set()
+    }
   })
   const [doneExercises, setDoneExercises] = useState<Set<string>>(() => {
     try {
       const stored = typeof window !== 'undefined' ? localStorage.getItem(doneKey) : null
       return stored ? new Set<string>(JSON.parse(stored)) : new Set()
-    } catch { return new Set() }
+    } catch {
+      return new Set()
+    }
   })
   const [revealedSolutions, setRevealedSolutions] = useState<Set<string>>(() => {
     try {
       const stored = typeof window !== 'undefined' ? localStorage.getItem(revealedKey) : null
       return stored ? new Set<string>(JSON.parse(stored)) : new Set()
-    } catch { return new Set() }
+    } catch {
+      return new Set()
+    }
   })
 
   useEffect(() => {
-    try { localStorage.setItem(masteryKey, JSON.stringify([...checkedItems])) } catch { /* ignore */ }
+    try {
+      localStorage.setItem(masteryKey, JSON.stringify([...checkedItems]))
+    } catch {
+      /* ignore */
+    }
   }, [checkedItems, masteryKey])
 
   useEffect(() => {
-    try { localStorage.setItem(doneKey, JSON.stringify([...doneExercises])) } catch { /* ignore */ }
+    try {
+      localStorage.setItem(doneKey, JSON.stringify([...doneExercises]))
+    } catch {
+      /* ignore */
+    }
   }, [doneExercises, doneKey])
 
   useEffect(() => {
-    try { localStorage.setItem(revealedKey, JSON.stringify([...revealedSolutions])) } catch { /* ignore */ }
+    try {
+      localStorage.setItem(revealedKey, JSON.stringify([...revealedSolutions]))
+    } catch {
+      /* ignore */
+    }
   }, [revealedSolutions, revealedKey])
 
   const allChecked = masteryChecks.length > 0 && checkedItems.size === masteryChecks.length
@@ -379,41 +481,48 @@ function PracticeTab({
     })
   }
 
-  const uniqueSourceRefs = review?.sourceRefs.filter(
-    (ref, i, arr) => arr.findIndex((r) => r.url === ref.url) === i
-  ) ?? []
+  const uniqueSourceRefs =
+    review?.sourceRefs.filter((ref, i, arr) => arr.findIndex((r) => r.url === ref.url) === i) ?? []
 
   return (
     <div className="space-y-8 pb-8">
       {/* Mastery checklist */}
-      {masteryChecks.length > 0 && <section>
-        <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">
-          Mastery checks · tick only when you can do it from memory
-        </h2>
-        <ul className="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden">
-          {masteryChecks.map((item, index) => {
-            const checked = checkedItems.has(index)
-            return (
-              <li key={index}>
-                <button
-                  onClick={() => toggleCheck(index)}
-                  className={`w-full text-left flex items-center gap-4 px-4 py-3.5 text-sm transition-colors ${
-                    checked ? 'bg-emerald-500/8 text-emerald-300' : 'text-slate-300 hover:bg-slate-800/60'
-                  }`}
-                >
-                  <span className={`flex-shrink-0 text-base leading-none ${checked ? 'text-emerald-400' : 'text-slate-600'}`}>
-                    {checked ? '✓' : '○'}
-                  </span>
-                  <span className={checked ? 'line-through decoration-emerald-600 opacity-60' : ''}>{item}</span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-        {allChecked && (
-          <p className="mt-2 text-xs text-emerald-400 pl-1">All done — move on.</p>
-        )}
-      </section>}
+      {masteryChecks.length > 0 && (
+        <section>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">
+            Mastery checks · tick only when you can do it from memory
+          </h2>
+          <ul className="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden">
+            {masteryChecks.map((item, index) => {
+              const checked = checkedItems.has(index)
+              return (
+                <li key={index}>
+                  <button
+                    onClick={() => toggleCheck(index)}
+                    className={`w-full text-left flex items-center gap-4 px-4 py-3.5 text-sm transition-colors ${
+                      checked
+                        ? 'bg-emerald-500/8 text-emerald-300'
+                        : 'text-slate-300 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <span
+                      className={`flex-shrink-0 text-base leading-none ${checked ? 'text-emerald-400' : 'text-slate-600'}`}
+                    >
+                      {checked ? '✓' : '○'}
+                    </span>
+                    <span
+                      className={checked ? 'line-through decoration-emerald-600 opacity-60' : ''}
+                    >
+                      {item}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          {allChecked && <p className="mt-2 text-xs text-emerald-400 pl-1">All done — move on.</p>}
+        </section>
+      )}
 
       {/* Challenge exercises */}
       {exerciseTasks.length > 0 && (
@@ -426,15 +535,22 @@ function PracticeTab({
               const revealed = revealedSolutions.has(task.id)
               const done = doneExercises.has(task.id)
               return (
-                <div key={task.id} className={`border rounded-xl overflow-hidden transition-colors ${done ? 'border-emerald-500/25' : 'border-slate-800'}`}>
+                <div
+                  key={task.id}
+                  className={`border rounded-xl overflow-hidden transition-colors ${done ? 'border-emerald-500/25' : 'border-slate-800'}`}
+                >
                   {/* Header */}
                   <div className="px-4 py-3 flex items-center gap-3">
-                    <span className="text-[10px] uppercase tracking-widest text-slate-500 border border-slate-700 rounded px-1.5 py-0.5">{task.kind}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-slate-500 border border-slate-700 rounded px-1.5 py-0.5">
+                      {task.kind}
+                    </span>
                     <p className="flex-1 text-sm font-medium text-slate-200">{task.title}</p>
                     <button
                       onClick={() => toggleDone(task.id)}
                       className={`text-xs px-2.5 py-1 rounded border transition-all ${
-                        done ? 'border-emerald-500/30 text-emerald-400' : 'border-slate-700 text-slate-500 hover:text-slate-300'
+                        done
+                          ? 'border-emerald-500/30 text-emerald-400'
+                          : 'border-slate-700 text-slate-500 hover:text-slate-300'
                       }`}
                     >
                       {done ? '✓' : 'done?'}
@@ -457,17 +573,33 @@ function PracticeTab({
                     {revealed && (
                       <div className="border-t border-slate-800 bg-slate-950/60 px-4 py-4 space-y-4">
                         <div>
-                          <span className="text-[10px] uppercase tracking-widest text-cyan-500 font-semibold">Run</span>
-                          <pre className="mt-1.5 text-xs text-cyan-200 font-mono whitespace-pre-wrap leading-relaxed">{task.commands.join('\n')}</pre>
+                          <span className="text-[10px] uppercase tracking-widest text-cyan-500 font-semibold">
+                            Run
+                          </span>
+                          <pre className="mt-1.5 text-xs text-cyan-200 font-mono whitespace-pre-wrap leading-relaxed">
+                            {task.commands.join('\n')}
+                          </pre>
                         </div>
                         <div>
-                          <span className="text-[10px] uppercase tracking-widest text-emerald-500 font-semibold">Verify</span>
-                          <pre className="mt-1.5 text-xs text-emerald-200 font-mono whitespace-pre-wrap leading-relaxed">{task.verify.join('\n')}</pre>
-                          {task.expectedOutcome && <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">{task.expectedOutcome}</p>}
+                          <span className="text-[10px] uppercase tracking-widest text-emerald-500 font-semibold">
+                            Verify
+                          </span>
+                          <pre className="mt-1.5 text-xs text-emerald-200 font-mono whitespace-pre-wrap leading-relaxed">
+                            {task.verify.join('\n')}
+                          </pre>
+                          {task.expectedOutcome && (
+                            <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">
+                              {task.expectedOutcome}
+                            </p>
+                          )}
                         </div>
                         <div>
-                          <span className="text-[10px] uppercase tracking-widest text-amber-500 font-semibold">Cleanup</span>
-                          <pre className="mt-1.5 text-xs text-amber-200 font-mono whitespace-pre-wrap leading-relaxed">{task.cleanup.join('\n')}</pre>
+                          <span className="text-[10px] uppercase tracking-widest text-amber-500 font-semibold">
+                            Cleanup
+                          </span>
+                          <pre className="mt-1.5 text-xs text-amber-200 font-mono whitespace-pre-wrap leading-relaxed">
+                            {task.cleanup.join('\n')}
+                          </pre>
                         </div>
                       </div>
                     )}
@@ -520,13 +652,22 @@ export default function LessonPageClient({ params }: PageProps) {
   const prev = getPrevModule(phaseSlug, moduleSlug)
 
   const [clusterState, setClusterState] = useState<ClusterState>(
-    mod.labSteps[0]?.clusterState ?? { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] }
+    mod.labSteps[0]?.clusterState ?? {
+      pods: [],
+      services: [],
+      deployments: [],
+      namespaces: ['default'],
+      events: [],
+    }
   )
   const [labDone, setLabDone] = useState(false)
   const [quizDone, setQuizDone] = useState(false)
   const [activeTab, setActiveTab] = useState<'theory' | 'lab' | 'quiz' | 'practice'>('theory')
   const [nextReview, setNextReview] = useState<ReturnType<typeof getNextReviewDue>>(null)
-  const [reviewProgress, setReviewProgress] = useState<{ done: number; total: number }>({ done: 0, total: 4 })
+  const [reviewProgress, setReviewProgress] = useState<{ done: number; total: number }>({
+    done: 0,
+    total: 4,
+  })
 
   const refreshReviewState = useCallback(() => {
     setNextReview(getNextReviewDue(phaseSlug, moduleSlug))
@@ -568,7 +709,9 @@ export default function LessonPageClient({ params }: PageProps) {
       <div className="flex-shrink-0 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm px-6 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Link href="/learn" className="hover:text-slate-300 transition-colors">Course</Link>
+            <Link href="/learn" className="hover:text-slate-300 transition-colors">
+              Course
+            </Link>
             <span>/</span>
             <span className={phase.color}>{phase.shortTitle}</span>
             <span>/</span>
@@ -576,7 +719,7 @@ export default function LessonPageClient({ params }: PageProps) {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-slate-600 font-mono">
-              {phase.modules.findIndex(m => m.slug === moduleSlug) + 1}/{phase.modules.length}
+              {phase.modules.findIndex((m) => m.slug === moduleSlug) + 1}/{phase.modules.length}
             </span>
             <span className="text-xs text-slate-600">{mod.duration}</span>
             {isModuleDone && (
@@ -589,7 +732,11 @@ export default function LessonPageClient({ params }: PageProps) {
       </div>
 
       {/* Tabs */}
-      <div role="tablist" aria-label="Lesson sections" className="flex-shrink-0 flex gap-1 px-6 pt-4 pb-0 overflow-x-auto scrollbar-none">
+      <div
+        role="tablist"
+        aria-label="Lesson sections"
+        className="flex-shrink-0 flex gap-1 px-6 pt-4 pb-0 overflow-x-auto scrollbar-none"
+      >
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -630,13 +777,17 @@ export default function LessonPageClient({ params }: PageProps) {
                 <h1 className="text-2xl font-bold text-slate-100 mt-1">{mod.title}</h1>
                 <p className="text-slate-400 text-sm mt-1">{mod.description}</p>
                 <div className="flex items-center gap-3 mt-3">
-                  <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${
-                    mod.difficulty === 'beginner'
-                      ? 'bg-emerald-500/10 text-emerald-400'
-                      : mod.difficulty === 'intermediate'
-                      ? 'bg-yellow-500/10 text-yellow-400'
-                      : 'bg-red-500/10 text-red-400'
-                  }`}>{mod.difficulty}</span>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded font-medium ${
+                      mod.difficulty === 'beginner'
+                        ? 'bg-emerald-500/10 text-emerald-400'
+                        : mod.difficulty === 'intermediate'
+                          ? 'bg-yellow-500/10 text-yellow-400'
+                          : 'bg-red-500/10 text-red-400'
+                    }`}
+                  >
+                    {mod.difficulty}
+                  </span>
                   <span className="text-slate-600 text-xs">{mod.duration}</span>
                   <span className="text-slate-500 text-xs">Read → Lab → Quiz → Practice</span>
                 </div>
@@ -658,7 +809,11 @@ export default function LessonPageClient({ params }: PageProps) {
 
         {/* Lab tab */}
         {activeTab === 'lab' && (
-          <div role="tabpanel" id="lab-panel" className="h-full grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-0 overflow-hidden">
+          <div
+            role="tabpanel"
+            id="lab-panel"
+            className="h-full grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-0 overflow-hidden"
+          >
             {/* Terminal (left) */}
             <div className="p-4 overflow-hidden flex flex-col min-h-0">
               <ScriptedTerminal
@@ -690,19 +845,19 @@ export default function LessonPageClient({ params }: PageProps) {
                   Answer before revealing. The struggle to recall builds stronger memory.
                 </p>
               </div>
-              <QuizCard
-                key={moduleSlug}
-                questions={mod.quiz}
-                onComplete={handleQuizComplete}
-              />
+              <QuizCard key={moduleSlug} questions={mod.quiz} onComplete={handleQuizComplete} />
 
               {quizDone && next && (
                 <div className="mt-6 bg-slate-900 border border-slate-700 rounded-xl p-4 animate-slide-up">
                   <div className="text-xs text-slate-500 mb-1">Up next</div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className={`text-xs font-bold ${next.phase.color}`}>{next.phase.shortTitle}</div>
-                      <div className="text-slate-200 font-semibold text-sm">{next.module.title}</div>
+                      <div className={`text-xs font-bold ${next.phase.color}`}>
+                        {next.phase.shortTitle}
+                      </div>
+                      <div className="text-slate-200 font-semibold text-sm">
+                        {next.module.title}
+                      </div>
                     </div>
                     <Link
                       href={`/learn/${next.phase.slug}/${next.module.slug}`}
@@ -716,8 +871,12 @@ export default function LessonPageClient({ params }: PageProps) {
 
               {quizDone && (
                 <div className="mt-4 bg-violet-500/8 border border-violet-500/20 rounded-xl p-4">
-                  <p className="text-violet-300 text-sm font-semibold mb-1">Solidify your learning</p>
-                  <p className="text-slate-400 text-xs mb-3">Run the challenge exercises and tick the mastery checks before moving on.</p>
+                  <p className="text-violet-300 text-sm font-semibold mb-1">
+                    Solidify your learning
+                  </p>
+                  <p className="text-slate-400 text-xs mb-3">
+                    Run the challenge exercises and tick the mastery checks before moving on.
+                  </p>
                   <button
                     onClick={() => setActiveTab('practice')}
                     className="text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-lg transition-colors"
@@ -731,7 +890,9 @@ export default function LessonPageClient({ params }: PageProps) {
                 <div className="mt-4 bg-slate-950 border border-slate-800 rounded-xl p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-slate-300 text-sm font-semibold">Spaced Review Schedule</h3>
-                    <span className="text-xs text-slate-500">{reviewProgress.done}/{reviewProgress.total} reviews done</span>
+                    <span className="text-xs text-slate-500">
+                      {reviewProgress.done}/{reviewProgress.total} reviews done
+                    </span>
                   </div>
                   <div className="grid grid-cols-4 gap-2 mb-4">
                     {REVIEW_INTERVALS.map((days, i) => {
@@ -744,8 +905,8 @@ export default function LessonPageClient({ params }: PageProps) {
                             isDone
                               ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                               : isNext
-                              ? 'bg-blue-500/10 border-blue-500/40 text-blue-300'
-                              : 'bg-slate-900 border-slate-800 text-slate-600'
+                                ? 'bg-blue-500/10 border-blue-500/40 text-blue-300'
+                                : 'bg-slate-900 border-slate-800 text-slate-600'
                           }`}
                         >
                           <div className="font-bold text-sm">{isDone ? '✓' : `Day ${days}`}</div>
@@ -763,7 +924,9 @@ export default function LessonPageClient({ params }: PageProps) {
                           Day {REVIEW_INTERVALS[nextReview.intervalIndex]} review
                         </span>
                         {nextReview.overdueDays > 0 && (
-                          <span className="text-red-400 ml-2">{nextReview.overdueDays}d overdue</span>
+                          <span className="text-red-400 ml-2">
+                            {nextReview.overdueDays}d overdue
+                          </span>
                         )}
                         {nextReview.overdueDays === 0 && nextReview.dueAt <= Date.now() && (
                           <span className="text-amber-400 ml-2">due today</span>
@@ -798,7 +961,9 @@ export default function LessonPageClient({ params }: PageProps) {
               {!isModuleDone && (
                 <div className="mb-6 bg-amber-500/8 border border-amber-500/20 rounded-xl px-4 py-3 flex items-start gap-3">
                   <span className="text-amber-400 mt-0.5">⚠</span>
-                  <p className="text-amber-300 text-sm">Complete the Lab and Quiz first — then use these exercises to test yourself.</p>
+                  <p className="text-amber-300 text-sm">
+                    Complete the Lab and Quiz first — then use these exercises to test yourself.
+                  </p>
                 </div>
               )}
               <PracticeTab phaseSlug={phaseSlug} mod={mod} />
@@ -820,7 +985,9 @@ export default function LessonPageClient({ params }: PageProps) {
               <div>{prev.module.title}</div>
             </div>
           </Link>
-        ) : <div />}
+        ) : (
+          <div />
+        )}
 
         {next ? (
           <Link
@@ -836,7 +1003,10 @@ export default function LessonPageClient({ params }: PageProps) {
         ) : (
           <div className="text-right">
             <div className="text-slate-600 text-[10px]">Phase complete</div>
-            <Link href="/learn" className="text-emerald-400 text-xs hover:text-emerald-300 transition-colors">
+            <Link
+              href="/learn"
+              className="text-emerald-400 text-xs hover:text-emerald-300 transition-colors"
+            >
               Back to overview →
             </Link>
           </div>

@@ -1,7 +1,11 @@
 import type { Phase, ClusterState } from '@/lib/types'
 
 const emptyCluster: ClusterState = {
-  pods: [], services: [], deployments: [], namespaces: ['default'], events: [],
+  pods: [],
+  services: [],
+  deployments: [],
+  namespaces: ['default'],
+  events: [],
 }
 
 const phase2: Phase = {
@@ -9,7 +13,8 @@ const phase2: Phase = {
   slug: 'phase-2',
   title: 'Configuration & Reliability',
   shortTitle: 'Config & Health',
-  description: 'Configure your apps correctly with ConfigMaps and Secrets, then make them production-reliable with health probes and resource management.',
+  description:
+    'Configure your apps correctly with ConfigMaps and Secrets, then make them production-reliable with health probes and resource management.',
   weeks: 'Week 3–4',
   hours: '~9 hours',
   color: 'text-cyan-400',
@@ -20,7 +25,8 @@ const phase2: Phase = {
       id: 'p2-m1',
       slug: 'namespaces',
       title: 'Namespaces',
-      description: 'Isolate workloads into virtual clusters for teams, environments, and access control.',
+      description:
+        'Isolate workloads into virtual clusters for teams, environments, and access control.',
       duration: '45 min',
       difficulty: 'beginner',
       theory: `> 🧠 **Brain Warm-Up**: If two teams in a Kubernetes cluster create a Deployment with the same name (e.g. \`api\`), how does the cluster prevent name collisions, and does this separation also block network communication between them by default?
@@ -100,7 +106,8 @@ kubectl config set-context --current --namespace=default
         {
           id: 'p2-m1-s1',
           title: 'List all namespaces',
-          instruction: 'Run kubectl get namespaces to see the four default namespaces every cluster starts with.',
+          instruction:
+            'Run kubectl get namespaces to see the four default namespaces every cluster starts with.',
           command: 'kubectl get namespaces',
           output: [
             'NAME              STATUS   AGE',
@@ -109,7 +116,8 @@ kubectl config set-context --current --namespace=default
             'kube-public       Active   5d',
             'kube-system       Active   5d',
           ],
-          explanation: 'Every fresh cluster has these four namespaces. "Active" means the namespace is in use. kube-system holds all the control plane components you saw in Phase 0.',
+          explanation:
+            'Every fresh cluster has these four namespaces. "Active" means the namespace is in use. kube-system holds all the control plane components you saw in Phase 0.',
           clusterState: {
             ...emptyCluster,
             namespaces: ['default', 'kube-system', 'kube-public', 'kube-node-lease'],
@@ -120,10 +128,12 @@ kubectl config set-context --current --namespace=default
         {
           id: 'p2-m1-s2',
           title: 'Create a staging namespace',
-          instruction: 'Create a new namespace called "staging" to represent a staging environment.',
+          instruction:
+            'Create a new namespace called "staging" to represent a staging environment.',
           command: 'kubectl create namespace staging',
           output: ['namespace/staging created'],
-          explanation: 'Namespaces are cheap — creating one is instant and uses virtually no resources. The namespace object itself just registers the name with the cluster.',
+          explanation:
+            'Namespaces are cheap — creating one is instant and uses virtually no resources. The namespace object itself just registers the name with the cluster.',
           clusterState: {
             ...emptyCluster,
             namespaces: ['default', 'kube-system', 'kube-public', 'kube-node-lease', 'staging'],
@@ -137,10 +147,20 @@ kubectl config set-context --current --namespace=default
           instruction: 'Use -n to target the staging namespace when creating the pod.',
           command: 'kubectl run nginx --image=nginx:1.27 -n staging',
           output: ['pod/nginx created'],
-          explanation: 'The -n flag tells kubectl which namespace to target. Without it, the pod would land in "default". Notice that kubectl get pods (without -n) won\'t show this pod.',
+          explanation:
+            'The -n flag tells kubectl which namespace to target. Without it, the pod would land in "default". Notice that kubectl get pods (without -n) won\'t show this pod.',
           clusterState: {
             pods: [
-              { id: 'nginx-stg', name: 'nginx', namespace: 'staging', node: 'node-1', status: 'Running', labels: { run: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'nginx-stg',
+                name: 'nginx',
+                namespace: 'staging',
+                node: 'node-1',
+                status: 'Running',
+                labels: { run: 'nginx' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -153,7 +173,8 @@ kubectl config set-context --current --namespace=default
         {
           id: 'p2-m1-s4',
           title: 'List pods across all namespaces',
-          instruction: 'The -A flag (short for --all-namespaces) shows every pod in every namespace.',
+          instruction:
+            'The -A flag (short for --all-namespaces) shows every pod in every namespace.',
           command: 'kubectl get pods -A',
           output: [
             'NAMESPACE     NAME                                   READY   STATUS    RESTARTS   AGE',
@@ -163,11 +184,30 @@ kubectl config set-context --current --namespace=default
             'kube-system   kube-scheduler-minikube                1/1     Running   0          5d',
             'staging       nginx                                  1/1     Running   0          30s',
           ],
-          explanation: 'The NAMESPACE column makes it clear where each pod lives. This is the quickest way to get a full picture of what is running across your entire cluster.',
+          explanation:
+            'The NAMESPACE column makes it clear where each pod lives. This is the quickest way to get a full picture of what is running across your entire cluster.',
           clusterState: {
             pods: [
-              { id: 'nginx-stg', name: 'nginx', namespace: 'staging', node: 'node-1', status: 'Running', labels: { run: 'nginx' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'coredns', name: 'coredns-6f6b679f8f-4vj8t', namespace: 'kube-system', node: 'node-2', status: 'Running', labels: {}, image: 'coredns', restarts: 0 },
+              {
+                id: 'nginx-stg',
+                name: 'nginx',
+                namespace: 'staging',
+                node: 'node-1',
+                status: 'Running',
+                labels: { run: 'nginx' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'coredns',
+                name: 'coredns-6f6b679f8f-4vj8t',
+                namespace: 'kube-system',
+                node: 'node-2',
+                status: 'Running',
+                labels: {},
+                image: 'coredns',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -178,10 +218,12 @@ kubectl config set-context --current --namespace=default
         {
           id: 'p2-m1-s5',
           title: 'Delete the staging namespace',
-          instruction: 'Delete the namespace. This will also delete every resource inside it — namespaces cascade.',
+          instruction:
+            'Delete the namespace. This will also delete every resource inside it — namespaces cascade.',
           command: 'kubectl delete namespace staging',
           output: ['namespace "staging" deleted'],
-          explanation: 'Deleting a namespace triggers cascading deletion: Kubernetes deletes every Pod, ConfigMap, Secret, Service, and other namespaced resource inside it. This is immediate and irreversible — always double-check before deleting a namespace in production.',
+          explanation:
+            'Deleting a namespace triggers cascading deletion: Kubernetes deletes every Pod, ConfigMap, Secret, Service, and other namespaced resource inside it. This is immediate and irreversible — always double-check before deleting a namespace in production.',
           clusterState: {
             ...emptyCluster,
             namespaces: ['default', 'kube-system', 'kube-public', 'kube-node-lease'],
@@ -201,18 +243,20 @@ kubectl config set-context --current --namespace=default
             'Only Pods are deleted; ConfigMaps and Secrets survive',
           ],
           answer: 1,
-          explanation: 'Deleting a namespace triggers cascading deletion of ALL resources inside it — Pods, Services, ConfigMaps, Secrets, Deployments, and more. This is why you should be careful when deleting namespaces in production.',
+          explanation:
+            'Deleting a namespace triggers cascading deletion of ALL resources inside it — Pods, Services, ConfigMaps, Secrets, Deployments, and more. This is why you should be careful when deleting namespaces in production.',
         },
         {
           id: 'p2-m1-q2',
           question: 'Which namespace should your production apps NOT run in by default?',
           options: ['kube-system', 'kube-public', 'default', 'kube-node-lease'],
           answer: 2,
-          explanation: '"default" is fine for experimentation, but production apps should be in dedicated namespaces (e.g., "production" or an app-specific name). This enables RBAC, ResourceQuotas, and cleaner separation from other workloads.',
+          explanation:
+            '"default" is fine for experimentation, but production apps should be in dedicated namespaces (e.g., "production" or an app-specific name). This enables RBAC, ResourceQuotas, and cleaner separation from other workloads.',
         },
         {
           id: 'p2-m1-q3',
-          question: 'How do you set a default namespace so you don\'t need -n on every command?',
+          question: "How do you set a default namespace so you don't need -n on every command?",
           options: [
             'kubectl set default-namespace staging',
             'kubectl config set-context --current --namespace=staging',
@@ -220,25 +264,63 @@ kubectl config set-context --current --namespace=default
             'kubectl namespace use staging',
           ],
           answer: 1,
-          explanation: '"kubectl config set-context --current --namespace=staging" modifies your kubeconfig to set the active namespace for the current context. All subsequent commands target that namespace until you change it again.',
+          explanation:
+            '"kubectl config set-context --current --namespace=staging" modifies your kubeconfig to set the active namespace for the current context. All subsequent commands target that namespace until you change it again.',
         },
         {
           id: 'p2-m1-q4',
-          question: 'Which namespace contains Kubernetes infrastructure components like etcd and kube-apiserver?',
+          question:
+            'Which namespace contains Kubernetes infrastructure components like etcd and kube-apiserver?',
           options: ['default', 'kube-public', 'kube-node-lease', 'kube-system'],
           answer: 3,
-          explanation: 'kube-system is reserved for Kubernetes infrastructure: kube-apiserver, etcd, kube-scheduler, kube-controller-manager, coredns, and kube-proxy all run here.',
+          explanation:
+            'kube-system is reserved for Kubernetes infrastructure: kube-apiserver, etcd, kube-scheduler, kube-controller-manager, coredns, and kube-proxy all run here.',
         },
       ],
       coverage: {
-        concepts: ['namespace as virtual cluster boundary', 'resource isolation per namespace', 'built-in namespaces: default, kube-system, kube-public, kube-node-lease', 'cross-namespace DNS', 'ResourceQuota per namespace', 'LimitRange per namespace'],
-        commands: ['kubectl get namespaces', 'kubectl create namespace', 'kubectl delete namespace', 'kubectl get pods -n', 'kubectl get all -n', 'kubectl config set-context --current --namespace', 'kubectl api-resources --namespaced=true'],
-        architecture: ['namespace as API group scope', 'cluster-scoped vs namespace-scoped resources', 'how kube-system separation protects control plane from user workloads'],
-        techniques: ['scoping commands with -n flag', 'setting default namespace in kubeconfig context', 'listing all resources across all namespaces with -A'],
-        procedures: ['create a namespace', 'deploy workload into specific namespace', 'switch default namespace', 'list all pods across all namespaces'],
+        concepts: [
+          'namespace as virtual cluster boundary',
+          'resource isolation per namespace',
+          'built-in namespaces: default, kube-system, kube-public, kube-node-lease',
+          'cross-namespace DNS',
+          'ResourceQuota per namespace',
+          'LimitRange per namespace',
+        ],
+        commands: [
+          'kubectl get namespaces',
+          'kubectl create namespace',
+          'kubectl delete namespace',
+          'kubectl get pods -n',
+          'kubectl get all -n',
+          'kubectl config set-context --current --namespace',
+          'kubectl api-resources --namespaced=true',
+        ],
+        architecture: [
+          'namespace as API group scope',
+          'cluster-scoped vs namespace-scoped resources',
+          'how kube-system separation protects control plane from user workloads',
+        ],
+        techniques: [
+          'scoping commands with -n flag',
+          'setting default namespace in kubeconfig context',
+          'listing all resources across all namespaces with -A',
+        ],
+        procedures: [
+          'create a namespace',
+          'deploy workload into specific namespace',
+          'switch default namespace',
+          'list all pods across all namespaces',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube', 'kubens (optional)'],
-        cases: ['deploying to wrong namespace due to missing -n flag', 'quota exceeded blocking pod creation', 'cross-namespace service DNS required'],
-        scenarios: ['isolate dev and staging workloads on same cluster', 'debug why a pod cannot see another pod by short DNS name'],
+        cases: [
+          'deploying to wrong namespace due to missing -n flag',
+          'quota exceeded blocking pod creation',
+          'cross-namespace service DNS required',
+        ],
+        scenarios: [
+          'isolate dev and staging workloads on same cluster',
+          'debug why a pod cannot see another pod by short DNS name',
+        ],
       },
       exercises: [
         {
@@ -278,11 +360,27 @@ EOF`,
             'kubectl get deployment',
             'kubectl config use-context minikube',
           ],
-          verify: ['kubectl get namespaces --show-labels shows development and production with name labels', 'In dev context: snowflake deployment shows READY 2/2', 'In prod context: kubectl get deployment returns No resources found (isolation confirmed)', 'In prod context: cattle deployment shows READY 5/5'],
-          expectedOutcome: 'Namespace isolation demonstrated: dev resources invisible in prod context.',
-          cleanup: ['kubectl config delete-context dev', 'kubectl config delete-context prod', 'kubectl delete namespace development', 'kubectl delete namespace production'],
+          verify: [
+            'kubectl get namespaces --show-labels shows development and production with name labels',
+            'In dev context: snowflake deployment shows READY 2/2',
+            'In prod context: kubectl get deployment returns No resources found (isolation confirmed)',
+            'In prod context: cattle deployment shows READY 5/5',
+          ],
+          expectedOutcome:
+            'Namespace isolation demonstrated: dev resources invisible in prod context.',
+          cleanup: [
+            'kubectl config delete-context dev',
+            'kubectl config delete-context prod',
+            'kubectl delete namespace development',
+            'kubectl delete namespace production',
+          ],
           sourceRefs: [
-            { title: 'Kubernetes: Namespaces Walkthrough', url: 'https://kubernetes.io/docs/tutorials/cluster-management/namespaces-walkthrough/', checkedAt: '2026-06', scope: 'tutorial' },
+            {
+              title: 'Kubernetes: Namespaces Walkthrough',
+              url: 'https://kubernetes.io/docs/tutorials/cluster-management/namespaces-walkthrough/',
+              checkedAt: '2026-06',
+              scope: 'tutorial',
+            },
           ],
         },
         {
@@ -300,9 +398,15 @@ EOF`,
             'kubectl exec curl-pod -n default -- curl -s http://backend.app-ns.svc.cluster.local',
             'kubectl config set-context --current --namespace=default',
           ],
-          verify: ['Context switch makes app-ns the default', 'Cross-namespace DNS curl returns nginx page'],
+          verify: [
+            'Context switch makes app-ns the default',
+            'Cross-namespace DNS curl returns nginx page',
+          ],
           expectedOutcome: 'Default namespace switched; cross-namespace DNS confirmed.',
-          cleanup: ['kubectl delete pod curl-pod -n default --ignore-not-found', 'kubectl delete namespace app-ns'],
+          cleanup: [
+            'kubectl delete pod curl-pod -n default --ignore-not-found',
+            'kubectl delete namespace app-ns',
+          ],
         },
         {
           id: 'p2-m1-e3',
@@ -316,8 +420,13 @@ EOF`,
             'kubectl get pods -n hidden-ns',
             'kubectl get pods -A | grep hidden-pod',
           ],
-          verify: ['kubectl get pods (without -n) returns No resources found in default namespace', 'kubectl get pods -n hidden-ns returns the pod', '-A flag finds it'],
-          expectedOutcome: 'Understand how namespace scoping hides resources and how -A and -n fix it.',
+          verify: [
+            'kubectl get pods (without -n) returns No resources found in default namespace',
+            'kubectl get pods -n hidden-ns returns the pod',
+            '-A flag finds it',
+          ],
+          expectedOutcome:
+            'Understand how namespace scoping hides resources and how -A and -n fix it.',
           cleanup: ['kubectl delete namespace hidden-ns'],
         },
         {
@@ -344,7 +453,8 @@ EOF`,
       id: 'p2-m2',
       slug: 'labels-selectors',
       title: 'Labels & Selectors',
-      description: 'Tag resources with key-value metadata and use selectors to wire Services, Deployments, and queries together.',
+      description:
+        'Tag resources with key-value metadata and use selectors to wire Services, Deployments, and queries together.',
       duration: '45 min',
       difficulty: 'beginner',
       theory: `> 🧠 **Brain Warm-Up**: How does a Kubernetes Service dynamically find which Pods to route traffic to, and what low-level mechanism is updated on the worker nodes when a Pod's labels change?
@@ -432,19 +542,45 @@ kubectl get pods -l 'env notin (staging)'
         {
           id: 'p2-m2-s1',
           title: 'Deploy pods with different labels',
-          instruction: 'Create three pods with distinct label combinations to simulate a multi-tier app.',
-          command: 'kubectl run web --image=nginx:1.27 -l app=web,tier=frontend && kubectl run api --image=nginx:1.27 -l app=api,tier=backend && kubectl run cache --image=redis:7 -l app=cache,tier=cache',
-          output: [
-            'pod/web created',
-            'pod/api created',
-            'pod/cache created',
-          ],
-          explanation: 'Each pod gets metadata labels at creation time with the -l flag. These labels are stored in etcd alongside the pod spec and are immediately queryable.',
+          instruction:
+            'Create three pods with distinct label combinations to simulate a multi-tier app.',
+          command:
+            'kubectl run web --image=nginx:1.27 -l app=web,tier=frontend && kubectl run api --image=nginx:1.27 -l app=api,tier=backend && kubectl run cache --image=redis:7 -l app=cache,tier=cache',
+          output: ['pod/web created', 'pod/api created', 'pod/cache created'],
+          explanation:
+            'Each pod gets metadata labels at creation time with the -l flag. These labels are stored in etcd alongside the pod spec and are immediately queryable.',
           clusterState: {
             pods: [
-              { id: 'web-abc12', name: 'web', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web', tier: 'frontend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'api-def34', name: 'api', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'api', tier: 'backend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'cache-ghi56', name: 'cache', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'cache', tier: 'cache' }, image: 'redis:7', restarts: 0 },
+              {
+                id: 'web-abc12',
+                name: 'web',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web', tier: 'frontend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'api-def34',
+                name: 'api',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'api', tier: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'cache-ghi56',
+                name: 'cache',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'cache', tier: 'cache' },
+                image: 'redis:7',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -463,12 +599,40 @@ kubectl get pods -l 'env notin (staging)'
             'cache   1/1     Running   0          20s   app=cache,tier=cache',
             'web     1/1     Running   0          20s   app=web,tier=frontend',
           ],
-          explanation: 'The LABELS column shows every key=value pair on the resource. This is the quickest way to audit what labels are present before writing a selector.',
+          explanation:
+            'The LABELS column shows every key=value pair on the resource. This is the quickest way to audit what labels are present before writing a selector.',
           clusterState: {
             pods: [
-              { id: 'web-abc12', name: 'web', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web', tier: 'frontend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'api-def34', name: 'api', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'api', tier: 'backend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'cache-ghi56', name: 'cache', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'cache', tier: 'cache' }, image: 'redis:7', restarts: 0 },
+              {
+                id: 'web-abc12',
+                name: 'web',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web', tier: 'frontend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'api-def34',
+                name: 'api',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'api', tier: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'cache-ghi56',
+                name: 'cache',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'cache', tier: 'cache' },
+                image: 'redis:7',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -486,10 +650,20 @@ kubectl get pods -l 'env notin (staging)'
             'NAME   READY   STATUS    RESTARTS   AGE',
             'web    1/1     Running   0          45s',
           ],
-          explanation: 'The -l flag applies a selector filter. Only pods matching app=web are returned. This is exactly what a Service does internally when deciding which pods to route traffic to.',
+          explanation:
+            'The -l flag applies a selector filter. Only pods matching app=web are returned. This is exactly what a Service does internally when deciding which pods to route traffic to.',
           clusterState: {
             pods: [
-              { id: 'web-abc12', name: 'web', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web', tier: 'frontend' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'web-abc12',
+                name: 'web',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web', tier: 'frontend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -501,15 +675,44 @@ kubectl get pods -l 'env notin (staging)'
         {
           id: 'p2-m2-s4',
           title: 'Add a label to a running pod',
-          instruction: 'Use kubectl label to add an env label to the web pod without restarting it.',
+          instruction:
+            'Use kubectl label to add an env label to the web pod without restarting it.',
           command: 'kubectl label pod web env=production',
           output: ['pod/web labeled'],
-          explanation: 'Labels can be added, changed (--overwrite), or removed (key-) on running resources without any restart. The change is stored in etcd and is immediately visible to selectors.',
+          explanation:
+            'Labels can be added, changed (--overwrite), or removed (key-) on running resources without any restart. The change is stored in etcd and is immediately visible to selectors.',
           clusterState: {
             pods: [
-              { id: 'web-abc12', name: 'web', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web', tier: 'frontend', env: 'production' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'api-def34', name: 'api', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'api', tier: 'backend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'cache-ghi56', name: 'cache', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'cache', tier: 'cache' }, image: 'redis:7', restarts: 0 },
+              {
+                id: 'web-abc12',
+                name: 'web',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web', tier: 'frontend', env: 'production' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'api-def34',
+                name: 'api',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'api', tier: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'cache-ghi56',
+                name: 'cache',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'cache', tier: 'cache' },
+                image: 'redis:7',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -521,18 +724,38 @@ kubectl get pods -l 'env notin (staging)'
         {
           id: 'p2-m2-s5',
           title: 'Set-based selector',
-          instruction: 'Use a set-based selector to match pods whose tier is either frontend or backend.',
+          instruction:
+            'Use a set-based selector to match pods whose tier is either frontend or backend.',
           command: "kubectl get pods -l 'tier in (frontend,backend)'",
           output: [
             'NAME   READY   STATUS    RESTARTS   AGE',
             'api    1/1     Running   0          2m',
             'web    1/1     Running   0          2m',
           ],
-          explanation: 'Set-based selectors (in, notin, exists) are more expressive than equality selectors. They are used in Deployment and Job selectors where you need to match multiple values for a single key.',
+          explanation:
+            'Set-based selectors (in, notin, exists) are more expressive than equality selectors. They are used in Deployment and Job selectors where you need to match multiple values for a single key.',
           clusterState: {
             pods: [
-              { id: 'web-abc12', name: 'web', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web', tier: 'frontend', env: 'production' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'api-def34', name: 'api', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'api', tier: 'backend' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'web-abc12',
+                name: 'web',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web', tier: 'frontend', env: 'production' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'api-def34',
+                name: 'api',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'api', tier: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -544,7 +767,8 @@ kubectl get pods -l 'env notin (staging)'
       quiz: [
         {
           id: 'p2-m2-q1',
-          question: 'A Service has selector "app: web". A Pod has label "app: website". Does the Service route traffic to this Pod?',
+          question:
+            'A Service has selector "app: web". A Pod has label "app: website". Does the Service route traffic to this Pod?',
           options: [
             'Yes — "website" contains "web" so it matches',
             'No — label selectors require an exact string match',
@@ -552,7 +776,8 @@ kubectl get pods -l 'env notin (staging)'
             'It depends on the Service type (ClusterIP vs NodePort)',
           ],
           answer: 1,
-          explanation: 'Label selectors require exact equality. "app: website" does NOT match selector "app: web". The values must be identical character-for-character.',
+          explanation:
+            'Label selectors require exact equality. "app: website" does NOT match selector "app: web". The values must be identical character-for-character.',
         },
         {
           id: 'p2-m2-q2',
@@ -564,18 +789,20 @@ kubectl get pods -l 'env notin (staging)'
             'There is no functional difference — they are interchangeable',
           ],
           answer: 1,
-          explanation: 'Labels are identifying metadata designed for selection and grouping. Annotations store non-identifying metadata (build info, owner contacts, tool-specific config) that cannot be used in selectors.',
+          explanation:
+            'Labels are identifying metadata designed for selection and grouping. Annotations store non-identifying metadata (build info, owner contacts, tool-specific config) that cannot be used in selectors.',
         },
         {
           id: 'p2-m2-q3',
           question: 'Which kubectl flag shows label values in the output?',
           options: ['-v', '--labels', '--show-labels', '-l'],
           answer: 2,
-          explanation: '"kubectl get pods --show-labels" adds a LABELS column to the output showing all key=value pairs for each resource. The -l flag is used to FILTER by labels, not display them.',
+          explanation:
+            '"kubectl get pods --show-labels" adds a LABELS column to the output showing all key=value pairs for each resource. The -l flag is used to FILTER by labels, not display them.',
         },
         {
           id: 'p2-m2-q4',
-          question: 'What happens if a Pod\'s labels no longer match a Deployment\'s selector?',
+          question: "What happens if a Pod's labels no longer match a Deployment's selector?",
           options: [
             'The Pod is automatically deleted',
             'The Pod is adopted by a different Deployment',
@@ -583,18 +810,53 @@ kubectl get pods -l 'env notin (staging)'
             'The Deployment updates its selector to include the new labels',
           ],
           answer: 2,
-          explanation: 'If you remove or change a label so a Pod no longer matches its Deployment\'s selector, the ReplicaSet controller sees it as "missing" and creates a new Pod. The original Pod becomes an unmanaged orphan still consuming resources.',
+          explanation:
+            'If you remove or change a label so a Pod no longer matches its Deployment\'s selector, the ReplicaSet controller sees it as "missing" and creates a new Pod. The original Pod becomes an unmanaged orphan still consuming resources.',
         },
       ],
       coverage: {
-        concepts: ['labels as key-value metadata', 'label selectors: equality-based and set-based', 'annotations vs labels', 'how Services use selectors to find pods', 'how Deployments own ReplicaSets via matchLabels'],
-        commands: ['kubectl label pod', 'kubectl label pod --overwrite', 'kubectl label pod key-', 'kubectl get pods -l', 'kubectl get pods --show-labels', 'kubectl get pods -l "key in (v1,v2)"'],
-        architecture: ['Service selector → Endpoints controller → pod IP list', 'Deployment matchLabels ties controller to pod template', 'label selector immutability on Services and Deployments'],
-        techniques: ['filtering resources with -l selector', 'labeling nodes for scheduling affinity', 'canary routing via label selectors', 'debugging orphaned pods via label mismatch'],
-        procedures: ['add label to running pod', 'remove label from pod', 'filter pods by label', 'update service selector to match new label'],
+        concepts: [
+          'labels as key-value metadata',
+          'label selectors: equality-based and set-based',
+          'annotations vs labels',
+          'how Services use selectors to find pods',
+          'how Deployments own ReplicaSets via matchLabels',
+        ],
+        commands: [
+          'kubectl label pod',
+          'kubectl label pod --overwrite',
+          'kubectl label pod key-',
+          'kubectl get pods -l',
+          'kubectl get pods --show-labels',
+          'kubectl get pods -l "key in (v1,v2)"',
+        ],
+        architecture: [
+          'Service selector → Endpoints controller → pod IP list',
+          'Deployment matchLabels ties controller to pod template',
+          'label selector immutability on Services and Deployments',
+        ],
+        techniques: [
+          'filtering resources with -l selector',
+          'labeling nodes for scheduling affinity',
+          'canary routing via label selectors',
+          'debugging orphaned pods via label mismatch',
+        ],
+        procedures: [
+          'add label to running pod',
+          'remove label from pod',
+          'filter pods by label',
+          'update service selector to match new label',
+        ],
         toolsAndPlugins: ['kubectl'],
-        cases: ['pod orphaned after label removed — controller creates replacement', 'service misroutes traffic due to stale selector', 'cannot update selector on existing Deployment — immutable field error'],
-        scenarios: ['identify all pods in a release with label filtering', 'quarantine a misbehaving pod by removing its service selector label'],
+        cases: [
+          'pod orphaned after label removed — controller creates replacement',
+          'service misroutes traffic due to stale selector',
+          'cannot update selector on existing Deployment — immutable field error',
+        ],
+        scenarios: [
+          'identify all pods in a release with label filtering',
+          'quarantine a misbehaving pod by removing its service selector label',
+        ],
       },
       exercises: [
         {
@@ -611,7 +873,11 @@ kubectl get pods -l 'env notin (staging)'
             'kubectl get pods -l "version in (v1,v2)"',
             'kubectl get pods -l version!=v1',
           ],
-          verify: ['Both pods visible with show-labels', '-l app=web returns both pods', '-l version=v1 returns only app-v1'],
+          verify: [
+            'Both pods visible with show-labels',
+            '-l app=web returns both pods',
+            '-l version=v1 returns only app-v1',
+          ],
           expectedOutcome: 'Labels applied and selector filtering works as expected.',
           cleanup: ['kubectl delete pod app-v1 app-v2 --ignore-not-found'],
         },
@@ -624,14 +890,23 @@ kubectl get pods -l 'env notin (staging)'
             'kubectl create deployment web --image=nginx:1.27 --replicas=2',
             'kubectl expose deployment web --type=ClusterIP --port=80',
             'kubectl get pods -l app=web --show-labels',
-            'POD=$(kubectl get pods -l app=web -o jsonpath=\'{.items[0].metadata.name}\')',
+            "POD=$(kubectl get pods -l app=web -o jsonpath='{.items[0].metadata.name}')",
             'kubectl label pod $POD app-',
             'kubectl get pods --show-labels',
             'kubectl get endpoints web',
           ],
-          verify: ['Stripped pod no longer in endpoints', 'Deployment creates a replacement pod', 'Endpoints show only pods with app=web label'],
-          expectedOutcome: 'Pod quarantined from service traffic; replacement pod auto-created by ReplicaSet.',
-          cleanup: ['kubectl delete deployment web', 'kubectl delete service web', 'kubectl delete pod $POD --ignore-not-found'],
+          verify: [
+            'Stripped pod no longer in endpoints',
+            'Deployment creates a replacement pod',
+            'Endpoints show only pods with app=web label',
+          ],
+          expectedOutcome:
+            'Pod quarantined from service traffic; replacement pod auto-created by ReplicaSet.',
+          cleanup: [
+            'kubectl delete deployment web',
+            'kubectl delete service web',
+            'kubectl delete pod $POD --ignore-not-found',
+          ],
         },
         {
           id: 'p2-m2-e3',
@@ -645,9 +920,16 @@ kubectl get pods -l 'env notin (staging)'
             'kubectl describe service backend',
             'kubectl get pods --show-labels',
           ],
-          verify: ['Endpoints shows <none> because selector mismatch', 'describe service shows Selector: app=wrong-label', 'pod has app=backend label not matching'],
+          verify: [
+            'Endpoints shows <none> because selector mismatch',
+            'describe service shows Selector: app=wrong-label',
+            'pod has app=backend label not matching',
+          ],
           expectedOutcome: 'Selector mismatch identified as root cause of empty endpoints.',
-          cleanup: ['kubectl delete pod backend --ignore-not-found', 'kubectl delete service backend --ignore-not-found'],
+          cleanup: [
+            'kubectl delete pod backend --ignore-not-found',
+            'kubectl delete service backend --ignore-not-found',
+          ],
         },
         {
           id: 'p2-m2-e4',
@@ -662,7 +944,10 @@ kubectl get pods -l 'env notin (staging)'
             'kubectl label pod sr-pod env-',
             'kubectl delete pod sr-pod',
           ],
-          verify: ['Labels applied and overwritten correctly', 'Label removal confirmed with show-labels'],
+          verify: [
+            'Labels applied and overwritten correctly',
+            'Label removal confirmed with show-labels',
+          ],
           expectedOutcome: 'Label commands recalled and executed from memory.',
           cleanup: ['kubectl delete pod sr-pod --ignore-not-found'],
         },
@@ -674,7 +959,8 @@ kubectl get pods -l 'env notin (staging)'
       id: 'p2-m3',
       slug: 'configmaps',
       title: 'ConfigMaps',
-      description: 'Externalise non-sensitive configuration from container images using ConfigMaps.',
+      description:
+        'Externalise non-sensitive configuration from container images using ConfigMaps.',
       duration: '60 min',
       difficulty: 'beginner',
       theory: `> 🧠 **Brain Warm-Up**: If a ConfigMap is updated, how does the update propagate to containers using the ConfigMap as environment variables versus those mounting it as a volume, and why?
@@ -779,9 +1065,11 @@ This difference is critical for production: if you need live config reloads, mou
           id: 'p2-m3-s1',
           title: 'Create a ConfigMap from literals',
           instruction: 'Create a ConfigMap with two key-value pairs using --from-literal.',
-          command: 'kubectl create configmap app-config --from-literal=APP_ENV=production --from-literal=LOG_LEVEL=info',
+          command:
+            'kubectl create configmap app-config --from-literal=APP_ENV=production --from-literal=LOG_LEVEL=info',
           output: ['configmap/app-config created'],
-          explanation: 'Each --from-literal flag becomes one key-value entry in the ConfigMap. You can add as many as needed. The ConfigMap is stored in etcd and immediately available to any pod in the same namespace.',
+          explanation:
+            'Each --from-literal flag becomes one key-value entry in the ConfigMap. You can add as many as needed. The ConfigMap is stored in etcd and immediately available to any pod in the same namespace.',
           clusterState: {
             ...emptyCluster,
             events: ['ConfigMap app-config created'],
@@ -813,7 +1101,8 @@ This difference is critical for production: if you need live config reloads, mou
             '',
             'Events:  <none>',
           ],
-          explanation: 'The Data section shows all key-value pairs in plain text. Notice there is no encryption — ConfigMaps are not for secrets. BinaryData is for binary blobs (rare).',
+          explanation:
+            'The Data section shows all key-value pairs in plain text. Notice there is no encryption — ConfigMaps are not for secrets. BinaryData is for binary blobs (rare).',
           clusterState: {
             ...emptyCluster,
             events: [],
@@ -823,7 +1112,8 @@ This difference is critical for production: if you need live config reloads, mou
         {
           id: 'p2-m3-s3',
           title: 'Mount a ConfigMap key as an env var',
-          instruction: 'Apply a pod spec that reads APP_ENV from the ConfigMap as an environment variable.',
+          instruction:
+            'Apply a pod spec that reads APP_ENV from the ConfigMap as an environment variable.',
           command: 'kubectl apply -f -',
           yamlContent: `apiVersion: v1
 kind: Pod
@@ -841,10 +1131,20 @@ spec:
           name: app-config
           key: APP_ENV`,
           output: ['pod/config-demo created'],
-          explanation: 'The configMapKeyRef pulls a single key from the named ConfigMap and exposes it as an environment variable inside the container. The container sees APP_ENV exactly as if it were set in the Dockerfile.',
+          explanation:
+            'The configMapKeyRef pulls a single key from the named ConfigMap and exposes it as an environment variable inside the container. The container sees APP_ENV exactly as if it were set in the Dockerfile.',
           clusterState: {
             pods: [
-              { id: 'config-demo', name: 'config-demo', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'busybox:1.36', restarts: 0 },
+              {
+                id: 'config-demo',
+                name: 'config-demo',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -856,13 +1156,24 @@ spec:
         {
           id: 'p2-m3-s4',
           title: 'Verify the env var inside the pod',
-          instruction: 'Exec into the pod and echo the APP_ENV variable to confirm it was injected.',
+          instruction:
+            'Exec into the pod and echo the APP_ENV variable to confirm it was injected.',
           command: 'kubectl exec config-demo -- env | grep APP_ENV',
           output: ['APP_ENV=production'],
-          explanation: 'The value "production" came from the ConfigMap, not from the container image. To change it, update the ConfigMap and restart the pod — the new pod will pick up the updated value.',
+          explanation:
+            'The value "production" came from the ConfigMap, not from the container image. To change it, update the ConfigMap and restart the pod — the new pod will pick up the updated value.',
           clusterState: {
             pods: [
-              { id: 'config-demo', name: 'config-demo', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'busybox:1.36', restarts: 0 },
+              {
+                id: 'config-demo',
+                name: 'config-demo',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -876,7 +1187,8 @@ spec:
           instruction: 'Create a ConfigMap from a file to store a full nginx configuration.',
           command: 'kubectl create configmap nginx-conf --from-file=nginx.conf',
           output: ['configmap/nginx-conf created'],
-          explanation: 'When created from a file, the ConfigMap key is the filename (nginx.conf) and the value is the file contents. This is ideal for full config files like nginx.conf, prometheus.yml, or application.properties.',
+          explanation:
+            'When created from a file, the ConfigMap key is the filename (nginx.conf) and the value is the file contents. This is ideal for full config files like nginx.conf, prometheus.yml, or application.properties.',
           clusterState: {
             ...emptyCluster,
             events: ['ConfigMap nginx-conf created'],
@@ -886,7 +1198,8 @@ spec:
         {
           id: 'p2-m3-s6',
           title: 'Mount a ConfigMap as a volume',
-          instruction: 'Apply a pod spec that mounts the nginx-conf ConfigMap as a file at /etc/nginx/nginx.conf.',
+          instruction:
+            'Apply a pod spec that mounts the nginx-conf ConfigMap as a file at /etc/nginx/nginx.conf.',
           command: 'kubectl apply -f -',
           yamlContent: `apiVersion: v1
 kind: Pod
@@ -905,11 +1218,30 @@ spec:
     configMap:
       name: nginx-conf`,
           output: ['pod/nginx-custom created'],
-          explanation: 'The volume mount pattern projects each ConfigMap key as a file inside the container. Using subPath mounts only the specific key (nginx.conf) rather than the entire ConfigMap directory. Volume-mounted ConfigMaps update live within ~1 minute when the ConfigMap changes — no pod restart needed.',
+          explanation:
+            'The volume mount pattern projects each ConfigMap key as a file inside the container. Using subPath mounts only the specific key (nginx.conf) rather than the entire ConfigMap directory. Volume-mounted ConfigMaps update live within ~1 minute when the ConfigMap changes — no pod restart needed.',
           clusterState: {
             pods: [
-              { id: 'config-demo', name: 'config-demo', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'busybox:1.36', restarts: 0 },
-              { id: 'nginx-custom', name: 'nginx-custom', namespace: 'default', node: 'node-2', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'config-demo',
+                name: 'config-demo',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 0,
+              },
+              {
+                id: 'nginx-custom',
+                name: 'nginx-custom',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: {},
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -922,7 +1254,8 @@ spec:
       quiz: [
         {
           id: 'p2-m3-q1',
-          question: 'You update a ConfigMap that is mounted as a volume in a running pod. What happens?',
+          question:
+            'You update a ConfigMap that is mounted as a volume in a running pod. What happens?',
           options: [
             'Nothing — the pod must be restarted to see the change',
             'The file inside the container is automatically updated within approximately one minute',
@@ -930,14 +1263,17 @@ spec:
             'The update is rejected until the pod is restarted',
           ],
           answer: 1,
-          explanation: 'Volume-mounted ConfigMaps are synced by kubelet approximately every minute (controlled by --sync-frequency). The file on disk updates without a pod restart. However, env var / envFrom ConfigMaps require a pod restart to see changes.',
+          explanation:
+            'Volume-mounted ConfigMaps are synced by kubelet approximately every minute (controlled by --sync-frequency). The file on disk updates without a pod restart. However, env var / envFrom ConfigMaps require a pod restart to see changes.',
         },
         {
           id: 'p2-m3-q2',
-          question: 'What is the correct API field to inject ALL keys from a ConfigMap as environment variables?',
+          question:
+            'What is the correct API field to inject ALL keys from a ConfigMap as environment variables?',
           options: ['configMapRef', 'configMapKeyRef', 'envFrom with configMapRef', 'envAll'],
           answer: 2,
-          explanation: '"envFrom" with a "configMapRef" entry bulk-injects all keys from the ConfigMap as environment variables. "configMapKeyRef" (inside "env") is for injecting a single key.',
+          explanation:
+            '"envFrom" with a "configMapRef" entry bulk-injects all keys from the ConfigMap as environment variables. "configMapKeyRef" (inside "env") is for injecting a single key.',
         },
         {
           id: 'p2-m3-q3',
@@ -949,25 +1285,62 @@ spec:
             'nginx configuration files',
           ],
           answer: 2,
-          explanation: 'ConfigMaps store data in plaintext in etcd. Sensitive data like passwords, tokens, and TLS keys should be stored in Secrets (which can be encrypted at rest with EncryptionConfiguration).',
+          explanation:
+            'ConfigMaps store data in plaintext in etcd. Sensitive data like passwords, tokens, and TLS keys should be stored in Secrets (which can be encrypted at rest with EncryptionConfiguration).',
         },
         {
           id: 'p2-m3-q4',
-          question: 'A ConfigMap key is "database.url". When mounted as a volume, what is the filename inside the container?',
+          question:
+            'A ConfigMap key is "database.url". When mounted as a volume, what is the filename inside the container?',
           options: ['database_url', 'database-url', 'database.url', 'DATABASE_URL'],
           answer: 2,
-          explanation: 'ConfigMap keys become filenames exactly as-is when volume-mounted. The key "database.url" becomes a file named "database.url". Dots and hyphens are valid in filenames and are preserved.',
+          explanation:
+            'ConfigMap keys become filenames exactly as-is when volume-mounted. The key "database.url" becomes a file named "database.url". Dots and hyphens are valid in filenames and are preserved.',
         },
       ],
       coverage: {
-        concepts: ['ConfigMap as key-value store for non-sensitive config', 'envFrom vs env valueFrom', 'volume-mounted ConfigMap as files', 'hot-reload of volume-mounted ConfigMap (eventual consistency)', 'env vars from ConfigMap are NOT hot-reloaded'],
-        commands: ['kubectl create configmap --from-literal', 'kubectl create configmap --from-file', 'kubectl get configmap', 'kubectl describe configmap', 'kubectl get configmap -o yaml'],
-        architecture: ['ConfigMap stored in etcd as plaintext', 'kubelet syncs volume-mounted ConfigMap on watch event', 'env var injection happens at pod start — no runtime update'],
-        techniques: ['inject config as environment variables', 'mount config as files in volume', 'use envFrom to inject all keys as env vars', 'reference specific keys with valueFrom.configMapKeyRef'],
-        procedures: ['create ConfigMap from literals', 'create ConfigMap from file', 'mount ConfigMap as volume', 'inject ConfigMap keys as env vars', 'verify mounted config inside container'],
+        concepts: [
+          'ConfigMap as key-value store for non-sensitive config',
+          'envFrom vs env valueFrom',
+          'volume-mounted ConfigMap as files',
+          'hot-reload of volume-mounted ConfigMap (eventual consistency)',
+          'env vars from ConfigMap are NOT hot-reloaded',
+        ],
+        commands: [
+          'kubectl create configmap --from-literal',
+          'kubectl create configmap --from-file',
+          'kubectl get configmap',
+          'kubectl describe configmap',
+          'kubectl get configmap -o yaml',
+        ],
+        architecture: [
+          'ConfigMap stored in etcd as plaintext',
+          'kubelet syncs volume-mounted ConfigMap on watch event',
+          'env var injection happens at pod start — no runtime update',
+        ],
+        techniques: [
+          'inject config as environment variables',
+          'mount config as files in volume',
+          'use envFrom to inject all keys as env vars',
+          'reference specific keys with valueFrom.configMapKeyRef',
+        ],
+        procedures: [
+          'create ConfigMap from literals',
+          'create ConfigMap from file',
+          'mount ConfigMap as volume',
+          'inject ConfigMap keys as env vars',
+          'verify mounted config inside container',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube'],
-        cases: ['stale env var after ConfigMap update — pod restart required', 'volume-mounted file eventually updates without restart', 'missing ConfigMap key causes pod to fail with CreateContainerConfigError'],
-        scenarios: ['inject nginx.conf via ConfigMap volume mount', 'inject feature flags as env vars and update without image rebuild'],
+        cases: [
+          'stale env var after ConfigMap update — pod restart required',
+          'volume-mounted file eventually updates without restart',
+          'missing ConfigMap key causes pod to fail with CreateContainerConfigError',
+        ],
+        scenarios: [
+          'inject nginx.conf via ConfigMap volume mount',
+          'inject feature flags as env vars and update without image rebuild',
+        ],
       },
       exercises: [
         {
@@ -1071,11 +1444,21 @@ EOF`,
             'kubectl exec -it redis -- redis-cli CONFIG GET maxmemory',
             'kubectl exec -it redis -- redis-cli CONFIG GET maxmemory-policy',
           ],
-          verify: ['Before update: maxmemory returns 0, maxmemory-policy returns noeviction', 'After ConfigMap update but BEFORE pod restart: values still show old defaults (key insight: pod restart required for command-arg configs)', 'After pod delete + recreate: maxmemory returns 2097152, maxmemory-policy returns allkeys-lru'],
-          expectedOutcome: 'ConfigMap update applied to Redis after pod restart. Demonstrates that env-var and command-arg configs require pod restart, unlike volume-mounted files.',
+          verify: [
+            'Before update: maxmemory returns 0, maxmemory-policy returns noeviction',
+            'After ConfigMap update but BEFORE pod restart: values still show old defaults (key insight: pod restart required for command-arg configs)',
+            'After pod delete + recreate: maxmemory returns 2097152, maxmemory-policy returns allkeys-lru',
+          ],
+          expectedOutcome:
+            'ConfigMap update applied to Redis after pod restart. Demonstrates that env-var and command-arg configs require pod restart, unlike volume-mounted files.',
           cleanup: ['kubectl delete pod/redis configmap/example-redis-config --ignore-not-found'],
           sourceRefs: [
-            { title: 'Kubernetes: Configuring Redis Using a ConfigMap', url: 'https://kubernetes.io/docs/tutorials/configuration/configure-redis-using-configmap/', checkedAt: '2026-06', scope: 'tutorial' },
+            {
+              title: 'Kubernetes: Configuring Redis Using a ConfigMap',
+              url: 'https://kubernetes.io/docs/tutorials/configuration/configure-redis-using-configmap/',
+              checkedAt: '2026-06',
+              scope: 'tutorial',
+            },
           ],
         },
         {
@@ -1106,9 +1489,15 @@ EOF`,
             'kubectl patch configmap nginx-config --patch \'{"data":{"index.html":"<h1>Updated</h1>"}}\'',
             'sleep 15 && kubectl exec nginx-cm -- cat /usr/share/nginx/html/index.html',
           ],
-          verify: ['Initial file shows Hello ConfigMap', 'After patch and wait, file shows Updated (hot-reload confirmed)'],
+          verify: [
+            'Initial file shows Hello ConfigMap',
+            'After patch and wait, file shows Updated (hot-reload confirmed)',
+          ],
           expectedOutcome: 'Volume-mounted ConfigMap hot-reloads without pod restart.',
-          cleanup: ['kubectl delete pod nginx-cm --ignore-not-found', 'kubectl delete configmap nginx-config'],
+          cleanup: [
+            'kubectl delete pod nginx-cm --ignore-not-found',
+            'kubectl delete configmap nginx-config',
+          ],
         },
         {
           id: 'p2-m3-e3',
@@ -1132,7 +1521,10 @@ EOF`,
             'kubectl get pod missing-cm-pod',
             'kubectl describe pod missing-cm-pod',
           ],
-          verify: ['Pod stays in Pending or shows CreateContainerConfigError', 'describe shows ConfigMap not found in Events section'],
+          verify: [
+            'Pod stays in Pending or shows CreateContainerConfigError',
+            'describe shows ConfigMap not found in Events section',
+          ],
           expectedOutcome: 'Missing ConfigMap reference diagnosed via kubectl describe events.',
           cleanup: ['kubectl delete pod missing-cm-pod --ignore-not-found'],
         },
@@ -1147,7 +1539,10 @@ EOF`,
             'kubectl describe configmap sr-config',
             'kubectl delete configmap sr-config',
           ],
-          verify: ['ConfigMap created with correct key', 'get -o yaml shows data section with KEY=value'],
+          verify: [
+            'ConfigMap created with correct key',
+            'get -o yaml shows data section with KEY=value',
+          ],
           expectedOutcome: 'ConfigMap commands recalled and executed without notes.',
           cleanup: ['kubectl delete configmap sr-config --ignore-not-found'],
         },
@@ -1159,7 +1554,8 @@ EOF`,
       id: 'p2-m4',
       slug: 'secrets',
       title: 'Secrets',
-      description: 'Store and consume sensitive data like passwords, tokens, and TLS certificates safely.',
+      description:
+        'Store and consume sensitive data like passwords, tokens, and TLS certificates safely.',
       duration: '60 min',
       difficulty: 'intermediate',
       theory: `> 🧠 **Brain Warm-Up**: What is the default encryption state of Kubernetes Secrets in etcd, and what low-level mechanism ensures they do not get written to the physical storage disk of the worker nodes?
@@ -1248,9 +1644,11 @@ To secure secrets on the physical worker nodes where Pods run, Kubernetes avoids
           id: 'p2-m4-s1',
           title: 'Create a Secret',
           instruction: 'Create a generic Secret with database credentials using --from-literal.',
-          command: 'kubectl create secret generic db-creds --from-literal=username=admin --from-literal=password=s3cr3t',
+          command:
+            'kubectl create secret generic db-creds --from-literal=username=admin --from-literal=password=s3cr3t',
           output: ['secret/db-creds created'],
-          explanation: 'kubectl automatically base64-encodes the values before storing them. The Secret is stored in etcd. Unlike ConfigMaps, kubectl get secret does not print values by default.',
+          explanation:
+            'kubectl automatically base64-encodes the values before storing them. The Secret is stored in etcd. Unlike ConfigMaps, kubectl get secret does not print values by default.',
           clusterState: {
             ...emptyCluster,
             events: ['Secret db-creds created'],
@@ -1260,7 +1658,8 @@ To secure secrets on the physical worker nodes where Pods run, Kubernetes avoids
         {
           id: 'p2-m4-s2',
           title: 'See the base64 encoding',
-          instruction: 'Get the Secret as YAML to see that values are base64-encoded, not plaintext.',
+          instruction:
+            'Get the Secret as YAML to see that values are base64-encoded, not plaintext.',
           command: 'kubectl get secret db-creds -o yaml',
           output: [
             'apiVersion: v1',
@@ -1273,7 +1672,8 @@ To secure secrets on the physical worker nodes where Pods run, Kubernetes avoids
             '  namespace: default',
             'type: Opaque',
           ],
-          explanation: '"YWRtaW4=" is just "admin" in base64. "czNjcjN0" is "s3cr3t". This is encoding, not encryption. Anyone with kubectl get secret access can decode these values instantly. This is why etcd encryption and tight RBAC are essential.',
+          explanation:
+            '"YWRtaW4=" is just "admin" in base64. "czNjcjN0" is "s3cr3t". This is encoding, not encryption. Anyone with kubectl get secret access can decode these values instantly. This is why etcd encryption and tight RBAC are essential.',
           clusterState: {
             ...emptyCluster,
             events: [],
@@ -1287,7 +1687,8 @@ To secure secrets on the physical worker nodes where Pods run, Kubernetes avoids
           instruction: 'Use jsonpath and base64 to decode the password directly from the cluster.',
           command: "kubectl get secret db-creds -o jsonpath='{.data.password}' | base64 --decode",
           output: ['s3cr3t'],
-          explanation: 'This is how you retrieve a Secret value in scripts and CI pipelines. The jsonpath extracts the raw base64 string; base64 --decode gives you the original plaintext. Any user with "get secret" RBAC permission can do exactly this.',
+          explanation:
+            'This is how you retrieve a Secret value in scripts and CI pipelines. The jsonpath extracts the raw base64 string; base64 --decode gives you the original plaintext. Any user with "get secret" RBAC permission can do exactly this.',
           clusterState: {
             ...emptyCluster,
             events: [],
@@ -1296,7 +1697,8 @@ To secure secrets on the physical worker nodes where Pods run, Kubernetes avoids
         {
           id: 'p2-m4-s4',
           title: 'Inject Secret values as env vars',
-          instruction: 'Apply a pod spec that injects username and password from the Secret as environment variables.',
+          instruction:
+            'Apply a pod spec that injects username and password from the Secret as environment variables.',
           command: 'kubectl apply -f -',
           yamlContent: `apiVersion: v1
 kind: Pod
@@ -1319,10 +1721,20 @@ spec:
           name: db-creds
           key: password`,
           output: ['pod/db-client created'],
-          explanation: 'secretKeyRef works exactly like configMapKeyRef but pulls from a Secret. The kubelet decodes the base64 value and injects the plaintext into the container environment. The container sees DB_PASSWORD=s3cr3t.',
+          explanation:
+            'secretKeyRef works exactly like configMapKeyRef but pulls from a Secret. The kubelet decodes the base64 value and injects the plaintext into the container environment. The container sees DB_PASSWORD=s3cr3t.',
           clusterState: {
             pods: [
-              { id: 'db-client', name: 'db-client', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'busybox:1.36', restarts: 0 },
+              {
+                id: 'db-client',
+                name: 'db-client',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -1334,8 +1746,10 @@ spec:
         {
           id: 'p2-m4-s5',
           title: 'imagePullSecret for private registries',
-          instruction: 'Review the pattern for authenticating to a private container registry using an imagePullSecret.',
-          command: 'kubectl create secret docker-registry regcred --docker-server=registry.example.com --docker-username=user --docker-password=pass',
+          instruction:
+            'Review the pattern for authenticating to a private container registry using an imagePullSecret.',
+          command:
+            'kubectl create secret docker-registry regcred --docker-server=registry.example.com --docker-username=user --docker-password=pass',
           yamlContent: `# Reference the secret in your pod spec:
 apiVersion: v1
 kind: Pod
@@ -1348,10 +1762,20 @@ spec:
   - name: app
     image: registry.example.com/myapp:v1`,
           output: ['secret/regcred created'],
-          explanation: 'imagePullSecrets tell the kubelet which credentials to use when pulling an image from a private registry. The Secret type kubernetes.io/dockerconfigjson stores the registry credentials in the Docker config JSON format. Add regcred to a ServiceAccount to apply it automatically to all pods that use that ServiceAccount.',
+          explanation:
+            'imagePullSecrets tell the kubelet which credentials to use when pulling an image from a private registry. The Secret type kubernetes.io/dockerconfigjson stores the registry credentials in the Docker config JSON format. Add regcred to a ServiceAccount to apply it automatically to all pods that use that ServiceAccount.',
           clusterState: {
             pods: [
-              { id: 'db-client', name: 'db-client', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'busybox:1.36', restarts: 0 },
+              {
+                id: 'db-client',
+                name: 'db-client',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -1371,7 +1795,8 @@ spec:
             'False, but the data is hashed so the original value cannot be recovered',
           ],
           answer: 1,
-          explanation: 'Base64 is an encoding scheme, not encryption. It exists to safely represent binary data in text formats. Anyone can decode "czNjcjN0" back to "s3cr3t" with a single base64 --decode call. Real encryption requires enabling EncryptionConfiguration on the API server.',
+          explanation:
+            'Base64 is an encoding scheme, not encryption. It exists to safely represent binary data in text formats. Anyone can decode "czNjcjN0" back to "s3cr3t" with a single base64 --decode call. Real encryption requires enabling EncryptionConfiguration on the API server.',
         },
         {
           id: 'p2-m4-q2',
@@ -1383,7 +1808,8 @@ spec:
             'kubectl describe secret db-creds --show-values',
           ],
           answer: 2,
-          explanation: 'There is no "decode" or "decrypt" flag in kubectl. You must extract the base64 value with -o jsonpath and pipe it to base64 --decode. This is standard practice in scripts and CI pipelines.',
+          explanation:
+            'There is no "decode" or "decrypt" flag in kubectl. You must extract the base64 value with -o jsonpath and pipe it to base64 --decode. This is standard practice in scripts and CI pipelines.',
         },
         {
           id: 'p2-m4-q3',
@@ -1395,11 +1821,13 @@ spec:
             'public.crt and private.key',
           ],
           answer: 1,
-          explanation: 'Secrets of type kubernetes.io/tls must contain exactly two keys: "tls.crt" (the certificate) and "tls.key" (the private key). Ingress controllers and other components look for these exact key names.',
+          explanation:
+            'Secrets of type kubernetes.io/tls must contain exactly two keys: "tls.crt" (the certificate) and "tls.key" (the private key). Ingress controllers and other components look for these exact key names.',
         },
         {
           id: 'p2-m4-q4',
-          question: 'What is the production best practice for storing Secrets — why not just commit the YAML?',
+          question:
+            'What is the production best practice for storing Secrets — why not just commit the YAML?',
           options: [
             'Committing YAML is fine because base64 is secure enough',
             'Never commit Secret YAML; use external secret stores (Vault, AWS Secrets Manager) and tools like External Secrets Operator',
@@ -1407,18 +1835,56 @@ spec:
             'Encrypt the YAML file with gpg before committing',
           ],
           answer: 1,
-          explanation: 'Secret YAML contains base64-encoded values that are trivially decodable. Committing them exposes credentials in git history permanently. The production pattern is to store secrets in dedicated secret management systems (Vault, AWS/GCP/Azure secret stores) and sync them into Kubernetes using tools like External Secrets Operator.',
+          explanation:
+            'Secret YAML contains base64-encoded values that are trivially decodable. Committing them exposes credentials in git history permanently. The production pattern is to store secrets in dedicated secret management systems (Vault, AWS/GCP/Azure secret stores) and sync them into Kubernetes using tools like External Secrets Operator.',
         },
       ],
       coverage: {
-        concepts: ['Secret as base64-encoded key-value store', 'Secret types: Opaque, kubernetes.io/tls, kubernetes.io/dockerconfigjson', 'base64 encoding is not encryption', 'EncryptionConfiguration for at-rest encryption', 'RBAC restricting Secret access', 'tmpfs volume mount for secrets'],
-        commands: ['kubectl create secret generic --from-literal', 'kubectl create secret tls', 'kubectl create secret docker-registry', 'kubectl get secret', 'kubectl describe secret (no values)', 'kubectl get secret -o yaml', 'kubectl get secret -o jsonpath'],
-        architecture: ['Secrets stored in etcd — base64 encoded by default', 'kubelet mounts secrets as tmpfs (RAM-backed) volumes', 'RBAC controls who can get/list/watch secrets', 'imagePullSecret for private registry auth'],
-        techniques: ['inject secret as env var with secretKeyRef', 'mount secret as volume files', 'use imagePullSecrets for private image registries', 'decode secret value with kubectl + base64'],
-        procedures: ['create Opaque secret', 'inject secret key as env var', 'mount secret as read-only volume', 'decode secret value for debugging'],
+        concepts: [
+          'Secret as base64-encoded key-value store',
+          'Secret types: Opaque, kubernetes.io/tls, kubernetes.io/dockerconfigjson',
+          'base64 encoding is not encryption',
+          'EncryptionConfiguration for at-rest encryption',
+          'RBAC restricting Secret access',
+          'tmpfs volume mount for secrets',
+        ],
+        commands: [
+          'kubectl create secret generic --from-literal',
+          'kubectl create secret tls',
+          'kubectl create secret docker-registry',
+          'kubectl get secret',
+          'kubectl describe secret (no values)',
+          'kubectl get secret -o yaml',
+          'kubectl get secret -o jsonpath',
+        ],
+        architecture: [
+          'Secrets stored in etcd — base64 encoded by default',
+          'kubelet mounts secrets as tmpfs (RAM-backed) volumes',
+          'RBAC controls who can get/list/watch secrets',
+          'imagePullSecret for private registry auth',
+        ],
+        techniques: [
+          'inject secret as env var with secretKeyRef',
+          'mount secret as volume files',
+          'use imagePullSecrets for private image registries',
+          'decode secret value with kubectl + base64',
+        ],
+        procedures: [
+          'create Opaque secret',
+          'inject secret key as env var',
+          'mount secret as read-only volume',
+          'decode secret value for debugging',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube'],
-        cases: ['secret value leaked in pod env var list via kubectl describe pod', 'secret too large for etcd key limit', 'imagePullBackOff due to missing imagePullSecret'],
-        scenarios: ['inject database password safely without committing to git', 'rotate a secret without pod restart using volume mount'],
+        cases: [
+          'secret value leaked in pod env var list via kubectl describe pod',
+          'secret too large for etcd key limit',
+          'imagePullBackOff due to missing imagePullSecret',
+        ],
+        scenarios: [
+          'inject database password safely without committing to git',
+          'rotate a secret without pod restart using volume mount',
+        ],
       },
       exercises: [
         {
@@ -1448,11 +1914,19 @@ spec:
           key: DB_USER
 EOF`,
             'kubectl logs secret-pod',
-            'kubectl get secret db-secret -o jsonpath=\'{.data.DB_PASSWORD}\' | base64 -d',
+            "kubectl get secret db-secret -o jsonpath='{.data.DB_PASSWORD}' | base64 -d",
           ],
-          verify: ['kubectl logs shows user=admin', 'describe secret does not show values', 'jsonpath decode returns s3cr3t'],
-          expectedOutcome: 'Secret injected as env var; describe hides values; manual decode works.',
-          cleanup: ['kubectl delete pod secret-pod --ignore-not-found', 'kubectl delete secret db-secret'],
+          verify: [
+            'kubectl logs shows user=admin',
+            'describe secret does not show values',
+            'jsonpath decode returns s3cr3t',
+          ],
+          expectedOutcome:
+            'Secret injected as env var; describe hides values; manual decode works.',
+          cleanup: [
+            'kubectl delete pod secret-pod --ignore-not-found',
+            'kubectl delete secret db-secret',
+          ],
         },
         {
           id: 'p2-m4-e2',
@@ -1485,7 +1959,10 @@ EOF`,
           ],
           verify: ['logs show tls.crt and tls.key listed', 'df shows tmpfs mount for /etc/secrets'],
           expectedOutcome: 'Secret mounted as tmpfs volume; files visible and read-only.',
-          cleanup: ['kubectl delete pod secret-vol-pod --ignore-not-found', 'kubectl delete secret tls-like'],
+          cleanup: [
+            'kubectl delete pod secret-vol-pod --ignore-not-found',
+            'kubectl delete secret tls-like',
+          ],
         },
         {
           id: 'p2-m4-e3',
@@ -1512,7 +1989,10 @@ EOF`,
             'kubectl get pod missing-secret-pod',
             'kubectl describe pod missing-secret-pod',
           ],
-          verify: ['Pod stays in Pending or CreateContainerConfigError', 'Events show secret not found'],
+          verify: [
+            'Pod stays in Pending or CreateContainerConfigError',
+            'Events show secret not found',
+          ],
           expectedOutcome: 'Missing secret reference diagnosed via describe events.',
           cleanup: ['kubectl delete pod missing-secret-pod --ignore-not-found'],
         },
@@ -1525,7 +2005,7 @@ EOF`,
             'kubectl create secret generic sr-secret --from-literal=KEY=value',
             'kubectl get secret sr-secret',
             'kubectl describe secret sr-secret',
-            'kubectl get secret sr-secret -o jsonpath=\'{.data.KEY}\' | base64 -d',
+            "kubectl get secret sr-secret -o jsonpath='{.data.KEY}' | base64 -d",
             'kubectl delete secret sr-secret',
           ],
           verify: ['describe does not show plaintext value', 'jsonpath + base64 -d returns value'],
@@ -1540,7 +2020,8 @@ EOF`,
       id: 'p2-m5',
       slug: 'probes',
       title: 'Health Probes',
-      description: 'Tell Kubernetes when your app is alive, ready to serve traffic, and finished starting up.',
+      description:
+        'Tell Kubernetes when your app is alive, ready to serve traffic, and finished starting up.',
       duration: '75 min',
       difficulty: 'intermediate',
       theory: `> 🧠 **Brain Warm-Up**: How does the kubelet physically execute an \`exec\` probe versus an \`httpGet\` probe at the OS level, and how does a failing readiness probe change routing rules on nodes?
@@ -1633,17 +2114,28 @@ livenessProbe:
         {
           id: 'p2-m5-s1',
           title: 'Deploy without probes',
-          instruction: 'Deploy nginx without any probes and observe that it receives traffic the moment it reaches Running status.',
+          instruction:
+            'Deploy nginx without any probes and observe that it receives traffic the moment it reaches Running status.',
           command: 'kubectl run nginx-no-probe --image=nginx:1.27 && kubectl get endpoints',
           output: [
             'pod/nginx-no-probe created',
             'NAME         ENDPOINTS   AGE',
             'kubernetes   10.96.0.1   5d',
           ],
-          explanation: 'Without a readiness probe, a Pod is considered ready as soon as its containers are Running. For nginx this is fine, but for a slow Java app this means traffic arrives before the app has initialised — causing errors.',
+          explanation:
+            'Without a readiness probe, a Pod is considered ready as soon as its containers are Running. For nginx this is fine, but for a slow Java app this means traffic arrives before the app has initialised — causing errors.',
           clusterState: {
             pods: [
-              { id: 'nginx-no-probe', name: 'nginx-no-probe', namespace: 'default', node: 'node-1', status: 'Running', labels: { run: 'nginx-no-probe' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'nginx-no-probe',
+                name: 'nginx-no-probe',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { run: 'nginx-no-probe' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -1682,14 +2174,31 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10`,
           output: ['deployment.apps/nginx-probes created'],
-          explanation: 'initialDelaySeconds: 5 gives nginx 5 seconds to start before the first probe. periodSeconds: 10 means kubelet checks every 10 seconds. The default failureThreshold is 3, so the container is restarted only after 3 consecutive failures (~30 seconds).',
+          explanation:
+            'initialDelaySeconds: 5 gives nginx 5 seconds to start before the first probe. periodSeconds: 10 means kubelet checks every 10 seconds. The default failureThreshold is 3, so the container is restarted only after 3 consecutive failures (~30 seconds).',
           clusterState: {
             pods: [
-              { id: 'nginx-probes-abc12', name: 'nginx-probes-abc12', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'nginx-probes' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'nginx-probes-abc12',
+                name: 'nginx-probes-abc12',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'nginx-probes' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [
-              { id: 'nginx-probes', name: 'nginx-probes', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' },
+              {
+                id: 'nginx-probes',
+                name: 'nginx-probes',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
             ],
             namespaces: ['default'],
             events: ['Deployment nginx-probes created'],
@@ -1704,14 +2213,31 @@ spec:
           output: [
             '    Liveness:   http-get http://:80/ delay=5s timeout=1s period=10s #success=1 #failure=3',
           ],
-          explanation: 'kubectl describe shows the full probe config in a compact format: delay (initialDelaySeconds), timeout (how long to wait for a response), period (how often), success threshold, and failure threshold.',
+          explanation:
+            'kubectl describe shows the full probe config in a compact format: delay (initialDelaySeconds), timeout (how long to wait for a response), period (how often), success threshold, and failure threshold.',
           clusterState: {
             pods: [
-              { id: 'nginx-probes-abc12', name: 'nginx-probes-abc12', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'nginx-probes' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'nginx-probes-abc12',
+                name: 'nginx-probes-abc12',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'nginx-probes' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [
-              { id: 'nginx-probes', name: 'nginx-probes', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' },
+              {
+                id: 'nginx-probes',
+                name: 'nginx-probes',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
             ],
             namespaces: ['default'],
             events: [],
@@ -1721,20 +2247,42 @@ spec:
         {
           id: 'p2-m5-s4',
           title: 'Simulate a liveness failure',
-          instruction: 'Patch the liveness probe to hit a non-existent path, then watch restarts increment.',
-          command: "kubectl patch deployment nginx-probes --type='json' -p='[{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/0/livenessProbe/httpGet/path\",\"value\":\"/nonexistent\"}]'",
+          instruction:
+            'Patch the liveness probe to hit a non-existent path, then watch restarts increment.',
+          command:
+            'kubectl patch deployment nginx-probes --type=\'json\' -p=\'[{"op":"replace","path":"/spec/template/spec/containers/0/livenessProbe/httpGet/path","value":"/nonexistent"}]\'',
           output: ['deployment.apps/nginx-probes patched'],
-          explanation: 'After the patch rolls out, the liveness probe will GET /nonexistent. nginx returns 404, which is NOT in the 200–399 success range, so the probe fails. After 3 failures kubelet restarts the container — watch RESTARTS increment with "kubectl get pods -w".',
+          explanation:
+            'After the patch rolls out, the liveness probe will GET /nonexistent. nginx returns 404, which is NOT in the 200–399 success range, so the probe fails. After 3 failures kubelet restarts the container — watch RESTARTS increment with "kubectl get pods -w".',
           clusterState: {
             pods: [
-              { id: 'nginx-probes-def34', name: 'nginx-probes-def34', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'nginx-probes' }, image: 'nginx:1.27', restarts: 3 },
+              {
+                id: 'nginx-probes-def34',
+                name: 'nginx-probes-def34',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'nginx-probes' },
+                image: 'nginx:1.27',
+                restarts: 3,
+              },
             ],
             services: [],
             deployments: [
-              { id: 'nginx-probes', name: 'nginx-probes', namespace: 'default', replicas: 1, availableReplicas: 0, image: 'nginx:1.27' },
+              {
+                id: 'nginx-probes',
+                name: 'nginx-probes',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 0,
+                image: 'nginx:1.27',
+              },
             ],
             namespaces: ['default'],
-            events: ['Liveness probe failed: HTTP probe failed with statuscode: 404', 'Container nginx restarted'],
+            events: [
+              'Liveness probe failed: HTTP probe failed with statuscode: 404',
+              'Container nginx restarted',
+            ],
             highlightedComponent: 'kubelet',
           },
           tip: 'Run "kubectl get pods -w" in a separate terminal to watch the RESTARTS column increase in real time.',
@@ -1742,7 +2290,8 @@ spec:
         {
           id: 'p2-m5-s5',
           title: 'Add a readiness probe',
-          instruction: 'Fix the liveness probe and add a readiness probe — the probe most production apps need.',
+          instruction:
+            'Fix the liveness probe and add a readiness probe — the probe most production apps need.',
           command: 'kubectl apply -f -',
           yamlContent: `apiVersion: apps/v1
 kind: Deployment
@@ -1776,14 +2325,31 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 5`,
           output: ['deployment.apps/nginx-probes configured'],
-          explanation: 'The readiness probe fires every 5 seconds. If it fails, the pod is removed from the Service endpoint list — no traffic reaches it. Crucially, the pod is NOT restarted. This is the probe that protects rolling updates: new pods only receive traffic after the readiness probe passes.',
+          explanation:
+            'The readiness probe fires every 5 seconds. If it fails, the pod is removed from the Service endpoint list — no traffic reaches it. Crucially, the pod is NOT restarted. This is the probe that protects rolling updates: new pods only receive traffic after the readiness probe passes.',
           clusterState: {
             pods: [
-              { id: 'nginx-probes-ghi56', name: 'nginx-probes-ghi56', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'nginx-probes' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'nginx-probes-ghi56',
+                name: 'nginx-probes-ghi56',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'nginx-probes' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [
-              { id: 'nginx-probes', name: 'nginx-probes', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' },
+              {
+                id: 'nginx-probes',
+                name: 'nginx-probes',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
             ],
             namespaces: ['default'],
             events: ['Deployment nginx-probes updated with readiness probe'],
@@ -1793,7 +2359,8 @@ spec:
         {
           id: 'p2-m5-s6',
           title: 'Startup probe for slow apps',
-          instruction: 'Review a startup probe configuration designed for a slow-starting Java application.',
+          instruction:
+            'Review a startup probe configuration designed for a slow-starting Java application.',
           command: 'kubectl apply -f -',
           yamlContent: `apiVersion: v1
 kind: Pod
@@ -1821,15 +2388,41 @@ spec:
         port: 8080
       periodSeconds: 5`,
           output: ['pod/java-app created'],
-          explanation: 'failureThreshold: 30 × periodSeconds: 10 = 300 seconds (5 minutes) for the startup probe to succeed before giving up. While the startup probe is active, liveness is disabled — so the JVM can take its time warming up without being killed. Once startup succeeds, liveness takes over with its own threshold.',
+          explanation:
+            'failureThreshold: 30 × periodSeconds: 10 = 300 seconds (5 minutes) for the startup probe to succeed before giving up. While the startup probe is active, liveness is disabled — so the JVM can take its time warming up without being killed. Once startup succeeds, liveness takes over with its own threshold.',
           clusterState: {
             pods: [
-              { id: 'java-app', name: 'java-app', namespace: 'default', node: 'node-2', status: 'Pending', labels: {}, image: 'openjdk:21-jre', restarts: 0 },
-              { id: 'nginx-probes-ghi56', name: 'nginx-probes-ghi56', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'nginx-probes' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'java-app',
+                name: 'java-app',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Pending',
+                labels: {},
+                image: 'openjdk:21-jre',
+                restarts: 0,
+              },
+              {
+                id: 'nginx-probes-ghi56',
+                name: 'nginx-probes-ghi56',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'nginx-probes' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [
-              { id: 'nginx-probes', name: 'nginx-probes', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' },
+              {
+                id: 'nginx-probes',
+                name: 'nginx-probes',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
             ],
             namespaces: ['default'],
             events: ['Pod java-app created — startup probe active'],
@@ -1840,7 +2433,7 @@ spec:
       quiz: [
         {
           id: 'p2-m5-q1',
-          question: 'A pod\'s liveness probe fails 3 times in a row. What does Kubernetes do?',
+          question: "A pod's liveness probe fails 3 times in a row. What does Kubernetes do?",
           options: [
             'Marks the pod as NotReady and removes it from Service endpoints',
             'Restarts the container inside the pod',
@@ -1848,11 +2441,12 @@ spec:
             'Evicts the pod from the node',
           ],
           answer: 1,
-          explanation: 'Liveness probe failure causes kubelet to restart the container (not delete and recreate the pod). The pod stays on the same node; only the container process is killed and restarted. You\'ll see RESTARTS increment in kubectl get pods.',
+          explanation:
+            "Liveness probe failure causes kubelet to restart the container (not delete and recreate the pod). The pod stays on the same node; only the container process is killed and restarted. You'll see RESTARTS increment in kubectl get pods.",
         },
         {
           id: 'p2-m5-q2',
-          question: 'A pod\'s readiness probe fails. What does Kubernetes do?',
+          question: "A pod's readiness probe fails. What does Kubernetes do?",
           options: [
             'Restarts the container',
             'Deletes the pod',
@@ -1860,11 +2454,13 @@ spec:
             'Drains all in-flight requests and then shuts down the container',
           ],
           answer: 2,
-          explanation: 'A failing readiness probe removes the pod from the Service\'s endpoint slice — existing connections may complete but no new requests are routed to the pod. The container is NOT restarted. When the probe passes again, the pod is re-added to the endpoints.',
+          explanation:
+            "A failing readiness probe removes the pod from the Service's endpoint slice — existing connections may complete but no new requests are routed to the pod. The container is NOT restarted. When the probe passes again, the pod is re-added to the endpoints.",
         },
         {
           id: 'p2-m5-q3',
-          question: 'Your app takes 3 minutes to start. Which probe prevents liveness from killing it prematurely?',
+          question:
+            'Your app takes 3 minutes to start. Which probe prevents liveness from killing it prematurely?',
           options: [
             'Readiness probe with a long initialDelaySeconds',
             'Liveness probe with failureThreshold: 180',
@@ -1872,18 +2468,22 @@ spec:
             'A post-start lifecycle hook',
           ],
           answer: 2,
-          explanation: 'The startup probe was designed exactly for this scenario. While the startup probe is pending (not yet succeeded), liveness and readiness probes are disabled. Set failureThreshold × periodSeconds to at least your max startup time. Once it succeeds, liveness takes over.',
+          explanation:
+            'The startup probe was designed exactly for this scenario. While the startup probe is pending (not yet succeeded), liveness and readiness probes are disabled. Set failureThreshold × periodSeconds to at least your max startup time. Once it succeeds, liveness takes over.',
         },
         {
           id: 'p2-m5-q4',
-          question: 'Which probe mechanism would you use to check if a database TCP port is accepting connections?',
+          question:
+            'Which probe mechanism would you use to check if a database TCP port is accepting connections?',
           options: ['httpGet', 'exec', 'tcpSocket', 'gRPC'],
           answer: 2,
-          explanation: 'tcpSocket probes attempt a TCP connection to the specified port. If the connection is accepted, the probe succeeds. This is ideal for non-HTTP services like databases, message brokers, or any TCP service.',
+          explanation:
+            'tcpSocket probes attempt a TCP connection to the specified port. If the connection is accepted, the probe succeeds. This is ideal for non-HTTP services like databases, message brokers, or any TCP service.',
         },
         {
           id: 'p2-m5-q5',
-          question: 'During a rolling update, which probe ensures old pods aren\'t removed until new pods are truly ready?',
+          question:
+            "During a rolling update, which probe ensures old pods aren't removed until new pods are truly ready?",
           options: [
             'Liveness probe on the old pods',
             'Startup probe on the new pods',
@@ -1891,18 +2491,53 @@ spec:
             'Liveness probe on the new pods',
           ],
           answer: 2,
-          explanation: 'During a rolling update, Kubernetes waits for new pods to become Ready (readiness probe passing) before removing old pods. Without a readiness probe, new pods are considered ready the moment they reach Running state — potentially before the app has finished initialising.',
+          explanation:
+            'During a rolling update, Kubernetes waits for new pods to become Ready (readiness probe passing) before removing old pods. Without a readiness probe, new pods are considered ready the moment they reach Running state — potentially before the app has finished initialising.',
         },
       ],
       coverage: {
-        concepts: ['liveness probe: restart unhealthy container', 'readiness probe: remove from service endpoints', 'startup probe: disable liveness during slow init', 'probe types: httpGet/tcpSocket/exec/gRPC', 'initialDelaySeconds, periodSeconds, failureThreshold, successThreshold', 'timeoutSeconds'],
-        commands: ['kubectl describe pod (Liveness/Readiness in containers section)', 'kubectl get events (probe failure events)', 'kubectl get pod -w (watch Ready column change)'],
-        architecture: ['kubelet executes probes directly on the node', 'readiness failure removes pod from Endpoints object', 'liveness failure triggers container restart (not pod delete)', 'startup probe disables liveness until first success'],
-        techniques: ['httpGet probe for HTTP APIs', 'tcpSocket probe for non-HTTP services', 'exec probe for custom health check logic', 'tuning failureThreshold for slow-start apps', 'startup probe to protect slow initializers from liveness kills'],
-        procedures: ['add liveness probe to a deployment', 'add readiness probe to a deployment', 'observe probe failure events', 'tune probe timing parameters'],
+        concepts: [
+          'liveness probe: restart unhealthy container',
+          'readiness probe: remove from service endpoints',
+          'startup probe: disable liveness during slow init',
+          'probe types: httpGet/tcpSocket/exec/gRPC',
+          'initialDelaySeconds, periodSeconds, failureThreshold, successThreshold',
+          'timeoutSeconds',
+        ],
+        commands: [
+          'kubectl describe pod (Liveness/Readiness in containers section)',
+          'kubectl get events (probe failure events)',
+          'kubectl get pod -w (watch Ready column change)',
+        ],
+        architecture: [
+          'kubelet executes probes directly on the node',
+          'readiness failure removes pod from Endpoints object',
+          'liveness failure triggers container restart (not pod delete)',
+          'startup probe disables liveness until first success',
+        ],
+        techniques: [
+          'httpGet probe for HTTP APIs',
+          'tcpSocket probe for non-HTTP services',
+          'exec probe for custom health check logic',
+          'tuning failureThreshold for slow-start apps',
+          'startup probe to protect slow initializers from liveness kills',
+        ],
+        procedures: [
+          'add liveness probe to a deployment',
+          'add readiness probe to a deployment',
+          'observe probe failure events',
+          'tune probe timing parameters',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube'],
-        cases: ['missing readiness probe → pod added to endpoints before app is ready (traffic errors on deploy)', 'liveness probe too aggressive → CrashLoopBackOff on slow app', 'startup probe missing → liveness kills slow-starting app before it finishes init'],
-        scenarios: ['rolling update with readiness probe ensuring zero downtime', 'diagnose pod repeatedly restarting due to misconfigured liveness probe'],
+        cases: [
+          'missing readiness probe → pod added to endpoints before app is ready (traffic errors on deploy)',
+          'liveness probe too aggressive → CrashLoopBackOff on slow app',
+          'startup probe missing → liveness kills slow-starting app before it finishes init',
+        ],
+        scenarios: [
+          'rolling update with readiness probe ensuring zero downtime',
+          'diagnose pod repeatedly restarting due to misconfigured liveness probe',
+        ],
       },
       exercises: [
         {
@@ -1949,7 +2584,10 @@ EOF`,
             'kubectl get pods -l app=probed-web -w',
             'kubectl describe pod -l app=probed-web | grep -A10 Liveness',
           ],
-          verify: ['Pods reach Running and Ready 1/1 status', 'describe shows Liveness and Readiness probe config'],
+          verify: [
+            'Pods reach Running and Ready 1/1 status',
+            'describe shows Liveness and Readiness probe config',
+          ],
           expectedOutcome: 'Both probes configured and pods enter Ready state correctly.',
           cleanup: ['kubectl delete deployment probed-web'],
         },
@@ -1961,11 +2599,14 @@ EOF`,
           commands: [
             'kubectl create deployment liveness-test --image=nginx:1.27',
             `kubectl patch deployment liveness-test --patch '{"spec":{"template":{"spec":{"containers":[{"name":"nginx","livenessProbe":{"httpGet":{"path":"/","port":80},"initialDelaySeconds":5,"periodSeconds":5,"failureThreshold":2}}]}}}}'`,
-            'kubectl exec -it $(kubectl get pod -l app=liveness-test -o jsonpath=\'{.items[0].metadata.name}\') -- rm /usr/share/nginx/html/index.html',
+            "kubectl exec -it $(kubectl get pod -l app=liveness-test -o jsonpath='{.items[0].metadata.name}') -- rm /usr/share/nginx/html/index.html",
             'kubectl get pod -l app=liveness-test -w',
             'kubectl describe pod -l app=liveness-test | grep Restart',
           ],
-          verify: ['Pod restarts after liveness probe fails (RESTARTS counter increments)', 'Events show Liveness probe failed'],
+          verify: [
+            'Pod restarts after liveness probe fails (RESTARTS counter increments)',
+            'Events show Liveness probe failed',
+          ],
           expectedOutcome: 'Liveness probe failure triggers container restart as expected.',
           cleanup: ['kubectl delete deployment liveness-test'],
         },
@@ -1996,8 +2637,12 @@ EOF`,
             'kubectl describe pod aggressive-probe',
             'kubectl get events --field-selector involvedObject.name=aggressive-probe',
           ],
-          verify: ['Pod enters CrashLoopBackOff', 'Events show "Liveness probe failed" before app was ready'],
-          expectedOutcome: 'Understand why startup probe or higher initialDelaySeconds is needed for slow apps.',
+          verify: [
+            'Pod enters CrashLoopBackOff',
+            'Events show "Liveness probe failed" before app was ready',
+          ],
+          expectedOutcome:
+            'Understand why startup probe or higher initialDelaySeconds is needed for slow apps.',
           cleanup: ['kubectl delete pod aggressive-probe --ignore-not-found'],
         },
         {
@@ -2010,7 +2655,10 @@ EOF`,
             'kubectl explain pod.spec.containers.readinessProbe',
             'kubectl explain pod.spec.containers.startupProbe',
           ],
-          verify: ['explain output shows httpGet, tcpSocket, exec fields', 'initialDelaySeconds, periodSeconds, failureThreshold visible'],
+          verify: [
+            'explain output shows httpGet, tcpSocket, exec fields',
+            'initialDelaySeconds, periodSeconds, failureThreshold visible',
+          ],
           expectedOutcome: 'Probe types and timing parameters recalled accurately.',
           cleanup: [],
         },
@@ -2022,7 +2670,8 @@ EOF`,
       id: 'p2-m6',
       slug: 'resources',
       title: 'Resource Requests & Limits',
-      description: 'Reserve capacity for your pods and cap their resource consumption to prevent noisy-neighbor problems.',
+      description:
+        'Reserve capacity for your pods and cap their resource consumption to prevent noisy-neighbor problems.',
       duration: '60 min',
       difficulty: 'intermediate',
       theory: `> 🧠 **Brain Warm-Up**: How does the Linux kernel enforce CPU limits differently from memory limits under the hood, and what happens to a container's QoS class and eviction priority when they are set?
@@ -2100,8 +2749,10 @@ At the OS kernel level, when the system runs out of physical memory, the kernel 
         {
           id: 'p2-m6-s1',
           title: 'Deploy without resource settings',
-          instruction: 'Create a pod without any resource declarations and observe it has no reservation on the node.',
-          command: 'kubectl run no-resources --image=nginx:1.27 && kubectl describe node node-1 | grep -A5 "Allocated resources"',
+          instruction:
+            'Create a pod without any resource declarations and observe it has no reservation on the node.',
+          command:
+            'kubectl run no-resources --image=nginx:1.27 && kubectl describe node node-1 | grep -A5 "Allocated resources"',
           output: [
             'pod/no-resources created',
             'Allocated resources:',
@@ -2111,10 +2762,20 @@ At the OS kernel level, when the system runs out of physical memory, the kernel 
             '  cpu                250m (12%)  500m (25%)',
             '  memory             256Mi (6%)  512Mi (12%)',
           ],
-          explanation: 'The no-resources pod contributes 0 to Requests and Limits. The scheduler has no idea how much CPU or memory this pod will actually use — it might use very little, or it might consume everything on the node. This is the BestEffort QoS class.',
+          explanation:
+            'The no-resources pod contributes 0 to Requests and Limits. The scheduler has no idea how much CPU or memory this pod will actually use — it might use very little, or it might consume everything on the node. This is the BestEffort QoS class.',
           clusterState: {
             pods: [
-              { id: 'no-resources', name: 'no-resources', namespace: 'default', node: 'node-1', status: 'Running', labels: { run: 'no-resources' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'no-resources',
+                name: 'no-resources',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { run: 'no-resources' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -2143,11 +2804,30 @@ spec:
         cpu: 200m
         memory: 256Mi`,
           output: ['pod/with-resources created'],
-          explanation: 'This pod requests 100m CPU and 128Mi memory (what the scheduler reserves). Its limits are 200m CPU and 256Mi memory (the maximum it can use). Since requests < limits, this pod gets QoS class Burstable.',
+          explanation:
+            'This pod requests 100m CPU and 128Mi memory (what the scheduler reserves). Its limits are 200m CPU and 256Mi memory (the maximum it can use). Since requests < limits, this pod gets QoS class Burstable.',
           clusterState: {
             pods: [
-              { id: 'no-resources', name: 'no-resources', namespace: 'default', node: 'node-1', status: 'Running', labels: { run: 'no-resources' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'with-resources', name: 'with-resources', namespace: 'default', node: 'node-2', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'no-resources',
+                name: 'no-resources',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { run: 'no-resources' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'with-resources',
+                name: 'with-resources',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: {},
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -2162,10 +2842,20 @@ spec:
           instruction: 'Describe the pod to see its assigned QoS class.',
           command: "kubectl describe pod with-resources | grep 'QoS Class'",
           output: ['QoS Class:                   Burstable'],
-          explanation: 'Burstable means requests < limits. The pod is guaranteed its requests but can burst up to its limits when the node has spare capacity. Under memory pressure, Burstable pods are evicted after BestEffort but before Guaranteed.',
+          explanation:
+            'Burstable means requests < limits. The pod is guaranteed its requests but can burst up to its limits when the node has spare capacity. Under memory pressure, Burstable pods are evicted after BestEffort but before Guaranteed.',
           clusterState: {
             pods: [
-              { id: 'with-resources', name: 'with-resources', namespace: 'default', node: 'node-2', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'with-resources',
+                name: 'with-resources',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: {},
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -2177,7 +2867,8 @@ spec:
         {
           id: 'p2-m6-s4',
           title: 'Guaranteed QoS',
-          instruction: 'Review the YAML pattern for Guaranteed QoS — requests must equal limits for all containers.',
+          instruction:
+            'Review the YAML pattern for Guaranteed QoS — requests must equal limits for all containers.',
           command: 'kubectl apply -f -',
           yamlContent: `apiVersion: v1
 kind: Pod
@@ -2195,12 +2886,40 @@ spec:
         cpu: 200m
         memory: 256Mi`,
           output: ['pod/guaranteed-pod created'],
-          explanation: 'When requests == limits for every container, Kubernetes assigns QoS class Guaranteed. This pod is the last to be evicted under memory pressure. The trade-off: you can\'t burst above your request, so over-provisioning wastes cluster resources.',
+          explanation:
+            "When requests == limits for every container, Kubernetes assigns QoS class Guaranteed. This pod is the last to be evicted under memory pressure. The trade-off: you can't burst above your request, so over-provisioning wastes cluster resources.",
           clusterState: {
             pods: [
-              { id: 'no-resources', name: 'no-resources', namespace: 'default', node: 'node-1', status: 'Running', labels: { run: 'no-resources' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'with-resources', name: 'with-resources', namespace: 'default', node: 'node-2', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
-              { id: 'guaranteed-pod', name: 'guaranteed-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'no-resources',
+                name: 'no-resources',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { run: 'no-resources' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'with-resources',
+                name: 'with-resources',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: {},
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'guaranteed-pod',
+                name: 'guaranteed-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -2212,7 +2931,8 @@ spec:
         {
           id: 'p2-m6-s5',
           title: 'See requests reflected on the node',
-          instruction: 'Describe the node again to see how the pods\' requests are reflected in Allocated resources.',
+          instruction:
+            "Describe the node again to see how the pods' requests are reflected in Allocated resources.",
           command: 'kubectl describe node node-1 | grep -A8 "Allocated resources"',
           output: [
             'Allocated resources:',
@@ -2222,11 +2942,30 @@ spec:
             '  cpu                300m (15%)  400m (20%)',
             '  memory             384Mi (9%)  512Mi (12%)',
           ],
-          explanation: 'The guaranteed-pod contributes 200m CPU and 256Mi memory to node-1\'s Requests column. The scheduler uses these numbers to decide whether new pods can fit on this node. A node is "full" for scheduling purposes when its Requests reach its allocatable capacity — even if actual usage is low.',
+          explanation:
+            'The guaranteed-pod contributes 200m CPU and 256Mi memory to node-1\'s Requests column. The scheduler uses these numbers to decide whether new pods can fit on this node. A node is "full" for scheduling purposes when its Requests reach its allocatable capacity — even if actual usage is low.',
           clusterState: {
             pods: [
-              { id: 'no-resources', name: 'no-resources', namespace: 'default', node: 'node-1', status: 'Running', labels: { run: 'no-resources' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'guaranteed-pod', name: 'guaranteed-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'no-resources',
+                name: 'no-resources',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { run: 'no-resources' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'guaranteed-pod',
+                name: 'guaranteed-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -2247,7 +2986,8 @@ spec:
             'The memory limit is automatically increased',
           ],
           answer: 1,
-          explanation: 'Exceeding the memory limit triggers an Out-Of-Memory kill (OOMKilled). The container is killed immediately by the kernel. You\'ll see "OOMKilled" in kubectl describe pod under Last State. If the pod has a restart policy (the default), kubelet will restart it.',
+          explanation:
+            'Exceeding the memory limit triggers an Out-Of-Memory kill (OOMKilled). The container is killed immediately by the kernel. You\'ll see "OOMKilled" in kubectl describe pod under Last State. If the pod has a restart policy (the default), kubelet will restart it.',
         },
         {
           id: 'p2-m6-q2',
@@ -2255,18 +2995,25 @@ spec:
           options: [
             'The container is OOMKilled',
             'The container is evicted',
-            'The container\'s CPU is throttled — it runs slower but is not killed',
+            "The container's CPU is throttled — it runs slower but is not killed",
             'The pod is rescheduled to a node with more CPU',
           ],
           answer: 2,
-          explanation: 'CPU is a compressible resource. Exceeding the CPU limit results in throttling: the kernel\'s CFS scheduler restricts the container\'s CPU time. The container continues running but processes more slowly. Unlike memory, exceeding CPU limits never kills the container.',
+          explanation:
+            "CPU is a compressible resource. Exceeding the CPU limit results in throttling: the kernel's CFS scheduler restricts the container's CPU time. The container continues running but processes more slowly. Unlike memory, exceeding CPU limits never kills the container.",
         },
         {
           id: 'p2-m6-q3',
           question: 'What QoS class gets evicted FIRST when a node is under memory pressure?',
-          options: ['Guaranteed', 'Burstable', 'BestEffort', 'All classes are evicted simultaneously'],
+          options: [
+            'Guaranteed',
+            'Burstable',
+            'BestEffort',
+            'All classes are evicted simultaneously',
+          ],
           answer: 2,
-          explanation: 'BestEffort pods (no requests or limits) are evicted first because they have made no resource reservation and could be consuming any amount of memory. Burstable pods are evicted next, followed by Guaranteed last.',
+          explanation:
+            'BestEffort pods (no requests or limits) are evicted first because they have made no resource reservation and could be consuming any amount of memory. Burstable pods are evicted next, followed by Guaranteed last.',
         },
         {
           id: 'p2-m6-q4',
@@ -2278,18 +3025,56 @@ spec:
             'The average of requests and limits',
           ],
           answer: 1,
-          explanation: 'The scheduler uses Requests, not Limits. It sums up the requests of all pods on each node and compares to the node\'s allocatable capacity. This is why setting requests accurately is critical: too low and pods get scheduled onto already-crowded nodes; too high and pods can\'t be scheduled at all.',
+          explanation:
+            "The scheduler uses Requests, not Limits. It sums up the requests of all pods on each node and compares to the node's allocatable capacity. This is why setting requests accurately is critical: too low and pods get scheduled onto already-crowded nodes; too high and pods can't be scheduled at all.",
         },
       ],
       coverage: {
-        concepts: ['CPU requests and limits (millicores)', 'memory requests and limits (Mi/Gi)', 'QoS classes: Guaranteed/Burstable/BestEffort', 'OOMKilled when memory limit exceeded', 'CPU throttling when limit exceeded (not killed)', 'LimitRange defaults', 'ResourceQuota per namespace'],
-        commands: ['kubectl top nodes', 'kubectl top pods', 'kubectl describe node (Allocatable section)', 'kubectl describe pod (Resources section)', 'kubectl get limitrange', 'kubectl get resourcequota'],
-        architecture: ['scheduler uses requests for bin-packing decisions', 'kubelet enforces limits via Linux cgroups', 'CPU limit enforced by CFS bandwidth (throttle)', 'memory limit enforced by OOM killer (kill)'],
-        techniques: ['setting requests equal to expected usage', 'setting limits at 2-3x requests for burst headroom', 'using kubectl top to measure actual usage', 'VPA (Vertical Pod Autoscaler) for auto-sizing'],
-        procedures: ['add resource requests and limits to a container', 'check node allocatable capacity', 'observe OOMKilled event', 'create LimitRange for namespace defaults'],
+        concepts: [
+          'CPU requests and limits (millicores)',
+          'memory requests and limits (Mi/Gi)',
+          'QoS classes: Guaranteed/Burstable/BestEffort',
+          'OOMKilled when memory limit exceeded',
+          'CPU throttling when limit exceeded (not killed)',
+          'LimitRange defaults',
+          'ResourceQuota per namespace',
+        ],
+        commands: [
+          'kubectl top nodes',
+          'kubectl top pods',
+          'kubectl describe node (Allocatable section)',
+          'kubectl describe pod (Resources section)',
+          'kubectl get limitrange',
+          'kubectl get resourcequota',
+        ],
+        architecture: [
+          'scheduler uses requests for bin-packing decisions',
+          'kubelet enforces limits via Linux cgroups',
+          'CPU limit enforced by CFS bandwidth (throttle)',
+          'memory limit enforced by OOM killer (kill)',
+        ],
+        techniques: [
+          'setting requests equal to expected usage',
+          'setting limits at 2-3x requests for burst headroom',
+          'using kubectl top to measure actual usage',
+          'VPA (Vertical Pod Autoscaler) for auto-sizing',
+        ],
+        procedures: [
+          'add resource requests and limits to a container',
+          'check node allocatable capacity',
+          'observe OOMKilled event',
+          'create LimitRange for namespace defaults',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube', 'metrics-server (minikube addon)'],
-        cases: ['pod OOMKilled repeatedly — memory limit too low', 'pod Pending — requests exceed all node capacity', 'CPU throttling causing latency spikes under load'],
-        scenarios: ['right-size a workload using kubectl top data', 'prevent noisy neighbor from starving other pods with limits'],
+        cases: [
+          'pod OOMKilled repeatedly — memory limit too low',
+          'pod Pending — requests exceed all node capacity',
+          'CPU throttling causing latency spikes under load',
+        ],
+        scenarios: [
+          'right-size a workload using kubectl top data',
+          'prevent noisy neighbor from starving other pods with limits',
+        ],
       },
       exercises: [
         {
@@ -2321,7 +3106,11 @@ EOF`,
             'kubectl top node',
             'kubectl top pod resource-pod',
           ],
-          verify: ['describe pod shows requests cpu:100m memory:64Mi and limits cpu:250m memory:128Mi', 'kubectl top pod shows actual usage', 'Node allocatable shows remaining capacity'],
+          verify: [
+            'describe pod shows requests cpu:100m memory:64Mi and limits cpu:250m memory:128Mi',
+            'kubectl top pod shows actual usage',
+            'Node allocatable shows remaining capacity',
+          ],
           expectedOutcome: 'Resource requests/limits confirmed in pod spec; actual usage measured.',
           cleanup: ['kubectl delete pod resource-pod --ignore-not-found'],
         },
@@ -2348,7 +3137,10 @@ EOF`,
             'kubectl get pod oom-pod -w',
             'kubectl describe pod oom-pod',
           ],
-          verify: ['Pod shows OOMKilled in Last State or reason field', 'describe shows memory limit of 10Mi in resources'],
+          verify: [
+            'Pod shows OOMKilled in Last State or reason field',
+            'describe shows memory limit of 10Mi in resources',
+          ],
           expectedOutcome: 'OOMKilled triggered and diagnosed via kubectl describe.',
           cleanup: ['kubectl delete pod oom-pod --ignore-not-found'],
         },
@@ -2376,8 +3168,13 @@ EOF`,
             'kubectl describe pod oversized-pod',
             'kubectl get events --field-selector involvedObject.name=oversized-pod',
           ],
-          verify: ['Pod stays in Pending status', 'Events show Insufficient cpu or Insufficient memory', 'describe shows FailedScheduling in events'],
-          expectedOutcome: 'Unschedulable pod diagnosed: requests exceed all available node capacity.',
+          verify: [
+            'Pod stays in Pending status',
+            'Events show Insufficient cpu or Insufficient memory',
+            'describe shows FailedScheduling in events',
+          ],
+          expectedOutcome:
+            'Unschedulable pod diagnosed: requests exceed all available node capacity.',
           cleanup: ['kubectl delete pod oversized-pod --ignore-not-found'],
         },
         {
@@ -2391,8 +3188,12 @@ EOF`,
             'kubectl describe node minikube | grep -A5 Allocatable',
             'kubectl explain pod.spec.containers.resources',
           ],
-          verify: ['kubectl top returns usage data (metrics-server must be enabled)', 'explain shows requests and limits fields'],
-          expectedOutcome: 'Resource commands recalled; QoS class definitions recalled without notes.',
+          verify: [
+            'kubectl top returns usage data (metrics-server must be enabled)',
+            'explain shows requests and limits fields',
+          ],
+          expectedOutcome:
+            'Resource commands recalled; QoS class definitions recalled without notes.',
           cleanup: [],
         },
       ],
@@ -2401,7 +3202,8 @@ EOF`,
       id: 'p2-m7',
       slug: 'service-types',
       title: 'Service Types Deep Dive',
-      description: 'ClusterIP, NodePort, LoadBalancer, ExternalName, and Headless — when to use each and how they work.',
+      description:
+        'ClusterIP, NodePort, LoadBalancer, ExternalName, and Headless — when to use each and how they work.',
       duration: '60 min',
       difficulty: 'intermediate' as const,
       masteryChecks: [
@@ -2472,14 +3274,47 @@ DNS returns **individual pod IPs** instead of a single virtual IP. Used with Sta
           id: 'p2-m7-s1',
           title: 'Create a ClusterIP service',
           instruction: 'Deploy nginx and expose it internally with ClusterIP.',
-          command: 'kubectl expose deployment nginx --port=80 --target-port=80 --name=nginx-clusterip',
+          command:
+            'kubectl expose deployment nginx --port=80 --target-port=80 --name=nginx-clusterip',
           output: ['service/nginx-clusterip exposed'],
-          explanation: 'ClusterIP is the default type. The service gets a virtual IP inside the cluster. Not reachable from outside.',
+          explanation:
+            'ClusterIP is the default type. The service gets a virtual IP inside the cluster. Not reachable from outside.',
           clusterState: {
-            pods: [{ id: 'ng1', name: 'nginx-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [{ id: 'svc1', name: 'nginx-clusterip', namespace: 'default', type: 'ClusterIP' as const, selector: { app: 'nginx' }, port: 80, clusterIP: '10.96.100.1' }],
-            deployments: [{ id: 'd1', name: 'nginx', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
-            namespaces: ['default'], events: ['nginx-clusterip service created'],
+            pods: [
+              {
+                id: 'ng1',
+                name: 'nginx-abc12',
+                namespace: 'default',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { app: 'nginx' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'svc1',
+                name: 'nginx-clusterip',
+                namespace: 'default',
+                type: 'ClusterIP' as const,
+                selector: { app: 'nginx' },
+                port: 80,
+                clusterIP: '10.96.100.1',
+              },
+            ],
+            deployments: [
+              {
+                id: 'd1',
+                name: 'nginx',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+            ],
+            namespaces: ['default'],
+            events: ['nginx-clusterip service created'],
           },
         },
         {
@@ -2491,12 +3326,44 @@ DNS returns **individual pod IPs** instead of a single virtual IP. Used with Sta
             'NAME              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE',
             'nginx-clusterip   ClusterIP   10.96.100.1     <none>        80/TCP    8s',
           ],
-          explanation: 'EXTERNAL-IP is <none> — ClusterIP is internal only. CLUSTER-IP 10.96.100.1 is the stable virtual IP. This IP stays the same even if pods are replaced.',
+          explanation:
+            'EXTERNAL-IP is <none> — ClusterIP is internal only. CLUSTER-IP 10.96.100.1 is the stable virtual IP. This IP stays the same even if pods are replaced.',
           clusterState: {
-            pods: [{ id: 'ng1', name: 'nginx-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [{ id: 'svc1', name: 'nginx-clusterip', namespace: 'default', type: 'ClusterIP' as const, selector: { app: 'nginx' }, port: 80, clusterIP: '10.96.100.1' }],
-            deployments: [{ id: 'd1', name: 'nginx', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
-            namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'ng1',
+                name: 'nginx-abc12',
+                namespace: 'default',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { app: 'nginx' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'svc1',
+                name: 'nginx-clusterip',
+                namespace: 'default',
+                type: 'ClusterIP' as const,
+                selector: { app: 'nginx' },
+                port: 80,
+                clusterIP: '10.96.100.1',
+              },
+            ],
+            deployments: [
+              {
+                id: 'd1',
+                name: 'nginx',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+            ],
+            namespaces: ['default'],
+            events: [],
           },
         },
         {
@@ -2516,15 +3383,53 @@ spec:
     targetPort: 80
     nodePort: 30080`,
           output: [],
-          explanation: 'nodePort: 30080 opens port 30080 on every node. port: 80 is the ClusterIP port. targetPort: 80 is the container port.',
+          explanation:
+            'nodePort: 30080 opens port 30080 on every node. port: 80 is the ClusterIP port. targetPort: 80 is the container port.',
           clusterState: {
-            pods: [{ id: 'ng1', name: 'nginx-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [
-              { id: 'svc1', name: 'nginx-clusterip', namespace: 'default', type: 'ClusterIP' as const, selector: { app: 'nginx' }, port: 80, clusterIP: '10.96.100.1' },
-              { id: 'svc2', name: 'nginx-nodeport', namespace: 'default', type: 'NodePort' as const, selector: { app: 'nginx' }, port: 30080, clusterIP: '10.96.100.2' },
+            pods: [
+              {
+                id: 'ng1',
+                name: 'nginx-abc12',
+                namespace: 'default',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { app: 'nginx' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
-            deployments: [{ id: 'd1', name: 'nginx', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
-            namespaces: ['default'], events: [],
+            services: [
+              {
+                id: 'svc1',
+                name: 'nginx-clusterip',
+                namespace: 'default',
+                type: 'ClusterIP' as const,
+                selector: { app: 'nginx' },
+                port: 80,
+                clusterIP: '10.96.100.1',
+              },
+              {
+                id: 'svc2',
+                name: 'nginx-nodeport',
+                namespace: 'default',
+                type: 'NodePort' as const,
+                selector: { app: 'nginx' },
+                port: 30080,
+                clusterIP: '10.96.100.2',
+              },
+            ],
+            deployments: [
+              {
+                id: 'd1',
+                name: 'nginx',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+            ],
+            namespaces: ['default'],
+            events: [],
           },
         },
         {
@@ -2533,12 +3438,44 @@ spec:
           instruction: 'Get the URL to reach the NodePort service from your laptop.',
           command: 'minikube service nginx-nodeport --url',
           output: ['http://192.168.49.2:30080'],
-          explanation: 'minikube service prints the URL. On a real cloud cluster you would use the node IP directly: curl NodeIP:30080.',
+          explanation:
+            'minikube service prints the URL. On a real cloud cluster you would use the node IP directly: curl NodeIP:30080.',
           clusterState: {
-            pods: [{ id: 'ng1', name: 'nginx-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [{ id: 'svc2', name: 'nginx-nodeport', namespace: 'default', type: 'NodePort' as const, selector: { app: 'nginx' }, port: 30080, clusterIP: '10.96.100.2' }],
-            deployments: [{ id: 'd1', name: 'nginx', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
-            namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'ng1',
+                name: 'nginx-abc12',
+                namespace: 'default',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { app: 'nginx' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'svc2',
+                name: 'nginx-nodeport',
+                namespace: 'default',
+                type: 'NodePort' as const,
+                selector: { app: 'nginx' },
+                port: 30080,
+                clusterIP: '10.96.100.2',
+              },
+            ],
+            deployments: [
+              {
+                id: 'd1',
+                name: 'nginx',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+            ],
+            namespaces: ['default'],
+            events: [],
           },
         },
         {
@@ -2550,12 +3487,44 @@ spec:
             'NAME              ENDPOINTS       AGE',
             'nginx-nodeport    10.244.1.5:80   45s',
           ],
-          explanation: 'Endpoints are the actual pod IPs:ports that the service routes to. If ENDPOINTS shows <none>, your selector does not match any running pods.',
+          explanation:
+            'Endpoints are the actual pod IPs:ports that the service routes to. If ENDPOINTS shows <none>, your selector does not match any running pods.',
           clusterState: {
-            pods: [{ id: 'ng1', name: 'nginx-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [{ id: 'svc2', name: 'nginx-nodeport', namespace: 'default', type: 'NodePort' as const, selector: { app: 'nginx' }, port: 30080, clusterIP: '10.96.100.2' }],
-            deployments: [{ id: 'd1', name: 'nginx', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
-            namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'ng1',
+                name: 'nginx-abc12',
+                namespace: 'default',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { app: 'nginx' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'svc2',
+                name: 'nginx-nodeport',
+                namespace: 'default',
+                type: 'NodePort' as const,
+                selector: { app: 'nginx' },
+                port: 30080,
+                clusterIP: '10.96.100.2',
+              },
+            ],
+            deployments: [
+              {
+                id: 'd1',
+                name: 'nginx',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+            ],
+            namespaces: ['default'],
+            events: [],
           },
           tip: 'Empty endpoints = wrong selector. Run kubectl get pods --show-labels to compare label keys/values.',
         },
@@ -2565,11 +3534,34 @@ spec:
           instruction: 'Delete the services.',
           command: 'kubectl delete svc nginx-clusterip nginx-nodeport',
           output: ['service "nginx-clusterip" deleted', 'service "nginx-nodeport" deleted'],
-          explanation: 'Deleting a Service does not affect the pods or Deployment it was routing to. The pods continue running.',
+          explanation:
+            'Deleting a Service does not affect the pods or Deployment it was routing to. The pods continue running.',
           clusterState: {
-            pods: [{ id: 'ng1', name: 'nginx-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'nginx' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [], deployments: [{ id: 'd1', name: 'nginx', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
-            namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'ng1',
+                name: 'nginx-abc12',
+                namespace: 'default',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { app: 'nginx' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [],
+            deployments: [
+              {
+                id: 'd1',
+                name: 'nginx',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+            ],
+            namespaces: ['default'],
+            events: [],
           },
         },
       ],
@@ -2579,7 +3571,8 @@ spec:
           question: 'What is the default Service type when you run kubectl expose?',
           options: ['NodePort', 'ClusterIP', 'LoadBalancer', 'ExternalName'],
           answer: 1,
-          explanation: 'ClusterIP is the default. It creates an internal virtual IP only reachable within the cluster. You must explicitly specify NodePort or LoadBalancer for external access.',
+          explanation:
+            'ClusterIP is the default. It creates an internal virtual IP only reachable within the cluster. You must explicitly specify NodePort or LoadBalancer for external access.',
         },
         {
           id: 'p2-m7-q2',
@@ -2591,18 +3584,21 @@ spec:
             'The targetPort is wrong',
           ],
           answer: 1,
-          explanation: 'Endpoints are populated from pods whose labels match the service selector. If no pods match, ENDPOINTS is empty. Check kubectl get pods --show-labels and compare with the service selector.',
+          explanation:
+            'Endpoints are populated from pods whose labels match the service selector. If no pods match, ENDPOINTS is empty. Check kubectl get pods --show-labels and compare with the service selector.',
         },
         {
           id: 'p2-m7-q3',
           question: 'What port range is valid for NodePort services?',
           options: ['1024–65535', '8000–9000', '30000–32767', '80 and 443 only'],
           answer: 2,
-          explanation: 'Kubernetes reserves 30000–32767 for NodePort services by default. This range is configurable in kube-apiserver (--service-node-port-range), but 30000–32767 is the default.',
+          explanation:
+            'Kubernetes reserves 30000–32767 for NodePort services by default. This range is configurable in kube-apiserver (--service-node-port-range), but 30000–32767 is the default.',
         },
         {
           id: 'p2-m7-q4',
-          question: 'What does a Headless service (clusterIP: None) return when a pod queries its DNS name?',
+          question:
+            'What does a Headless service (clusterIP: None) return when a pod queries its DNS name?',
           options: [
             'The ClusterIP of the service',
             'The IP of a random healthy pod',
@@ -2610,11 +3606,13 @@ spec:
             'The external load balancer IP',
           ],
           answer: 2,
-          explanation: 'A headless service has no virtual IP. DNS returns A records for each matching pod IP directly. Used by StatefulSets so pods can address each other by stable DNS names (pod-0.svc.namespace.svc.cluster.local).',
+          explanation:
+            'A headless service has no virtual IP. DNS returns A records for each matching pod IP directly. Used by StatefulSets so pods can address each other by stable DNS names (pod-0.svc.namespace.svc.cluster.local).',
         },
         {
           id: 'p2-m7-q5',
-          question: 'On minikube, you create a LoadBalancer service. EXTERNAL-IP stays in Pending. What must you run?',
+          question:
+            'On minikube, you create a LoadBalancer service. EXTERNAL-IP stays in Pending. What must you run?',
           options: [
             'kubectl expose --type=NodePort',
             'minikube tunnel',
@@ -2622,7 +3620,8 @@ spec:
             'minikube addons enable metallb',
           ],
           answer: 1,
-          explanation: 'minikube tunnel creates a network route from your host into the cluster and assigns an external IP to LoadBalancer services. Without it, EXTERNAL-IP stays Pending because there is no cloud provider to provision an LB.',
+          explanation:
+            'minikube tunnel creates a network route from your host into the cluster and assigns an external IP to LoadBalancer services. Without it, EXTERNAL-IP stays Pending because there is no cloud provider to provision an LB.',
         },
         {
           id: 'p2-m7-q6',
@@ -2634,7 +3633,8 @@ spec:
             'To route traffic between namespaces',
           ],
           answer: 1,
-          explanation: 'ExternalName makes an internal cluster DNS name (e.g. my-db.default.svc.cluster.local) resolve to an external hostname (e.g. prod-db.example.com). No proxying — just a CNAME. Useful for migrating services or aliasing external dependencies.',
+          explanation:
+            'ExternalName makes an internal cluster DNS name (e.g. my-db.default.svc.cluster.local) resolve to an external hostname (e.g. prod-db.example.com). No proxying — just a CNAME. Useful for migrating services or aliasing external dependencies.',
         },
       ],
       exercises: [
@@ -2651,9 +3651,17 @@ spec:
             'kubectl get endpoints',
             'minikube service nginx-external --url',
           ],
-          verify: ['kubectl get svc shows both services', 'kubectl get endpoints shows pod IPs', 'curl to NodePort URL returns nginx welcome page'],
-          expectedOutcome: 'Both services routing to the same pods, NodePort accessible from laptop',
-          cleanup: ['kubectl delete deployment nginx', 'kubectl delete svc nginx-internal nginx-external'],
+          verify: [
+            'kubectl get svc shows both services',
+            'kubectl get endpoints shows pod IPs',
+            'curl to NodePort URL returns nginx welcome page',
+          ],
+          expectedOutcome:
+            'Both services routing to the same pods, NodePort accessible from laptop',
+          cleanup: [
+            'kubectl delete deployment nginx',
+            'kubectl delete svc nginx-internal nginx-external',
+          ],
         },
       ],
     },
@@ -2662,7 +3670,8 @@ spec:
       id: 'p2-m8',
       slug: 'dns-coredns',
       title: 'DNS & CoreDNS',
-      description: 'How Kubernetes DNS works, the FQDN format, CoreDNS configuration, and how to debug DNS failures.',
+      description:
+        'How Kubernetes DNS works, the FQDN format, CoreDNS configuration, and how to debug DNS failures.',
       duration: '45 min',
       difficulty: 'intermediate' as const,
       masteryChecks: [
@@ -2725,12 +3734,25 @@ From a pod in namespace \`frontend\`:
             'coredns-5d78c9869d-4xkrb   1/1     Running   0          45m',
             'coredns-5d78c9869d-8vqvt   1/1     Running   0          45m',
           ],
-          explanation: 'CoreDNS runs as a Deployment with 2 replicas in kube-system. It exposes port 53 (UDP+TCP) via the kube-dns Service at a stable ClusterIP (usually 10.96.0.10).',
+          explanation:
+            'CoreDNS runs as a Deployment with 2 replicas in kube-system. It exposes port 53 (UDP+TCP) via the kube-dns Service at a stable ClusterIP (usually 10.96.0.10).',
           clusterState: {
             pods: [
-              { id: 'dns1', name: 'coredns-5d78c9869d-4xkrb', namespace: 'kube-system', node: 'node-1' as const, status: 'Running' as const, labels: { 'k8s-app': 'kube-dns' }, image: 'registry.k8s.io/coredns/coredns:v1.11.1', restarts: 0 },
+              {
+                id: 'dns1',
+                name: 'coredns-5d78c9869d-4xkrb',
+                namespace: 'kube-system',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { 'k8s-app': 'kube-dns' },
+                image: 'registry.k8s.io/coredns/coredns:v1.11.1',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: [],
           },
         },
         {
@@ -2757,30 +3779,69 @@ From a pod in namespace \`frontend\`:
             '        loadbalance',
             '    }',
           ],
-          explanation: 'The kubernetes plugin handles .cluster.local queries. forward . /etc/resolv.conf sends all other queries to the node\'s upstream DNS. cache 30 caches responses for 30 seconds.',
+          explanation:
+            "The kubernetes plugin handles .cluster.local queries. forward . /etc/resolv.conf sends all other queries to the node's upstream DNS. cache 30 caches responses for 30 seconds.",
           clusterState: {
-            pods: [], services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: [],
           },
         },
         {
           id: 'p2-m8-s3',
           title: 'Create a test service',
           instruction: 'Create a simple nginx deployment and service to test DNS against.',
-          command: 'kubectl create deployment web --image=nginx:1.27 && kubectl expose deployment web --port=80',
+          command:
+            'kubectl create deployment web --image=nginx:1.27 && kubectl expose deployment web --port=80',
           output: ['deployment.apps/web created', 'service/web exposed'],
-          explanation: 'The service "web" in namespace "default" is now resolvable as web.default.svc.cluster.local from any pod in the cluster.',
+          explanation:
+            'The service "web" in namespace "default" is now resolvable as web.default.svc.cluster.local from any pod in the cluster.',
           clusterState: {
-            pods: [{ id: 'web1', name: 'web-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [{ id: 'wsvc', name: 'web', namespace: 'default', type: 'ClusterIP' as const, selector: { app: 'web' }, port: 80, clusterIP: '10.96.50.1' }],
-            deployments: [{ id: 'wd', name: 'web', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
-            namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'web1',
+                name: 'web-abc12',
+                namespace: 'default',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'wsvc',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP' as const,
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: '10.96.50.1',
+              },
+            ],
+            deployments: [
+              {
+                id: 'wd',
+                name: 'web',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+            ],
+            namespaces: ['default'],
+            events: [],
           },
         },
         {
           id: 'p2-m8-s4',
           title: 'Resolve DNS from inside a pod',
           instruction: 'Run a temporary pod and use nslookup to resolve the service.',
-          command: 'kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup web',
+          command:
+            'kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup web',
           output: [
             'Server:         10.96.0.10',
             'Address:        10.96.0.10:53',
@@ -2788,23 +3849,64 @@ From a pod in namespace \`frontend\`:
             'Name:    web.default.svc.cluster.local',
             'Address: 10.96.50.1',
           ],
-          explanation: 'nslookup uses the CoreDNS server at 10.96.0.10. "web" resolves via search domain to web.default.svc.cluster.local → ClusterIP 10.96.50.1.',
+          explanation:
+            'nslookup uses the CoreDNS server at 10.96.0.10. "web" resolves via search domain to web.default.svc.cluster.local → ClusterIP 10.96.50.1.',
           clusterState: {
             pods: [
-              { id: 'web1', name: 'web-abc12', namespace: 'default', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'web' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'dt', name: 'dns-test', namespace: 'default', node: 'node-2' as const, status: 'Running' as const, labels: {}, image: 'busybox:1.36', restarts: 0 },
+              {
+                id: 'web1',
+                name: 'web-abc12',
+                namespace: 'default',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { app: 'web' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'dt',
+                name: 'dns-test',
+                namespace: 'default',
+                node: 'node-2' as const,
+                status: 'Running' as const,
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 0,
+              },
             ],
-            services: [{ id: 'wsvc', name: 'web', namespace: 'default', type: 'ClusterIP' as const, selector: { app: 'web' }, port: 80, clusterIP: '10.96.50.1' }],
-            deployments: [{ id: 'wd', name: 'web', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.27' }],
-            namespaces: ['default'], events: [],
+            services: [
+              {
+                id: 'wsvc',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP' as const,
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: '10.96.50.1',
+              },
+            ],
+            deployments: [
+              {
+                id: 'wd',
+                name: 'web',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.27',
+              },
+            ],
+            namespaces: ['default'],
+            events: [],
           },
           tip: '--rm removes the pod after it exits. -it attaches stdin/stdout.',
         },
         {
           id: 'p2-m8-s5',
           title: 'Cross-namespace DNS',
-          instruction: 'Create a service in kube-system and resolve it from default namespace using full FQDN.',
-          command: 'kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup kube-dns.kube-system.svc.cluster.local',
+          instruction:
+            'Create a service in kube-system and resolve it from default namespace using full FQDN.',
+          command:
+            'kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup kube-dns.kube-system.svc.cluster.local',
           output: [
             'Server:         10.96.0.10',
             'Address:        10.96.0.10:53',
@@ -2812,9 +3914,14 @@ From a pod in namespace \`frontend\`:
             'Name:    kube-dns.kube-system.svc.cluster.local',
             'Address: 10.96.0.10',
           ],
-          explanation: 'Cross-namespace requires the full form: <service>.<namespace>.svc.cluster.local. The short form "kube-dns" only works inside kube-system namespace.',
+          explanation:
+            'Cross-namespace requires the full form: <service>.<namespace>.svc.cluster.local. The short form "kube-dns" only works inside kube-system namespace.',
           clusterState: {
-            pods: [], services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: [],
           },
         },
         {
@@ -2826,9 +3933,14 @@ From a pod in namespace \`frontend\`:
             '[INFO] 10.244.1.7:42156 - 12345 "A IN nonexistent.default.svc.cluster.local. udp 55 false 512" NXDOMAIN qr,aa,rd 148 0.000234s',
             '[INFO] 10.244.1.7:42156 - 12346 "A IN nonexistent.default.svc.cluster.local. udp 55 false 512" NXDOMAIN qr,aa,rd 148 0.000121s',
           ],
-          explanation: 'NXDOMAIN means "no such domain". If your app cannot resolve a service, CoreDNS logs confirm whether the query reached DNS. Most common fix: check the service name and namespace spelling.',
+          explanation:
+            'NXDOMAIN means "no such domain". If your app cannot resolve a service, CoreDNS logs confirm whether the query reached DNS. Most common fix: check the service name and namespace spelling.',
           clusterState: {
-            pods: [], services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: [],
           },
           tip: 'Also check: kubectl get svc -A | grep <service-name> to confirm the service exists.',
         },
@@ -2844,11 +3956,13 @@ From a pod in namespace \`frontend\`:
             'api.cluster.local',
           ],
           answer: 1,
-          explanation: 'The format is <service>.<namespace>.svc.cluster.local. The "svc" segment is always present between the namespace and cluster domain.',
+          explanation:
+            'The format is <service>.<namespace>.svc.cluster.local. The "svc" segment is always present between the namespace and cluster domain.',
         },
         {
           id: 'p2-m8-q2',
-          question: 'A pod in namespace "frontend" tries to connect to just "backend-svc". Why does this resolve correctly?',
+          question:
+            'A pod in namespace "frontend" tries to connect to just "backend-svc". Why does this resolve correctly?',
           options: [
             'Kubernetes automatically scans all namespaces for matching service names',
             'The pod has search domain "frontend.svc.cluster.local" in /etc/resolv.conf',
@@ -2856,7 +3970,8 @@ From a pod in namespace \`frontend\`:
             'The kubelet injects a host entry for every service',
           ],
           answer: 1,
-          explanation: 'Every pod gets search domains injected. From namespace "frontend", the search domain "frontend.svc.cluster.local" is tried first, so "backend-svc" resolves to backend-svc.frontend.svc.cluster.local if it exists there.',
+          explanation:
+            'Every pod gets search domains injected. From namespace "frontend", the search domain "frontend.svc.cluster.local" is tried first, so "backend-svc" resolves to backend-svc.frontend.svc.cluster.local if it exists there.',
         },
         {
           id: 'p2-m8-q3',
@@ -2868,14 +3983,17 @@ From a pod in namespace \`frontend\`:
             'The kube-apiserver becomes unreachable',
           ],
           answer: 2,
-          explanation: 'Without CoreDNS, DNS queries time out. Applications that use service names (not hard-coded IPs) fail with "Name or service not known". Direct IP communication still works.',
+          explanation:
+            'Without CoreDNS, DNS queries time out. Applications that use service names (not hard-coded IPs) fail with "Name or service not known". Direct IP communication still works.',
         },
         {
           id: 'p2-m8-q4',
-          question: 'What DNS policy should you use for a pod with hostNetwork: true that still needs cluster DNS?',
+          question:
+            'What DNS policy should you use for a pod with hostNetwork: true that still needs cluster DNS?',
           options: ['Default', 'ClusterFirst', 'ClusterFirstWithHostNet', 'None'],
           answer: 2,
-          explanation: 'ClusterFirstWithHostNet is required when hostNetwork: true is set. Without it, the pod uses Default policy (node DNS only) and cannot resolve cluster service names.',
+          explanation:
+            'ClusterFirstWithHostNet is required when hostNetwork: true is set. Without it, the pod uses Default policy (node DNS only) and cannot resolve cluster service names.',
         },
         {
           id: 'p2-m8-q5',
@@ -2887,11 +4005,13 @@ From a pod in namespace \`frontend\`:
             'Pods query etcd directly for DNS resolution',
           ],
           answer: 1,
-          explanation: 'CoreDNS is a Deployment with a Service (kube-dns) that has a stable ClusterIP. The kubelet injects this IP as nameserver into every pod\'s /etc/resolv.conf at creation time.',
+          explanation:
+            "CoreDNS is a Deployment with a Service (kube-dns) that has a stable ClusterIP. The kubelet injects this IP as nameserver into every pod's /etc/resolv.conf at creation time.",
         },
         {
           id: 'p2-m8-q6',
-          question: 'You need a pod to use custom DNS servers instead of CoreDNS. Which DNS policy and field combination do you use?',
+          question:
+            'You need a pod to use custom DNS servers instead of CoreDNS. Which DNS policy and field combination do you use?',
           options: [
             'dnsPolicy: Default with nameservers in /etc/resolv.conf',
             'dnsPolicy: None with spec.dnsConfig.nameservers set',
@@ -2899,7 +4019,8 @@ From a pod in namespace \`frontend\`:
             'dnsPolicy: Override — not a real policy',
           ],
           answer: 1,
-          explanation: 'dnsPolicy: None disables all automatic DNS configuration. You must then provide spec.dnsConfig with nameservers, searches, and options. Any other policy ignores dnsConfig.nameservers.',
+          explanation:
+            'dnsPolicy: None disables all automatic DNS configuration. You must then provide spec.dnsConfig with nameservers, searches, and options. Any other policy ignores dnsConfig.nameservers.',
         },
       ],
       exercises: [
@@ -2914,7 +4035,10 @@ From a pod in namespace \`frontend\`:
             'kubectl expose deployment web -n test-ns --port=80',
             'kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup web.test-ns.svc.cluster.local',
           ],
-          verify: ['nslookup resolves the full FQDN', 'nslookup web (short name) fails from default namespace'],
+          verify: [
+            'nslookup resolves the full FQDN',
+            'nslookup web (short name) fails from default namespace',
+          ],
           expectedOutcome: 'Full FQDN resolves; short name does not work cross-namespace',
           cleanup: ['kubectl delete namespace test-ns'],
         },
@@ -2925,7 +4049,8 @@ From a pod in namespace \`frontend\`:
       id: 'p2-m9',
       slug: 'resource-quotas',
       title: 'LimitRange & ResourceQuota',
-      description: 'Control resource consumption per namespace: set defaults per container and total budgets per namespace.',
+      description:
+        'Control resource consumption per namespace: set defaults per container and total budgets per namespace.',
       duration: '45 min',
       difficulty: 'intermediate' as const,
       masteryChecks: [
@@ -2980,8 +4105,15 @@ When you set requests = limits, the pod gets **Guaranteed** QoS. When requests <
           instruction: 'Work in an isolated namespace.',
           command: 'kubectl create namespace quota-test',
           output: ['namespace/quota-test created'],
-          explanation: 'ResourceQuota and LimitRange are namespace-scoped. Always test in a dedicated namespace.',
-          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default', 'quota-test'], events: [] },
+          explanation:
+            'ResourceQuota and LimitRange are namespace-scoped. Always test in a dedicated namespace.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'quota-test'],
+            events: [],
+          },
         },
         {
           id: 'p2-m9-s2',
@@ -3008,8 +4140,15 @@ spec:
       cpu: 50m
       memory: 64Mi`,
           output: [],
-          explanation: 'default sets the limit if unspecified. defaultRequest sets the request. max/min are hard bounds — the API rejects containers outside this range.',
-          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default', 'quota-test'], events: ['LimitRange default-limits created'] },
+          explanation:
+            'default sets the limit if unspecified. defaultRequest sets the request. max/min are hard bounds — the API rejects containers outside this range.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'quota-test'],
+            events: ['LimitRange default-limits created'],
+          },
         },
         {
           id: 'p2-m9-s3',
@@ -3028,8 +4167,15 @@ spec:
     limits.memory: 1Gi
     count/pods: "5"`,
           output: [],
-          explanation: 'count/pods: "5" limits this namespace to 5 pods total. requests.cpu: "1" means all pod CPU requests combined cannot exceed 1 CPU. limits > requests allows bursting.',
-          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default', 'quota-test'], events: ['ResourceQuota team-quota created'] },
+          explanation:
+            'count/pods: "5" limits this namespace to 5 pods total. requests.cpu: "1" means all pod CPU requests combined cannot exceed 1 CPU. limits > requests allows bursting.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'quota-test'],
+            events: ['ResourceQuota team-quota created'],
+          },
         },
         {
           id: 'p2-m9-s4',
@@ -3047,28 +4193,91 @@ spec:
             'requests.cpu      0      1',
             'requests.memory   0      512Mi',
           ],
-          explanation: 'Used=0 because no pods are running. As pods are created, Used increases. When Used reaches Hard, new pods are rejected.',
-          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default', 'quota-test'], events: [] },
+          explanation:
+            'Used=0 because no pods are running. As pods are created, Used increases. When Used reaches Hard, new pods are rejected.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'quota-test'],
+            events: [],
+          },
         },
         {
           id: 'p2-m9-s5',
           title: 'Create pods and hit the quota',
           instruction: 'Deploy 6 pods — the 6th should be rejected.',
-          command: 'kubectl create deployment over-quota -n quota-test --image=nginx:1.27 --replicas=6',
-          output: [
-            'deployment.apps/over-quota created',
-          ],
-          explanation: 'The Deployment is created but only 5 pods are scheduled. The ReplicaSet controller gets a "forbidden: exceeded quota" error for the 6th pod. kubectl describe rs will show the quota error in Events.',
+          command:
+            'kubectl create deployment over-quota -n quota-test --image=nginx:1.27 --replicas=6',
+          output: ['deployment.apps/over-quota created'],
+          explanation:
+            'The Deployment is created but only 5 pods are scheduled. The ReplicaSet controller gets a "forbidden: exceeded quota" error for the 6th pod. kubectl describe rs will show the quota error in Events.',
           clusterState: {
             pods: [
-              { id: 'oq1', name: 'over-quota-abc1', namespace: 'quota-test', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'over-quota' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'oq2', name: 'over-quota-abc2', namespace: 'quota-test', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'over-quota' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'oq3', name: 'over-quota-abc3', namespace: 'quota-test', node: 'node-2' as const, status: 'Running' as const, labels: { app: 'over-quota' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'oq4', name: 'over-quota-abc4', namespace: 'quota-test', node: 'node-2' as const, status: 'Running' as const, labels: { app: 'over-quota' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'oq5', name: 'over-quota-abc5', namespace: 'quota-test', node: 'node-1' as const, status: 'Running' as const, labels: { app: 'over-quota' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'oq1',
+                name: 'over-quota-abc1',
+                namespace: 'quota-test',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { app: 'over-quota' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'oq2',
+                name: 'over-quota-abc2',
+                namespace: 'quota-test',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { app: 'over-quota' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'oq3',
+                name: 'over-quota-abc3',
+                namespace: 'quota-test',
+                node: 'node-2' as const,
+                status: 'Running' as const,
+                labels: { app: 'over-quota' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'oq4',
+                name: 'over-quota-abc4',
+                namespace: 'quota-test',
+                node: 'node-2' as const,
+                status: 'Running' as const,
+                labels: { app: 'over-quota' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'oq5',
+                name: 'over-quota-abc5',
+                namespace: 'quota-test',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { app: 'over-quota' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [{ id: 'oqd', name: 'over-quota', namespace: 'quota-test', replicas: 6, availableReplicas: 5, image: 'nginx:1.27' }],
-            namespaces: ['default', 'quota-test'], events: ['over-quota-abc6: forbidden: exceeded quota: team-quota'],
+            services: [],
+            deployments: [
+              {
+                id: 'oqd',
+                name: 'over-quota',
+                namespace: 'quota-test',
+                replicas: 6,
+                availableReplicas: 5,
+                image: 'nginx:1.27',
+              },
+            ],
+            namespaces: ['default', 'quota-test'],
+            events: ['over-quota-abc6: forbidden: exceeded quota: team-quota'],
           },
           tip: 'Run kubectl describe replicaset -n quota-test to see the "exceeded quota" event.',
         },
@@ -3078,14 +4287,22 @@ spec:
           instruction: 'Delete the test namespace (removes everything inside it).',
           command: 'kubectl delete namespace quota-test',
           output: ['namespace "quota-test" deleted'],
-          explanation: 'Deleting a namespace cascades to all resources inside it: pods, deployments, services, LimitRanges, ResourceQuotas.',
-          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+          explanation:
+            'Deleting a namespace cascades to all resources inside it: pods, deployments, services, LimitRanges, ResourceQuotas.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
+          },
         },
       ],
       quiz: [
         {
           id: 'p2-m9-q1',
-          question: 'A namespace has a LimitRange. A new pod is created with no resource requests or limits. What happens?',
+          question:
+            'A namespace has a LimitRange. A new pod is created with no resource requests or limits. What happens?',
           options: [
             'The pod is rejected — all pods must specify resources',
             'The pod runs with no limits (can consume unlimited resources)',
@@ -3093,11 +4310,13 @@ spec:
             'The pod is placed in BestEffort QoS and evicted first',
           ],
           answer: 2,
-          explanation: 'LimitRange\'s defaultRequest and default fields are injected by the admission controller before the pod is stored. The pod ends up with resource specs even though you did not write them.',
+          explanation:
+            "LimitRange's defaultRequest and default fields are injected by the admission controller before the pod is stored. The pod ends up with resource specs even though you did not write them.",
         },
         {
           id: 'p2-m9-q2',
-          question: 'ResourceQuota count/pods is set to 10. There are 10 running pods. A new Deployment is created with replicas: 3. What happens?',
+          question:
+            'ResourceQuota count/pods is set to 10. There are 10 running pods. A new Deployment is created with replicas: 3. What happens?',
           options: [
             'The Deployment is created but its pods stay Pending until some pods are deleted',
             'The Deployment creation is rejected by the API server',
@@ -3105,11 +4324,13 @@ spec:
             'The 3 new pods replace 3 old pods to maintain the limit',
           ],
           answer: 2,
-          explanation: 'The Deployment and ReplicaSet objects are created successfully. It is the pod creation that is rejected. The RS will show "forbidden: exceeded quota" in its Events. Existing pods are not evicted.',
+          explanation:
+            'The Deployment and ReplicaSet objects are created successfully. It is the pod creation that is rejected. The RS will show "forbidden: exceeded quota" in its Events. Existing pods are not evicted.',
         },
         {
           id: 'p2-m9-q3',
-          question: 'A namespace has ResourceQuota but no LimitRange. A pod is created with no resource requests. What happens?',
+          question:
+            'A namespace has ResourceQuota but no LimitRange. A pod is created with no resource requests. What happens?',
           options: [
             'Pod is created successfully with no resources assigned',
             'Pod creation is rejected — ResourceQuota requires all pods to have resource requests',
@@ -3117,14 +4338,17 @@ spec:
             'Pod gets Guaranteed QoS automatically',
           ],
           answer: 1,
-          explanation: 'When ResourceQuota specifies requests.cpu or requests.memory, every pod in the namespace MUST declare resource requests. Without LimitRange to inject defaults, pods without explicit requests are rejected.',
+          explanation:
+            'When ResourceQuota specifies requests.cpu or requests.memory, every pod in the namespace MUST declare resource requests. Without LimitRange to inject defaults, pods without explicit requests are rejected.',
         },
         {
           id: 'p2-m9-q4',
-          question: 'What QoS class does a pod get when resources.requests equals resources.limits for all containers?',
+          question:
+            'What QoS class does a pod get when resources.requests equals resources.limits for all containers?',
           options: ['BestEffort', 'Burstable', 'Guaranteed', 'Reserved'],
           answer: 2,
-          explanation: 'Guaranteed QoS requires requests = limits for CPU and memory for all containers. These pods are the last to be evicted under memory pressure. BestEffort (no requests/limits) is evicted first.',
+          explanation:
+            'Guaranteed QoS requires requests = limits for CPU and memory for all containers. These pods are the last to be evicted under memory pressure. BestEffort (no requests/limits) is evicted first.',
         },
         {
           id: 'p2-m9-q5',
@@ -3136,7 +4360,8 @@ spec:
             'The pod is scheduled only on nodes with more than 1 CPU',
           ],
           answer: 1,
-          explanation: 'LimitRange max is a hard limit enforced by admission control. Any pod specifying resources beyond max is rejected with: "maximum cpu usage per Container is 500m, but limit is 1".',
+          explanation:
+            'LimitRange max is a hard limit enforced by admission control. Any pod specifying resources beyond max is rejected with: "maximum cpu usage per Container is 500m, but limit is 1".',
         },
         {
           id: 'p2-m9-q6',
@@ -3148,7 +4373,8 @@ spec:
             'kubectl get quota --used',
           ],
           answer: 1,
-          explanation: 'kubectl describe resourcequota shows the Used vs Hard table. kubectl get resourcequota shows a brief summary but not the used amounts.',
+          explanation:
+            'kubectl describe resourcequota shows the Used vs Hard table. kubectl get resourcequota shows a brief summary but not the used amounts.',
         },
       ],
       exercises: [
@@ -3174,7 +4400,6 @@ spec:
         },
       ],
     },
-
   ],
 }
 

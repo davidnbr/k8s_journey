@@ -17,7 +17,11 @@ for (const file of phaseFiles) {
     throw new Error(`Could not find phase slug in ${file}`)
   }
 
-  const moduleMatches = [...source.matchAll(/^\s{4}\{\n\s{6}id:\s*(['"])(p\d+-m\d+)\1,([\s\S]*?)(?=^\s{4}\{\n\s{6}id:\s*['"]p\d+-m\d+['"],|^\s{2}\],)/gm)]
+  const moduleMatches = [
+    ...source.matchAll(
+      /^\s{4}\{\n\s{6}id:\s*(['"])(p\d+-m\d+)\1,([\s\S]*?)(?=^\s{4}\{\n\s{6}id:\s*['"]p\d+-m\d+['"],|^\s{2}\],)/gm
+    ),
+  ]
 
   for (let i = 0; i < moduleMatches.length; i += 1) {
     const moduleId = moduleMatches[i][2]
@@ -44,18 +48,31 @@ for (const mod of modules) {
   }
 
   const nextKeyIndex = reviewMatrix.indexOf("\n  '", keyIndex + keyLiteral.length)
-  const block = reviewMatrix.slice(keyIndex, nextKeyIndex === -1 ? reviewMatrix.length : nextKeyIndex)
+  const block = reviewMatrix.slice(
+    keyIndex,
+    nextKeyIndex === -1 ? reviewMatrix.length : nextKeyIndex
+  )
 
   if (!block.includes(`'${mod.moduleId}'`)) {
     failures.push(`${key}: review entry does not reference module id ${mod.moduleId}`)
   }
-  if (!/reviewStatus:\s*extras\.reviewStatus \?\? 'verified'/.test(reviewMatrix) && !/reviewStatus:\s*'verified'/.test(block)) {
+  if (
+    !/reviewStatus:\s*extras\.reviewStatus \?\? 'verified'/.test(reviewMatrix) &&
+    !/reviewStatus:\s*'verified'/.test(block)
+  ) {
     failures.push(`${key}: missing verified review status`)
   }
-  if (!/sourceRefs:\s*\[sourceRefs\.releases,\s*sourceRefs\.kubectl,\s*sourceRefs\.minikube,/.test(reviewMatrix)) {
+  if (
+    !/sourceRefs:\s*\[sourceRefs\.releases,\s*sourceRefs\.kubectl,\s*sourceRefs\.minikube,/.test(
+      reviewMatrix
+    )
+  ) {
     failures.push(`${key}: review factory must include release, kubectl, and minikube source refs`)
   }
-  if (!/supplementalCommands:\s*\[/.test(block) && !/supplementalCommands:\s*extras\.supplementalCommands/.test(reviewMatrix)) {
+  if (
+    !/supplementalCommands:\s*\[/.test(block) &&
+    !/supplementalCommands:\s*extras\.supplementalCommands/.test(reviewMatrix)
+  ) {
     failures.push(`${key}: missing supplemental local commands`)
   }
 }

@@ -9,7 +9,17 @@ import phase7 from './phase7'
 import phase8 from './phase8'
 import type { Phase } from '@/lib/types'
 
-export const phases: Phase[] = [phase0, phase1, phase2, phase3, phase4, phase5, phase6, phase7, phase8]
+export const phases: Phase[] = [
+  phase0,
+  phase1,
+  phase2,
+  phase3,
+  phase4,
+  phase5,
+  phase6,
+  phase7,
+  phase8,
+]
 
 export function getPhase(slug: string): Phase | undefined {
   return phases.find((p) => p.slug === slug)

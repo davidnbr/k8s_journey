@@ -52,15 +52,15 @@ If a claim is not known or verified, do not present it as fact. Kubernetes versi
 
 ## Course Structure
 
-| Phase | Title | Duration |
-|-------|-------|----------|
-| 0 | Mental Model Foundation | ~8h |
-| 1 | Core Primitives | ~24h |
-| 2 | Configuration & Reliability | ~9h |
-| 3 | Storage, Ingress & Advanced Workloads | ~10h |
-| 4 | Security, Scheduling & Reliability | ~10h |
-| 5 | Advanced Kubernetes: Helm, CRDs & Observability | ~19h |
-| 6 | Certification Prep (KCNA, CKA, CKAD) | ~40h |
+| Phase | Title                                           | Duration |
+| ----- | ----------------------------------------------- | -------- |
+| 0     | Mental Model Foundation                         | ~8h      |
+| 1     | Core Primitives                                 | ~24h     |
+| 2     | Configuration & Reliability                     | ~9h      |
+| 3     | Storage, Ingress & Advanced Workloads           | ~10h     |
+| 4     | Security, Scheduling & Reliability              | ~10h     |
+| 5     | Advanced Kubernetes: Helm, CRDs & Observability | ~19h     |
+| 6     | Certification Prep (KCNA, CKA, CKAD)            | ~40h     |
 
 <details>
 <summary>Phase details</summary>
@@ -173,9 +173,9 @@ The learning metadata is optional. If it is missing, the app generates conservat
 
 ## Evidence References
 
-- Dunlosky, J., Rawson, K. A., Marsh, E. J., Nathan, M. J., & Willingham, D. T. (2013). *Improving Students' Learning With Effective Learning Techniques*.
-- Roediger, H. L., & Karpicke, J. D. (2006). *Test-Enhanced Learning: Taking Memory Tests Improves Long-Term Retention*.
-- Mayer, R. E. (2008). *Applying the Science of Learning: Evidence-Based Principles for the Design of Multimedia Instruction*.
+- Dunlosky, J., Rawson, K. A., Marsh, E. J., Nathan, M. J., & Willingham, D. T. (2013). _Improving Students' Learning With Effective Learning Techniques_.
+- Roediger, H. L., & Karpicke, J. D. (2006). _Test-Enhanced Learning: Taking Memory Tests Improves Long-Term Retention_.
+- Mayer, R. E. (2008). _Applying the Science of Learning: Evidence-Based Principles for the Design of Multimedia Instruction_.
 - Sweller, J., van Merrienboer, J. J. G., & Paas, F. (1998). Cognitive load theory and instructional design research.
 - Renkl, A., Atkinson, R. K., & Maier, U. H. (2000s). Worked-example fading and cognitive load research.
 - Kubernetes official documentation: https://kubernetes.io/docs/

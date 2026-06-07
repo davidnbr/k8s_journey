@@ -14,7 +14,9 @@ export default function QuizCard({ questions, onComplete }: Props) {
   const [revealed, setRevealed] = useState(false)
   const [score, setScore] = useState(0)
   const [finished, setFinished] = useState(false)
-  const [wrongAnswers, setWrongAnswers] = useState<{ question: string; correct: string; explanation: string }[]>([])
+  const [wrongAnswers, setWrongAnswers] = useState<
+    { question: string; correct: string; explanation: string }[]
+  >([])
 
   const q = questions[current]
   const isCorrect = selected === q.answer
@@ -30,7 +32,10 @@ export default function QuizCard({ questions, onComplete }: Props) {
     if (selected === q.answer) {
       setScore((s) => s + 1)
     } else {
-      setWrongAnswers((w) => [...w, { question: q.question, correct: q.options[q.answer], explanation: q.explanation }])
+      setWrongAnswers((w) => [
+        ...w,
+        { question: q.question, correct: q.options[q.answer], explanation: q.explanation },
+      ])
     }
   }
 
@@ -76,16 +81,23 @@ export default function QuizCard({ questions, onComplete }: Props) {
         <h3 className="text-lg font-bold text-slate-100 mb-1">Quiz Complete!</h3>
         <p className="text-slate-400 text-sm mb-4">
           You scored{' '}
-          <span className={`font-bold ${pct >= 80 ? 'text-emerald-400' : pct >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+          <span
+            className={`font-bold ${pct >= 80 ? 'text-emerald-400' : pct >= 60 ? 'text-yellow-400' : 'text-red-400'}`}
+          >
             {score}/{questions.length}
           </span>{' '}
           ({pct}%)
         </p>
         {wrongAnswers.length > 0 ? (
           <div className="mt-4 text-left space-y-3">
-            <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide">Review these:</p>
+            <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide">
+              Review these:
+            </p>
             {wrongAnswers.map((wa, i) => (
-              <div key={i} className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 text-left">
+              <div
+                key={i}
+                className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 text-left"
+              >
                 <p className="text-slate-300 text-xs font-medium mb-1">{wa.question}</p>
                 <p className="text-emerald-400 text-xs mb-1">✓ {wa.correct}</p>
                 <p className="text-slate-500 text-xs leading-relaxed">{wa.explanation}</p>
@@ -97,8 +109,12 @@ export default function QuizCard({ questions, onComplete }: Props) {
         )}
         <button
           onClick={() => {
-            setCurrent(0); setSelected(null); setRevealed(false)
-            setScore(0); setFinished(false); setWrongAnswers([])
+            setCurrent(0)
+            setSelected(null)
+            setRevealed(false)
+            setScore(0)
+            setFinished(false)
+            setWrongAnswers([])
           }}
           className="text-xs text-slate-400 hover:text-slate-200 transition-colors underline"
         >
@@ -113,7 +129,9 @@ export default function QuizCard({ questions, onComplete }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-slate-800/60 border-b border-slate-700">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Recall</span>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+            Active Recall
+          </span>
           <span className="text-[10px] bg-slate-700 text-slate-400 px-2 py-0.5 rounded-full">
             {current + 1} / {questions.length}
           </span>
@@ -131,7 +149,8 @@ export default function QuizCard({ questions, onComplete }: Props) {
       </div>
 
       <p className="text-[10px] text-slate-600 mt-1 px-4 pb-2">
-        Press <kbd className="bg-slate-800 px-1 rounded text-slate-400">A–D</kbd> to select · <kbd className="bg-slate-800 px-1 rounded text-slate-400">Enter</kbd> to confirm
+        Press <kbd className="bg-slate-800 px-1 rounded text-slate-400">A–D</kbd> to select ·{' '}
+        <kbd className="bg-slate-800 px-1 rounded text-slate-400">Enter</kbd> to confirm
       </p>
 
       {/* Question */}
@@ -166,14 +185,20 @@ export default function QuizCard({ questions, onComplete }: Props) {
                         ? i === q.answer
                           ? 'border-emerald-500 text-emerald-400 bg-emerald-500/20'
                           : selected === i
-                          ? 'border-red-500 text-red-400'
-                          : 'border-slate-700 text-slate-600'
+                            ? 'border-red-500 text-red-400'
+                            : 'border-slate-700 text-slate-600'
                         : selected === i
-                        ? 'border-blue-500 text-blue-400 bg-blue-500/20'
-                        : 'border-slate-600 text-slate-500'
+                          ? 'border-blue-500 text-blue-400 bg-blue-500/20'
+                          : 'border-slate-600 text-slate-500'
                     }`}
                   >
-                    {revealed ? (i === q.answer ? '✓' : selected === i ? '✗' : String.fromCharCode(65 + i)) : String.fromCharCode(65 + i)}
+                    {revealed
+                      ? i === q.answer
+                        ? '✓'
+                        : selected === i
+                          ? '✗'
+                          : String.fromCharCode(65 + i)
+                      : String.fromCharCode(65 + i)}
                   </span>
                   <span className="leading-relaxed">{opt}</span>
                 </div>

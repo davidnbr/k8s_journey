@@ -1,0 +1,10 @@
+.claude
+.omc
+.devenv
+.direnv
+out
+node_modules
+.next
+out
+build
+package-lock.json

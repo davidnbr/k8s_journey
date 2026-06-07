@@ -1,4 +1,5 @@
 # The Complete Kubernetes Course: Zero to Advanced (2026 Edition)
+
 > **Brain-Optimized Learning Path** · Validated sources · Interactive labs · Visual-first
 > Current Kubernetes version: **v1.35 (Timbernetes)** · Last verified: March 22, 2026
 
@@ -8,14 +9,15 @@
 
 This course is built on four proven neuroscience principles:
 
-| Principle | What it means | How it's used here |
-|---|---|---|
-| **Active Recall** | Force retrieval before looking at answers | Every module has `🧠 Brain Check` before explanations |
-| **Spaced Repetition** | Review at 1→3→7→14→30 day intervals | Each phase has a `🗓️ Review Schedule` |
-| **Dual Coding** | Pair visual diagrams with verbal text | Every concept has an ASCII diagram + explanation |
-| **Desirable Difficulty** | Struggle = stronger memory | Labs come before full explanations; challenges push you |
+| Principle                | What it means                             | How it's used here                                      |
+| ------------------------ | ----------------------------------------- | ------------------------------------------------------- |
+| **Active Recall**        | Force retrieval before looking at answers | Every module has `🧠 Brain Check` before explanations   |
+| **Spaced Repetition**    | Review at 1→3→7→14→30 day intervals       | Each phase has a `🗓️ Review Schedule`                   |
+| **Dual Coding**          | Pair visual diagrams with verbal text     | Every concept has an ASCII diagram + explanation        |
+| **Desirable Difficulty** | Struggle = stronger memory                | Labs come before full explanations; challenges push you |
 
 **The learning loop for every module:**
+
 ```
 1. PREVIEW    → Glance at the diagram (30 sec)
 2. PREDICT    → Answer "Brain Warm-Up" before reading
@@ -62,6 +64,7 @@ PHASE 0 ──► PHASE 1 ──► PHASE 2 ──► PHASE 3 ──► PHASE 4 
 ---
 
 # PHASE 0: Mental Model Foundation
+
 **Week 1 · ~5 hours · Goal: Build the right mental model before touching a cluster**
 
 ---
@@ -69,6 +72,7 @@ PHASE 0 ──► PHASE 1 ──► PHASE 2 ──► PHASE 3 ──► PHASE 4 
 ## Module 0.1: Why Kubernetes Exists
 
 ### Brain Warm-Up (Answer before reading)
+
 > You have 100 Docker containers running across 10 servers. A container crashes. How do you:
 > a) Know it crashed? b) Restart it automatically? c) Move it to a different server?
 
@@ -93,6 +97,7 @@ WITHOUT KUBERNETES                    WITH KUBERNETES
 ```
 
 **Kubernetes is a container orchestration platform that:**
+
 - Schedules containers onto servers automatically
 - Restarts failed containers
 - Scales apps up/down based on load
@@ -101,6 +106,7 @@ WITHOUT KUBERNETES                    WITH KUBERNETES
 - Manages storage for stateful apps
 
 ### The Feynman Check
+
 > Explain Kubernetes to a non-technical friend using only the analogy of a shipping company managing containers on cargo ships. What does the "captain" (control plane) do? What do the "ships" (worker nodes) do?
 
 ---
@@ -108,6 +114,7 @@ WITHOUT KUBERNETES                    WITH KUBERNETES
 ## Module 0.2: Kubernetes Architecture — The Big Picture
 
 ### Brain Warm-Up
+
 > Before reading: draw your mental model of how a Kubernetes cluster might be organized. What components do you think it needs?
 
 ### The Architecture
@@ -148,17 +155,18 @@ WITHOUT KUBERNETES                    WITH KUBERNETES
 
 ### Component Cheat Sheet
 
-| Component | Where | Role | Memory Hook |
-|---|---|---|---|
-| `kube-apiserver` | Control plane | All communication goes through here | "The front door" |
-| `etcd` | Control plane | Key-value store — the cluster's brain | "The memory" |
-| `kube-scheduler` | Control plane | Decides which node runs each Pod | "The matchmaker" |
-| `controller-manager` | Control plane | Ensures desired state = actual state | "The reconciler" |
-| `kubelet` | Every node | Runs pods, reports status to apiserver | "The foreman" |
-| `kube-proxy` | Every node | Manages network rules for Services | "The traffic cop" |
-| `container runtime` | Every node | Actually runs containers (containerd) | "The engine" |
+| Component            | Where         | Role                                   | Memory Hook       |
+| -------------------- | ------------- | -------------------------------------- | ----------------- |
+| `kube-apiserver`     | Control plane | All communication goes through here    | "The front door"  |
+| `etcd`               | Control plane | Key-value store — the cluster's brain  | "The memory"      |
+| `kube-scheduler`     | Control plane | Decides which node runs each Pod       | "The matchmaker"  |
+| `controller-manager` | Control plane | Ensures desired state = actual state   | "The reconciler"  |
+| `kubelet`            | Every node    | Runs pods, reports status to apiserver | "The foreman"     |
+| `kube-proxy`         | Every node    | Manages network rules for Services     | "The traffic cop" |
+| `container runtime`  | Every node    | Actually runs containers (containerd)  | "The engine"      |
 
 ### Active Recall — No Peeking
+
 1. What is the single component ALL Kubernetes communication goes through?
 2. Where does Kubernetes store cluster state? What type of database?
 3. Which component decides which node a Pod runs on?
@@ -183,6 +191,7 @@ WITHOUT KUBERNETES                    WITH KUBERNETES
 You have three options. **Option A is recommended for beginners** (no setup required).
 
 ### Option A: Killercoda (Recommended — Zero Setup)
+
 ```
 URL: https://killercoda.com/playgrounds/scenario/kubernetes
 What you get: Multi-node cluster in browser, real terminal, port exposure
@@ -190,6 +199,7 @@ Session: 1 hour (restart anytime, free)
 ```
 
 ### Option B: Minikube (Local)
+
 ```bash
 # Install on Linux
 curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
@@ -204,6 +214,7 @@ kubectl get nodes
 ```
 
 ### Option C: Kind (Kubernetes in Docker)
+
 ```bash
 # Install
 go install sigs.k8s.io/kind@v0.26.0
@@ -218,6 +229,7 @@ kubectl get nodes
 ```
 
 ### First Commands — Run These Now
+
 ```bash
 # See cluster info
 kubectl cluster-info
@@ -239,6 +251,7 @@ kubectl get --help
 ---
 
 # PHASE 1: Core Primitives
+
 **Weeks 1-3 · ~20 hours · Goal: Master Pods, Deployments, Services, and kubectl**
 
 ---
@@ -246,6 +259,7 @@ kubectl get --help
 ## Module 1.1: Pods — The Atomic Unit
 
 ### Brain Warm-Up
+
 > A Docker container is a running process. A Kubernetes Pod contains containers. Why would you ever put MORE than one container in a Pod? What problem would that solve?
 
 ### What is a Pod?
@@ -269,6 +283,7 @@ DOCKER (what you know)          KUBERNETES (what's new)
 ```
 
 **Key Pod facts:**
+
 - A Pod has ONE IP address — all containers inside share it
 - Containers in the same Pod communicate via `localhost`
 - Pods are **ephemeral** — when they die, they're gone (no resurrection)
@@ -278,18 +293,18 @@ DOCKER (what you know)          KUBERNETES (what's new)
 
 ```yaml
 # File: my-first-pod.yaml
-apiVersion: v1          # ← Which API version handles this resource
-kind: Pod               # ← What type of resource
+apiVersion: v1 # ← Which API version handles this resource
+kind: Pod # ← What type of resource
 metadata:
-  name: my-first-pod    # ← Unique name in the namespace
+  name: my-first-pod # ← Unique name in the namespace
   labels:
-    app: nginx          # ← Key-value tags for selecting/grouping
+    app: nginx # ← Key-value tags for selecting/grouping
 spec:
   containers:
-  - name: nginx         # ← Container name (must be unique in Pod)
-    image: nginx:1.27   # ← Docker image
-    ports:
-    - containerPort: 80 # ← Informational only, doesn't expose externally
+    - name: nginx # ← Container name (must be unique in Pod)
+      image: nginx:1.27 # ← Docker image
+      ports:
+        - containerPort: 80 # ← Informational only, doesn't expose externally
 ```
 
 ```bash
@@ -324,18 +339,20 @@ Pending ──► Running ──► Succeeded
                  └──► Unknown
 ```
 
-| Phase | Meaning |
-|---|---|
-| `Pending` | Accepted by cluster; waiting for image pull / node scheduling |
-| `Running` | At least one container is running |
-| `Succeeded` | All containers exited with code 0 |
-| `Failed` | At least one container exited non-zero |
-| `Unknown` | Can't communicate with node |
+| Phase       | Meaning                                                       |
+| ----------- | ------------------------------------------------------------- |
+| `Pending`   | Accepted by cluster; waiting for image pull / node scheduling |
+| `Running`   | At least one container is running                             |
+| `Succeeded` | All containers exited with code 0                             |
+| `Failed`    | At least one container exited non-zero                        |
+| `Unknown`   | Can't communicate with node                                   |
 
 ### Interactive Lab 1.1
+
 **Platform:** [Killercoda — Kubernetes Pods](https://killercoda.com/kubernetes)
 
 **Tasks to complete:**
+
 1. Create a Pod running `nginx:1.27`
 2. Verify it's running with `kubectl get pods`
 3. Use `kubectl describe` to find which Node it's on
@@ -343,6 +360,7 @@ Pending ──► Running ──► Succeeded
 5. Delete the Pod and observe it disappear
 
 ### Active Recall — Close the doc and answer
+
 1. What IP does a Pod get? How many IPs does a Pod have?
 2. If two containers are in the same Pod, how do they talk to each other?
 3. What happens to a Pod's data when it crashes and restarts?
@@ -361,6 +379,7 @@ Pending ──► Running ──► Succeeded
 </details>
 
 ### Spaced Repetition Card
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │  REVIEW THIS on: Day 2, Day 5, Day 12, Day 26       │
@@ -431,6 +450,7 @@ kubectl patch pod my-pod -p '{"spec":...}'  # Patch specific field
 ```
 
 ### The `--dry-run` + `-o yaml` Trick (Essential!)
+
 ```bash
 # Generate YAML without creating anything — then edit it
 kubectl run nginx --image=nginx --dry-run=client -o yaml > pod.yaml
@@ -441,6 +461,7 @@ kubectl create service clusterip my-svc --tcp=80:80 --dry-run=client -o yaml > s
 > This is the most important kubectl trick for the CKA/CKAD exams.
 
 ### Context and Namespaces
+
 ```bash
 # View your current context (cluster/user/namespace)
 kubectl config current-context
@@ -459,6 +480,7 @@ alias kns='kubectl config set-context --current --namespace'
 ```
 
 ### Useful Aliases
+
 ```bash
 # Add to ~/.bashrc or ~/.zshrc
 alias k='kubectl'
@@ -525,11 +547,11 @@ Labels are the most powerful organizational tool in Kubernetes. **Every selector
 ```yaml
 metadata:
   labels:
-    app: frontend          # Name of the app
-    version: v2.1          # Version
+    app: frontend # Name of the app
+    version: v2.1 # Version
     environment: production # Environment
-    tier: web               # Application tier
-    team: platform          # Owning team
+    tier: web # Application tier
+    team: platform # Owning team
 ```
 
 ```bash
@@ -598,33 +620,33 @@ metadata:
   name: my-app
   namespace: default
 spec:
-  replicas: 3                    # ← How many Pod copies
+  replicas: 3 # ← How many Pod copies
   selector:
     matchLabels:
-      app: my-app                # ← Must match template labels
+      app: my-app # ← Must match template labels
   strategy:
-    type: RollingUpdate          # ← Update strategy
+    type: RollingUpdate # ← Update strategy
     rollingUpdate:
-      maxSurge: 1                # ← Max extra pods during update
-      maxUnavailable: 0          # ← Zero downtime
-  template:                      # ← Pod template (labels must match selector)
+      maxSurge: 1 # ← Max extra pods during update
+      maxUnavailable: 0 # ← Zero downtime
+  template: # ← Pod template (labels must match selector)
     metadata:
       labels:
         app: my-app
-        version: "1.0"
+        version: '1.0'
     spec:
       containers:
-      - name: my-app
-        image: nginx:1.27
-        ports:
-        - containerPort: 80
-        resources:               # ← Always set in production
-          requests:
-            memory: "64Mi"
-            cpu: "100m"
-          limits:
-            memory: "128Mi"
-            cpu: "200m"
+        - name: my-app
+          image: nginx:1.27
+          ports:
+            - containerPort: 80
+          resources: # ← Always set in production
+            requests:
+              memory: '64Mi'
+              cpu: '100m'
+            limits:
+              memory: '128Mi'
+              cpu: '200m'
 ```
 
 ### Rolling Updates and Rollbacks
@@ -676,9 +698,11 @@ ZERO DOWNTIME: Traffic always served by healthy pods
 ```
 
 ### Interactive Lab 1.4
+
 **Platform:** [Killercoda — Deployments](https://killercoda.com/kubernetes)
 
 **Tasks:**
+
 1. Create a Deployment with `nginx:1.26` and 3 replicas
 2. Verify all 3 Pods are running
 3. Update the image to `nginx:1.27` and watch the rollout
@@ -688,6 +712,7 @@ ZERO DOWNTIME: Traffic always served by healthy pods
 7. Rollback to `nginx:1.26`
 
 ### Active Recall
+
 1. What manages Pods in a Deployment? (Hint: there's a layer between them)
 2. What does `maxUnavailable: 0` in a RollingUpdate mean?
 3. How do you rollback a Deployment to 2 versions ago?
@@ -752,14 +777,14 @@ kind: Service
 metadata:
   name: my-app-service
 spec:
-  selector:               # ← Finds Pods with these labels
+  selector: # ← Finds Pods with these labels
     app: my-app
   ports:
-  - name: http
-    port: 80              # ← Port the Service listens on
-    targetPort: 80        # ← Port on the Pod to forward to
-    protocol: TCP
-  type: ClusterIP         # ← ClusterIP | NodePort | LoadBalancer
+    - name: http
+      port: 80 # ← Port the Service listens on
+      targetPort: 80 # ← Port on the Pod to forward to
+      protocol: TCP
+  type: ClusterIP # ← ClusterIP | NodePort | LoadBalancer
 ```
 
 ```yaml
@@ -769,13 +794,15 @@ spec:
   selector:
     app: my-app
   ports:
-  - port: 80
-    targetPort: 80
-    nodePort: 30080       # ← Must be 30000-32767 (or auto-assigned)
+    - port: 80
+      targetPort: 80
+      nodePort: 30080 # ← Must be 30000-32767 (or auto-assigned)
 ```
 
 ### Service DNS
+
 Kubernetes automatically creates DNS entries for Services:
+
 ```
 Format: <service-name>.<namespace>.svc.cluster.local
 
@@ -813,9 +840,11 @@ User Request
 ```
 
 ### Interactive Lab 1.5
+
 **Platform:** [Killercoda](https://killercoda.com/kubernetes)
 
 **Tasks:**
+
 1. Create a Deployment with 3 nginx replicas
 2. Create a ClusterIP Service pointing to those Pods
 3. Use `kubectl exec` into another Pod and `curl` the Service by DNS name
@@ -832,6 +861,7 @@ kubectl get endpoints my-app-service # See which Pod IPs
 ```
 
 ### Active Recall
+
 1. Why can't you hardcode Pod IP addresses?
 2. What mechanism selects which Pods a Service routes to?
 3. What's the DNS name format for a Service?
@@ -874,7 +904,9 @@ kubectl get endpoints my-app-service # See which Pod IPs
 ```
 
 ### Phase 1 Brain Challenge
+
 Build this from scratch without notes:
+
 1. Create a namespace called `learning`
 2. Deploy 3 replicas of `httpd:2.4` in that namespace with labels `app=web, env=test`
 3. Expose it with a ClusterIP Service on port 80
@@ -884,6 +916,7 @@ Build this from scratch without notes:
 7. Roll back
 
 ### Spaced Review Schedule
+
 ```
 ✓ Day 1  (today)   — Complete Phase 1 modules
 ◻ Day 2            — Active recall cards only
@@ -895,6 +928,7 @@ Build this from scratch without notes:
 ---
 
 # PHASE 2: Configuration & Storage
+
 **Weeks 3-5 · ~20 hours · Goal: Manage app configuration and persistent data**
 
 ---
@@ -902,6 +936,7 @@ Build this from scratch without notes:
 ## Module 2.1: ConfigMaps — Externalizing Configuration
 
 ### The Twelve-Factor App Principle
+
 > Configuration that varies between deployments (dev/staging/prod) should be stored in environment variables, not in the code.
 
 ```yaml
@@ -911,9 +946,9 @@ kind: ConfigMap
 metadata:
   name: app-config
 data:
-  DATABASE_URL: "postgres://db:5432/myapp"
-  LOG_LEVEL: "info"
-  MAX_CONNECTIONS: "100"
+  DATABASE_URL: 'postgres://db:5432/myapp'
+  LOG_LEVEL: 'info'
+  MAX_CONNECTIONS: '100'
   # Multi-line value (like a config file)
   app.properties: |
     server.port=8080
@@ -925,30 +960,30 @@ data:
 ```yaml
 spec:
   containers:
-  - name: app
-    image: my-app:1.0
-    # Method 1: Individual env vars
-    env:
-    - name: DATABASE_URL
-      valueFrom:
-        configMapKeyRef:
-          name: app-config
-          key: DATABASE_URL
+    - name: app
+      image: my-app:1.0
+      # Method 1: Individual env vars
+      env:
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DATABASE_URL
 
-    # Method 2: All keys as env vars
-    envFrom:
-    - configMapRef:
-        name: app-config
+      # Method 2: All keys as env vars
+      envFrom:
+        - configMapRef:
+            name: app-config
 
-    # Method 3: Mount as files
-    volumeMounts:
-    - name: config-volume
-      mountPath: /etc/config
+      # Method 3: Mount as files
+      volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
 
   volumes:
-  - name: config-volume
-    configMap:
-      name: app-config
+    - name: config-volume
+      configMap:
+        name: app-config
 ```
 
 ---
@@ -987,29 +1022,31 @@ kubectl get secret db-credentials -o jsonpath='{.data.password}' | base64 -d
 ```
 
 ### Using Secrets in Pods
+
 ```yaml
 env:
-- name: DB_PASSWORD
-  valueFrom:
-    secretKeyRef:
-      name: db-credentials
-      key: password
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: db-credentials
+        key: password
 ```
 
 ### ConfigMap vs Secret Decision Matrix
 
-| Use Case | Resource |
-|---|---|
-| App settings (DB URL, log level) | ConfigMap |
-| Passwords, API keys, tokens | Secret |
-| TLS certificates | Secret (type: kubernetes.io/tls) |
-| Docker registry credentials | Secret (type: kubernetes.io/dockerconfigjson) |
+| Use Case                         | Resource                                      |
+| -------------------------------- | --------------------------------------------- |
+| App settings (DB URL, log level) | ConfigMap                                     |
+| Passwords, API keys, tokens      | Secret                                        |
+| TLS certificates                 | Secret (type: kubernetes.io/tls)              |
+| Docker registry credentials      | Secret (type: kubernetes.io/dockerconfigjson) |
 
 ---
 
 ## Module 2.3: Storage — Volumes, PV, and PVC
 
 ### The Storage Problem
+
 ```
 Container filesystem is EPHEMERAL
   Pod restarts ──► all data GONE
@@ -1039,9 +1076,9 @@ spec:
   capacity:
     storage: 10Gi
   accessModes:
-    - ReadWriteOnce         # RWO = one node | RWX = many nodes | ROX = many nodes read-only
+    - ReadWriteOnce # RWO = one node | RWX = many nodes | ROX = many nodes read-only
   persistentVolumeReclaimPolicy: Retain
-  hostPath:                 # ← Local path (dev only; use proper provisioner in prod)
+  hostPath: # ← Local path (dev only; use proper provisioner in prod)
     path: /data/my-pv
 
 ---
@@ -1061,17 +1098,18 @@ spec:
 # Step 3: Use in Pod
 spec:
   containers:
-  - name: app
-    volumeMounts:
-    - mountPath: "/data"
-      name: storage
+    - name: app
+      volumeMounts:
+        - mountPath: '/data'
+          name: storage
   volumes:
-  - name: storage
-    persistentVolumeClaim:
-      claimName: my-pvc
+    - name: storage
+      persistentVolumeClaim:
+        claimName: my-pvc
 ```
 
 ### StorageClasses — Dynamic Provisioning
+
 ```yaml
 # No manual PV creation needed — storage auto-provisioned
 apiVersion: v1
@@ -1079,7 +1117,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: dynamic-pvc
 spec:
-  storageClassName: standard   # ← References a StorageClass
+  storageClassName: standard # ← References a StorageClass
   accessModes:
     - ReadWriteOnce
   resources:
@@ -1112,7 +1150,7 @@ kind: StatefulSet
 metadata:
   name: db
 spec:
-  serviceName: "db-headless"   # ← Requires a headless service
+  serviceName: 'db-headless' # ← Requires a headless service
   replicas: 3
   selector:
     matchLabels:
@@ -1123,19 +1161,19 @@ spec:
         app: db
     spec:
       containers:
-      - name: postgres
-        image: postgres:16
-        volumeMounts:
-        - name: data
-          mountPath: /var/lib/postgresql/data
-  volumeClaimTemplates:         # ← Each Pod gets its OWN PVC
-  - metadata:
-      name: data
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      resources:
-        requests:
-          storage: 10Gi
+        - name: postgres
+          image: postgres:16
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates: # ← Each Pod gets its OWN PVC
+    - metadata:
+        name: data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: 10Gi
 ```
 
 ---
@@ -1174,11 +1212,11 @@ spec:
   parallelism: 1
   template:
     spec:
-      restartPolicy: OnFailure   # ← Must be OnFailure or Never (not Always)
+      restartPolicy: OnFailure # ← Must be OnFailure or Never (not Always)
       containers:
-      - name: migration
-        image: my-app:1.0
-        command: ["python", "migrate.py"]
+        - name: migration
+          image: my-app:1.0
+          command: ['python', 'migrate.py']
 
 ---
 # CronJob: runs on a schedule
@@ -1187,18 +1225,19 @@ kind: CronJob
 metadata:
   name: backup
 spec:
-  schedule: "0 2 * * *"           # ← Cron syntax: every day at 2am
+  schedule: '0 2 * * *' # ← Cron syntax: every day at 2am
   jobTemplate:
     spec:
       template:
         spec:
           restartPolicy: OnFailure
           containers:
-          - name: backup
-            image: my-backup:1.0
+            - name: backup
+              image: my-backup:1.0
 ```
 
 ### Phase 2 Active Recall
+
 1. What's the difference between env and envFrom in a Pod spec?
 2. Why are Secrets only "kind of" secure by default?
 3. What does ReadWriteOnce mean for a PersistentVolume?
@@ -1219,6 +1258,7 @@ spec:
 ---
 
 # PHASE 3: Networking Deep Dive
+
 **Weeks 5-7 · ~15 hours · Goal: Master Kubernetes networking end-to-end**
 
 ---
@@ -1250,32 +1290,33 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
-  ingressClassName: nginx        # ← Which Ingress Controller to use
+  ingressClassName: nginx # ← Which Ingress Controller to use
   tls:
-  - hosts:
-    - myapp.example.com
-    secretName: tls-secret       # ← TLS certificate
+    - hosts:
+        - myapp.example.com
+      secretName: tls-secret # ← TLS certificate
   rules:
-  - host: myapp.example.com
-    http:
-      paths:
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: api-service
-            port:
-              number: 80
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: frontend-service
-            port:
-              number: 80
+    - host: myapp.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-service
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-service
+                port:
+                  number: 80
 ```
 
 ### Install NGINX Ingress Controller (Minikube)
+
 ```bash
 # Minikube
 minikube addons enable ingress
@@ -1300,17 +1341,17 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: backend          # ← This policy applies to backend pods
+      app: backend # ← This policy applies to backend pods
   policyTypes:
-  - Ingress
+    - Ingress
   ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          app: frontend     # ← Only from frontend pods
-    ports:
-    - protocol: TCP
-      port: 8080
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend # ← Only from frontend pods
+      ports:
+        - protocol: TCP
+          port: 8080
 ```
 
 ```
@@ -1334,15 +1375,15 @@ metadata:
   name: my-route
 spec:
   parentRefs:
-  - name: my-gateway
+    - name: my-gateway
   rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /api
-    backendRefs:
-    - name: api-service
-      port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      backendRefs:
+        - name: api-service
+          port: 80
 ```
 
 ### Networking Quick Reference
@@ -1362,6 +1403,7 @@ kubectl describe networkpolicy my-policy
 ---
 
 # PHASE 4: Operations & Security
+
 **Weeks 7-10 · ~25 hours · Goal: Run Kubernetes safely and efficiently in production**
 
 ---
@@ -1398,9 +1440,9 @@ metadata:
   name: pod-reader
   namespace: default
 rules:
-- apiGroups: [""]              # "" = core API group
-  resources: ["pods"]
-  verbs: ["get", "list", "watch"]
+  - apiGroups: [''] # "" = core API group
+    resources: ['pods']
+    verbs: ['get', 'list', 'watch']
 
 ---
 # Step 2: Bind it to a user
@@ -1410,9 +1452,9 @@ metadata:
   name: read-pods
   namespace: default
 subjects:
-- kind: User
-  name: alice
-  apiGroup: rbac.authorization.k8s.io
+  - kind: User
+    name: alice
+    apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: Role
   name: pod-reader
@@ -1454,20 +1496,20 @@ Used for scheduling                CPU: throttled
 ```yaml
 resources:
   requests:
-    memory: "256Mi"     # ← Guaranteed, used for scheduling
-    cpu: "250m"         # ← 250 millicores = 0.25 CPU
+    memory: '256Mi' # ← Guaranteed, used for scheduling
+    cpu: '250m' # ← 250 millicores = 0.25 CPU
   limits:
-    memory: "512Mi"     # ← OOMKill if exceeded
-    cpu: "500m"         # ← Throttled if exceeded
+    memory: '512Mi' # ← OOMKill if exceeded
+    cpu: '500m' # ← Throttled if exceeded
 ```
 
 ### QoS Classes (automatic, based on requests/limits)
 
-| QoS Class | Condition | Eviction Priority |
-|---|---|---|
-| **Guaranteed** | limits == requests for all containers | Last evicted |
-| **Burstable** | At least one container has requests != limits | Medium |
-| **BestEffort** | No requests or limits set | First evicted |
+| QoS Class      | Condition                                     | Eviction Priority |
+| -------------- | --------------------------------------------- | ----------------- |
+| **Guaranteed** | limits == requests for all containers         | Last evicted      |
+| **Burstable**  | At least one container has requests != limits | Medium            |
+| **BestEffort** | No requests or limits set                     | First evicted     |
 
 ```bash
 # Check QoS class
@@ -1481,31 +1523,31 @@ kubectl get pod my-pod -o jsonpath='{.status.qosClass}'
 ```yaml
 spec:
   containers:
-  - name: app
-    # Liveness: is the app alive? Restart if it fails
-    livenessProbe:
-      httpGet:
-        path: /health
-        port: 8080
-      initialDelaySeconds: 10    # Wait before first check
-      periodSeconds: 10          # Check every 10s
-      failureThreshold: 3        # Restart after 3 failures
+    - name: app
+      # Liveness: is the app alive? Restart if it fails
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 10 # Wait before first check
+        periodSeconds: 10 # Check every 10s
+        failureThreshold: 3 # Restart after 3 failures
 
-    # Readiness: is the app ready for traffic? Remove from Service if fails
-    readinessProbe:
-      httpGet:
-        path: /ready
-        port: 8080
-      initialDelaySeconds: 5
-      periodSeconds: 5
+      # Readiness: is the app ready for traffic? Remove from Service if fails
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        initialDelaySeconds: 5
+        periodSeconds: 5
 
-    # Startup: allow slow-starting containers
-    startupProbe:
-      httpGet:
-        path: /started
-        port: 8080
-      failureThreshold: 30       # 30 × 10s = 5min to start
-      periodSeconds: 10
+      # Startup: allow slow-starting containers
+      startupProbe:
+        httpGet:
+          path: /started
+          port: 8080
+        failureThreshold: 30 # 30 × 10s = 5min to start
+        periodSeconds: 10
 ```
 
 ### Probe Decision Tree
@@ -1539,12 +1581,12 @@ spec:
   minReplicas: 2
   maxReplicas: 10
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70   # Scale when CPU > 70%
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70 # Scale when CPU > 70%
 ```
 
 ```bash
@@ -1597,6 +1639,7 @@ helm template my-nginx bitnami/nginx
 ```
 
 ### Phase 4 Active Recall
+
 1. What is the difference between Role and ClusterRole?
 2. What happens to a Pod if it exceeds its memory limit?
 3. What's the difference between liveness and readiness probes?
@@ -1617,6 +1660,7 @@ helm template my-nginx bitnami/nginx
 ---
 
 # PHASE 5: Advanced Topics
+
 **Weeks 10-16 · ~40 hours · Goal: Production-ready Kubernetes**
 
 ---
@@ -1654,6 +1698,7 @@ kubectl get nodes
 ```
 
 ### etcd Backup (Critical for Production)
+
 ```bash
 # Install etcdctl
 ETCDCTL_API=3 etcdctl snapshot save /backup/etcd-$(date +%F).db \
@@ -1689,13 +1734,13 @@ kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80
 
 ### Key Metrics to Monitor
 
-| Metric | Alert If |
-|---|---|
-| `container_memory_working_set_bytes` | > 90% of limit |
-| `container_cpu_usage_seconds_total` | Sustained > 90% of limit |
-| `kube_pod_container_status_restarts_total` | > 5 in 1h |
-| `kube_node_status_condition{condition="Ready"}` | == 0 |
-| `etcd_disk_wal_fsync_duration_seconds` | p99 > 10ms |
+| Metric                                          | Alert If                 |
+| ----------------------------------------------- | ------------------------ |
+| `container_memory_working_set_bytes`            | > 90% of limit           |
+| `container_cpu_usage_seconds_total`             | Sustained > 90% of limit |
+| `kube_pod_container_status_restarts_total`      | > 5 in 1h                |
+| `kube_node_status_condition{condition="Ready"}` | == 0                     |
+| `etcd_disk_wal_fsync_duration_seconds`          | p99 > 10ms               |
 
 ---
 
@@ -1762,18 +1807,18 @@ metadata:
 spec:
   group: example.com
   versions:
-  - name: v1
-    served: true
-    storage: true
-    schema:
-      openAPIV3Schema:
-        type: object
-        properties:
-          spec:
-            type: object
-            properties:
-              replicas:
-                type: integer
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                replicas:
+                  type: integer
   scope: Namespaced
   names:
     plural: myapps
@@ -1849,13 +1894,14 @@ OPERATIONS
 ```
 
 ### Pod Disruption Budget
+
 ```yaml
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: my-app-pdb
 spec:
-  minAvailable: 2          # At least 2 pods always available during disruptions
+  minAvailable: 2 # At least 2 pods always available during disruptions
   # OR: maxUnavailable: 1  # At most 1 pod unavailable
   selector:
     matchLabels:
@@ -1863,6 +1909,7 @@ spec:
 ```
 
 ### Pod Security Context
+
 ```yaml
 spec:
   securityContext:
@@ -1870,15 +1917,16 @@ spec:
     runAsUser: 1000
     fsGroup: 2000
   containers:
-  - name: app
-    securityContext:
-      allowPrivilegeEscalation: false
-      readOnlyRootFilesystem: true
-      capabilities:
-        drop: ["ALL"]
+    - name: app
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ['ALL']
 ```
 
 ### Phase 5 Active Recall
+
 1. What does `kubeadm init` do and what does it output that you need for worker nodes?
 2. In GitOps, when you merge a PR with updated YAML, what happens automatically?
 3. What is an Operator vs a regular controller?
@@ -1899,6 +1947,7 @@ spec:
 ---
 
 # PHASE 6: Certification Prep
+
 **Weeks 17+ · 40-100 hours**
 
 ---
@@ -1926,6 +1975,7 @@ CNCF ecosystem             Multi-container,              Networking,
 ## KCNA Prep
 
 **Domains:**
+
 - Kubernetes Fundamentals (46%)
 - Container Orchestration (22%)
 - Cloud Native Architecture (16%)
@@ -1933,6 +1983,7 @@ CNCF ecosystem             Multi-container,              Networking,
 - Cloud Native Application Delivery (8%)
 
 **Free Resources:**
+
 - [CNCF Curriculum](https://github.com/cncf/curriculum)
 - [KodeKloud Free Kubernetes for Beginners](https://kodekloud.com/free-courses)
 - [Coursera KCNA prep (free audit)](https://www.coursera.org/learn/pearson-kubernetes-and-cloud-native-associate-kcna-complete-course)
@@ -1943,15 +1994,16 @@ CNCF ecosystem             Multi-container,              Networking,
 
 ### High-Yield Topics
 
-| Domain | Weight | Focus |
-|---|---|---|
-| Storage | 10% | PV, PVC, StorageClass, access modes |
-| Troubleshooting | 30% | Debug pods, nodes, cluster components |
-| Workloads & Scheduling | 15% | Deployments, DaemonSets, affinity, taints |
-| Cluster Architecture | 25% | kubeadm, etcd backup/restore, RBAC |
-| Services & Networking | 20% | Services, Ingress, NetworkPolicy, CoreDNS |
+| Domain                 | Weight | Focus                                     |
+| ---------------------- | ------ | ----------------------------------------- |
+| Storage                | 10%    | PV, PVC, StorageClass, access modes       |
+| Troubleshooting        | 30%    | Debug pods, nodes, cluster components     |
+| Workloads & Scheduling | 15%    | Deployments, DaemonSets, affinity, taints |
+| Cluster Architecture   | 25%    | kubeadm, etcd backup/restore, RBAC        |
+| Services & Networking  | 20%    | Services, Ingress, NetworkPolicy, CoreDNS |
 
 ### Exam Environment Tips
+
 ```bash
 # ALWAYS set these at the start of the exam
 alias k=kubectl
@@ -1976,6 +2028,7 @@ ETCDCTL_API=3 etcdctl snapshot save /backup/etcd.db \
 ```
 
 ### CKA Practice Resources
+
 - [killer.sh](https://killer.sh) — 2 free exam simulations with purchase (most accurate)
 - [Killercoda CKA Scenarios](https://killercoda.com/killer-shell-cka)
 - [TechiesCamp CKA Guide](https://github.com/techiescamp/cka-certification-guide)
@@ -1987,13 +2040,13 @@ ETCDCTL_API=3 etcdctl snapshot save /backup/etcd.db \
 
 ### High-Yield Topics
 
-| Domain | Weight | Focus |
-|---|---|---|
-| Application Design | 20% | Multi-container patterns, init containers, CRDs |
-| Application Deployment | 20% | Deployments, Helm, rolling updates |
-| Application Observability | 15% | Probes, logging, debugging |
-| Application Environment | 25% | ConfigMaps, Secrets, SA, resource management |
-| Services & Networking | 20% | Services, Ingress, NetworkPolicy |
+| Domain                    | Weight | Focus                                           |
+| ------------------------- | ------ | ----------------------------------------------- |
+| Application Design        | 20%    | Multi-container patterns, init containers, CRDs |
+| Application Deployment    | 20%    | Deployments, Helm, rolling updates              |
+| Application Observability | 15%    | Probes, logging, debugging                      |
+| Application Environment   | 25%    | ConfigMaps, Secrets, SA, resource management    |
+| Services & Networking     | 20%    | Services, Ingress, NetworkPolicy                |
 
 ### Multi-Container Patterns (CKAD Focus)
 
@@ -2015,15 +2068,16 @@ Example: Fluentd          Example: format logs      Example: service mesh
 # Init Container example (CKAD must-know)
 spec:
   initContainers:
-  - name: wait-for-db
-    image: busybox
-    command: ['sh', '-c', 'until nc -z db-service 5432; do sleep 2; done']
+    - name: wait-for-db
+      image: busybox
+      command: ['sh', '-c', 'until nc -z db-service 5432; do sleep 2; done']
   containers:
-  - name: app
-    image: my-app:1.0
+    - name: app
+      image: my-app:1.0
 ```
 
 ### CKAD Practice Resources
+
 - [CKAD Exercises by dgkanatsios](https://github.com/dgkanatsios/CKAD-exercises)
 - [Killercoda CKAD Scenarios](https://killercoda.com/killer-shell-ckad)
 - [KodeKloud CKAD Course](https://kodekloud.com/free-courses)
@@ -2115,6 +2169,7 @@ kubectl run test --image=nicolaka/netshoot --rm -it -- curl http://my-svc
 ```
 
 ## etcd Restore
+
 ```bash
 # Restore etcd from backup
 ETCDCTL_API=3 etcdctl snapshot restore /backup/etcd.db \
@@ -2200,32 +2255,32 @@ Role ─────────────────────────
 
 ## Tier 1 — Official + CNCF Backed
 
-| Resource | URL | Format | Cost |
-|---|---|---|---|
-| Kubernetes Official Tutorials | kubernetes.io/docs/tutorials | Interactive | Free |
-| CNCF Top 28 K8s Resources 2026 | cncf.io/blog/2026/01/19/... | Guide | Free |
-| LFS158x (Linux Foundation) | edx.org - Linux Foundation | Video + Labs | Free audit |
-| CNCF Training Hub | cncf.io/training | Courses + Certs | Free courses |
+| Resource                       | URL                          | Format          | Cost         |
+| ------------------------------ | ---------------------------- | --------------- | ------------ |
+| Kubernetes Official Tutorials  | kubernetes.io/docs/tutorials | Interactive     | Free         |
+| CNCF Top 28 K8s Resources 2026 | cncf.io/blog/2026/01/19/...  | Guide           | Free         |
+| LFS158x (Linux Foundation)     | edx.org - Linux Foundation   | Video + Labs    | Free audit   |
+| CNCF Training Hub              | cncf.io/training             | Courses + Certs | Free courses |
 
 ## Tier 2 — Interactive Labs (Verified Active March 2026)
 
-| Platform | URL | Best For |
-|---|---|---|
-| Killercoda | killercoda.com/kubernetes | All levels, no setup |
-| Killercoda CKA | killercoda.com/killer-shell-cka | CKA prep |
-| Killercoda CKAD | killercoda.com/killer-shell-ckad | CKAD prep |
-| iximiuz Labs | labs.iximiuz.com/playgrounds?category=kubernetes | Internals deep-dive |
-| KodeKloud Free | kodekloud.com/free-courses | Structured beginner path |
-| killer.sh | killer.sh | Exam simulations (paid, included with cert purchase) |
+| Platform        | URL                                              | Best For                                             |
+| --------------- | ------------------------------------------------ | ---------------------------------------------------- |
+| Killercoda      | killercoda.com/kubernetes                        | All levels, no setup                                 |
+| Killercoda CKA  | killercoda.com/killer-shell-cka                  | CKA prep                                             |
+| Killercoda CKAD | killercoda.com/killer-shell-ckad                 | CKAD prep                                            |
+| iximiuz Labs    | labs.iximiuz.com/playgrounds?category=kubernetes | Internals deep-dive                                  |
+| KodeKloud Free  | kodekloud.com/free-courses                       | Structured beginner path                             |
+| killer.sh       | killer.sh                                        | Exam simulations (paid, included with cert purchase) |
 
 ## Tier 3 — Deep Learning
 
-| Resource | URL | Format | Level |
-|---|---|---|---|
-| University of Helsinki MOOC | courses.mooc.fi/org/uh-cs/courses/devops-with-kubernetes | MOOC | Intermediate-Advanced |
-| DevOpsCube Tutorials | devopscube.com/kubernetes-tutorials-beginners | Articles | All |
-| CKAD Exercises | github.com/dgkanatsios/CKAD-exercises | GitHub | Advanced |
-| TechiesCamp CKA Guide | github.com/techiescamp/cka-certification-guide | GitHub | Advanced |
+| Resource                    | URL                                                      | Format   | Level                 |
+| --------------------------- | -------------------------------------------------------- | -------- | --------------------- |
+| University of Helsinki MOOC | courses.mooc.fi/org/uh-cs/courses/devops-with-kubernetes | MOOC     | Intermediate-Advanced |
+| DevOpsCube Tutorials        | devopscube.com/kubernetes-tutorials-beginners            | Articles | All                   |
+| CKAD Exercises              | github.com/dgkanatsios/CKAD-exercises                    | GitHub   | Advanced              |
+| TechiesCamp CKA Guide       | github.com/techiescamp/cka-certification-guide           | GitHub   | Advanced              |
 
 ---
 

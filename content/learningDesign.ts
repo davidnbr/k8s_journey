@@ -13,18 +13,23 @@ export const learningPrinciples = [
   },
   {
     name: 'Worked examples before fading',
-    evidence: 'Beginners learn complex procedures better from guided examples before independent problem solving.',
+    evidence:
+      'Beginners learn complex procedures better from guided examples before independent problem solving.',
     courseUse: 'Run the scripted lab first, then repeat a similar task without the script.',
   },
   {
     name: 'Dual coding with low extraneous load',
-    evidence: 'Combining words and relevant visuals can improve understanding when visuals explain the same system.',
-    courseUse: 'Pair each command with the live cluster diagram instead of treating diagrams as decoration.',
+    evidence:
+      'Combining words and relevant visuals can improve understanding when visuals explain the same system.',
+    courseUse:
+      'Pair each command with the live cluster diagram instead of treating diagrams as decoration.',
   },
   {
     name: 'Interleaving and transfer',
-    evidence: 'Mixing related problem types helps learners choose the right approach instead of memorizing one pattern.',
-    courseUse: 'Revisit earlier primitives inside later security, networking, storage, and troubleshooting labs.',
+    evidence:
+      'Mixing related problem types helps learners choose the right approach instead of memorizing one pattern.',
+    courseUse:
+      'Revisit earlier primitives inside later security, networking, storage, and troubleshooting labs.',
   },
 ]
 
@@ -61,7 +66,8 @@ const COMMAND_FAMILIES: Array<{
   {
     name: 'Inspect cluster state',
     purpose: 'Read live state before changing it.',
-    match: /\bkubectl\s+(get|describe|top|events|api-versions|cluster-info|config\s+(view|get-contexts|current-context))/,
+    match:
+      /\bkubectl\s+(get|describe|top|events|api-versions|cluster-info|config\s+(view|get-contexts|current-context))/,
   },
   {
     name: 'Declarative apply',
@@ -134,19 +140,25 @@ export function getModuleCoverage(mod: Module): ModuleCoverage {
   const runnableCommands = getRunnableCommands(mod)
   const theory = mod.theory.toLowerCase()
   const commandText = runnableCommands.join('\n')
-  const hasDiagram = mod.theory.includes('```') || mod.labSteps.some((step) => step.clusterState.highlightedComponent)
+  const hasDiagram =
+    mod.theory.includes('```') ||
+    mod.labSteps.some((step) => step.clusterState.highlightedComponent)
   const hasProcedure = mod.labSteps.length >= 3
   const hasScenario =
     theory.includes('brain warm-up') ||
     theory.includes('when to use') ||
     theory.includes('problem') ||
-    mod.labSteps.some((step) => /verify|simulate|inspect|troubleshoot|test|break|rollback|restore|audit/i.test(step.title))
+    mod.labSteps.some((step) =>
+      /verify|simulate|inspect|troubleshoot|test|break|rollback|restore|audit/i.test(step.title)
+    )
   const hasTechnique =
     theory.includes('best practice') ||
     theory.includes('pattern') ||
     theory.includes('strategy') ||
     theory.includes('checklist') ||
-    mod.labSteps.some((step) => /rollback|scale|patch|diff|drain|cordon|canary|self-healing|graceful|verify/i.test(step.title))
+    mod.labSteps.some((step) =>
+      /rollback|scale|patch|diff|drain|cordon|canary|self-healing|graceful|verify/i.test(step.title)
+    )
 
   return {
     concepts: theory.includes('##') || theory.includes('concept'),
@@ -156,7 +168,8 @@ export function getModuleCoverage(mod: Module): ModuleCoverage {
     procedures: hasProcedure,
     toolsAndPlugins: commandText.includes('kubectl') || getExternalTools(mod).length > 0,
     casesAndScenarios: hasScenario,
-    localExercises: runnableCommands.length > 0 && mod.labSteps.some((step) => Boolean(step.instruction)),
+    localExercises:
+      runnableCommands.length > 0 && mod.labSteps.some((step) => Boolean(step.instruction)),
   }
 }
 
@@ -188,20 +201,27 @@ export function getLocalPracticeChecklist(mod: Module): string[] {
   ]
 
   if (tools.length > 0) {
-    checklist.push(`Install or verify required external tooling before the lab: ${tools.join(', ')}.`)
+    checklist.push(
+      `Install or verify required external tooling before the lab: ${tools.join(', ')}.`
+    )
   }
 
-  checklist.push('After the guided lab, repeat the main task with a different resource name, namespace, label, image, or replica count.')
+  checklist.push(
+    'After the guided lab, repeat the main task with a different resource name, namespace, label, image, or replica count.'
+  )
   return checklist
 }
 
 export function getExerciseTasks(mod: Module, review?: ModuleReview): ExerciseTask[] {
   const runnableCommands = getRunnableCommands(mod)
-  const primaryCommands = runnableCommands.length > 0 ? runnableCommands : review?.supplementalCommands ?? []
+  const primaryCommands =
+    runnableCommands.length > 0 ? runnableCommands : (review?.supplementalCommands ?? [])
   const verifyCommands = [
     'kubectl config current-context',
     'kubectl get events --sort-by=.lastTimestamp',
-    ...primaryCommands.filter((command) => /\bkubectl\s+(get|describe|logs|top|auth|wait)\b/.test(command)).slice(0, 3),
+    ...primaryCommands
+      .filter((command) => /\bkubectl\s+(get|describe|logs|top|auth|wait)\b/.test(command))
+      .slice(0, 3),
   ]
   const cleanupCommands = [
     `kubectl delete all -l app=${mod.slug} --ignore-not-found`,
@@ -220,7 +240,8 @@ export function getExerciseTasks(mod: Module, review?: ModuleReview): ExerciseTa
         ...primaryCommands,
       ],
       verify: verifyCommands,
-      expectedOutcome: 'The Kubernetes objects in the lesson exist, reach the expected status, and can be explained from kubectl output.',
+      expectedOutcome:
+        'The Kubernetes objects in the lesson exist, reach the expected status, and can be explained from kubectl output.',
       cleanup: cleanupCommands,
     },
     {
@@ -251,13 +272,16 @@ export function getExerciseTasks(mod: Module, review?: ModuleReview): ExerciseTa
       commands: [
         'kubectl get pods -A',
         'kubectl get events -A --sort-by=.lastTimestamp',
-        ...primaryCommands.filter((command) => /\bkubectl\s+(describe|logs|get|auth|top)\b/.test(command)).slice(0, 4),
+        ...primaryCommands
+          .filter((command) => /\bkubectl\s+(describe|logs|get|auth|top)\b/.test(command))
+          .slice(0, 4),
       ],
       verify: [
         'kubectl describe pod --all-namespaces',
         'kubectl get events -A --sort-by=.lastTimestamp',
       ],
-      expectedOutcome: 'You can name what failed, where Kubernetes reported it, and which command proved it.',
+      expectedOutcome:
+        'You can name what failed, where Kubernetes reported it, and which command proved it.',
       cleanup: cleanupCommands,
     },
     {
@@ -270,7 +294,8 @@ export function getExerciseTasks(mod: Module, review?: ModuleReview): ExerciseTa
         ...(review?.supplementalCommands.slice(0, 3) ?? primaryCommands.slice(0, 3)),
       ],
       verify: verifyCommands.slice(0, 3),
-      expectedOutcome: 'You can recall the object purpose, inspect it quickly, and connect output to the architecture.',
+      expectedOutcome:
+        'You can recall the object purpose, inspect it quickly, and connect output to the architecture.',
       cleanup: cleanupCommands,
     },
   ]
@@ -300,7 +325,8 @@ export function getModuleKeyConcepts(mod: Module): string[] {
   for (const step of mod.labSteps.slice(0, 5)) {
     if (step.command?.includes('describe')) concepts.add('events and status')
     if (step.command?.includes('logs')) concepts.add('logs')
-    if (step.command?.includes('apply') || step.command?.includes('create')) concepts.add('manifest lifecycle')
+    if (step.command?.includes('apply') || step.command?.includes('create'))
+      concepts.add('manifest lifecycle')
     if (step.command?.includes('delete')) concepts.add('cleanup and reconciliation')
   }
 

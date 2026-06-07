@@ -1,12 +1,12 @@
 import type { Phase, ClusterState } from '@/lib/types'
 
-
 const phase8: Phase = {
   id: 'phase-8',
   slug: 'phase-8',
   title: 'Troubleshooting Mastery',
   shortTitle: 'Troubleshooting',
-  description: 'Master the systematic debugging workflow that accounts for ~30% of the CKA exam. Diagnose Pod failures, network breakdowns, node problems, and control plane issues with confidence.',
+  description:
+    'Master the systematic debugging workflow that accounts for ~30% of the CKA exam. Diagnose Pod failures, network breakdowns, node problems, and control plane issues with confidence.',
   weeks: 'Weeks 17–18',
   hours: '~20 hours',
   color: 'text-red-400',
@@ -17,7 +17,8 @@ const phase8: Phase = {
       id: 'p8-m1',
       slug: 'troubleshooting-pods',
       title: 'Troubleshooting Pods',
-      description: 'Diagnose and fix the five most common Pod failure modes: CrashLoopBackOff, OOMKilled, ImagePullBackOff, Pending, and Init container failures.',
+      description:
+        'Diagnose and fix the five most common Pod failure modes: CrashLoopBackOff, OOMKilled, ImagePullBackOff, Pending, and Init container failures.',
       duration: '90 min',
       difficulty: 'intermediate',
       learningObjectives: [
@@ -184,7 +185,8 @@ kubectl describe pod <pod>
         {
           id: 'p8-m1-s1',
           title: 'Reproduce CrashLoopBackOff — bad command',
-          instruction: 'Deploy a pod with an invalid entrypoint command. This is the most common source of CrashLoopBackOff in exam scenarios.',
+          instruction:
+            'Deploy a pod with an invalid entrypoint command. This is the most common source of CrashLoopBackOff in exam scenarios.',
           yamlContent: `apiVersion: v1
 kind: Pod
 metadata:
@@ -196,48 +198,96 @@ spec:
     image: busybox:1.36
     command: ["/bin/sh", "-c", "this-command-does-not-exist"]`,
           output: ['pod/crash-pod created'],
-          explanation: 'The command "this-command-does-not-exist" will immediately exit with code 127 (command not found). Kubernetes will restart it with exponential backoff.',
+          explanation:
+            'The command "this-command-does-not-exist" will immediately exit with code 127 (command not found). Kubernetes will restart it with exponential backoff.',
           clusterState: {
-            pods: [{ id: 'crash-pod', name: 'crash-pod', namespace: 'default', node: 'node-1', status: 'Pending', labels: {}, image: 'busybox:1.36', restarts: 0 }],
-            services: [], deployments: [], namespaces: ['default'], events: ['crash-pod scheduled → node-1'],
+            pods: [
+              {
+                id: 'crash-pod',
+                name: 'crash-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Pending',
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 0,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['crash-pod scheduled → node-1'],
           },
           tip: 'Save this YAML as crash-pod.yaml. In the CKA exam, always use kubectl apply -f so you can quickly edit and reapply.',
         },
         {
           id: 'p8-m1-s2',
           title: 'Observe CrashLoopBackOff status',
-          instruction: 'Watch the pod restart. After a few cycles it enters CrashLoopBackOff. Note the RESTARTS counter climbing.',
+          instruction:
+            'Watch the pod restart. After a few cycles it enters CrashLoopBackOff. Note the RESTARTS counter climbing.',
           command: 'kubectl get pod crash-pod',
           output: [
             'NAME        READY   STATUS             RESTARTS   AGE',
             'crash-pod   0/1     CrashLoopBackOff   4          90s',
           ],
-          explanation: 'READY 0/1 — the container is not passing readiness. STATUS CrashLoopBackOff — Kubernetes is backing off before the next restart. RESTARTS 4 means it has crashed 4 times.',
+          explanation:
+            'READY 0/1 — the container is not passing readiness. STATUS CrashLoopBackOff — Kubernetes is backing off before the next restart. RESTARTS 4 means it has crashed 4 times.',
           clusterState: {
-            pods: [{ id: 'crash-pod', name: 'crash-pod', namespace: 'default', node: 'node-1', status: 'Failed', labels: {}, image: 'busybox:1.36', restarts: 4 }],
-            services: [], deployments: [], namespaces: ['default'],
-            events: ['crash-pod: Back-off restarting failed container', 'crash-pod: container app exited with code 127'],
+            pods: [
+              {
+                id: 'crash-pod',
+                name: 'crash-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Failed',
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 4,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [
+              'crash-pod: Back-off restarting failed container',
+              'crash-pod: container app exited with code 127',
+            ],
           },
         },
         {
           id: 'p8-m1-s3',
           title: 'Read the previous container logs',
-          instruction: 'kubectl logs crash-pod returns nothing because the container is in backoff. Use --previous to see the last terminated container\'s output.',
+          instruction:
+            "kubectl logs crash-pod returns nothing because the container is in backoff. Use --previous to see the last terminated container's output.",
           command: 'kubectl logs crash-pod --previous',
-          output: [
-            '/bin/sh: this-command-does-not-exist: not found',
-          ],
-          explanation: 'The --previous flag reads logs from the last terminated container instance. Without it, you get empty output during the backoff window. This is critical exam knowledge.',
+          output: ['/bin/sh: this-command-does-not-exist: not found'],
+          explanation:
+            'The --previous flag reads logs from the last terminated container instance. Without it, you get empty output during the backoff window. This is critical exam knowledge.',
           clusterState: {
-            pods: [{ id: 'crash-pod', name: 'crash-pod', namespace: 'default', node: 'node-1', status: 'Failed', labels: {}, image: 'busybox:1.36', restarts: 4 }],
-            services: [], deployments: [], namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'crash-pod',
+                name: 'crash-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Failed',
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 4,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
           },
           tip: 'In a multi-container pod: kubectl logs <pod> -c <container> --previous',
         },
         {
           id: 'p8-m1-s4',
           title: 'Confirm exit code with kubectl describe',
-          instruction: 'Describe the pod to see the exit code and last state. Exit code 127 = command not found.',
+          instruction:
+            'Describe the pod to see the exit code and last state. Exit code 127 = command not found.',
           command: 'kubectl describe pod crash-pod',
           output: [
             'Name:             crash-pod',
@@ -258,31 +308,61 @@ spec:
             'Events:',
             '  Warning  BackOff  10s  kubelet  Back-off restarting failed container app in pod crash-pod_default',
           ],
-          explanation: 'Last State → Exit Code: 127 = command not found. If you saw Exit Code: 1, it\'s an application error. Exit Code: 137 = OOMKilled. Exit Code: 126 = permission denied.',
+          explanation:
+            "Last State → Exit Code: 127 = command not found. If you saw Exit Code: 1, it's an application error. Exit Code: 137 = OOMKilled. Exit Code: 126 = permission denied.",
           clusterState: {
-            pods: [{ id: 'crash-pod', name: 'crash-pod', namespace: 'default', node: 'node-1', status: 'Failed', labels: {}, image: 'busybox:1.36', restarts: 4 }],
-            services: [], deployments: [], namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'crash-pod',
+                name: 'crash-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Failed',
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 4,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
           },
         },
         {
           id: 'p8-m1-s5',
           title: 'Fix the CrashLoopBackOff',
-          instruction: 'Edit the pod to use a valid command. Delete and recreate (pods are immutable for most fields).',
-          command: 'kubectl delete pod crash-pod && kubectl run crash-pod --image=busybox:1.36 --command -- /bin/sh -c "echo hello && sleep 3600"',
-          output: [
-            'pod "crash-pod" deleted',
-            'pod/crash-pod created',
-          ],
-          explanation: 'The new command prints "hello" then sleeps, staying alive. The pod will now show Running with 0 restarts.',
+          instruction:
+            'Edit the pod to use a valid command. Delete and recreate (pods are immutable for most fields).',
+          command:
+            'kubectl delete pod crash-pod && kubectl run crash-pod --image=busybox:1.36 --command -- /bin/sh -c "echo hello && sleep 3600"',
+          output: ['pod "crash-pod" deleted', 'pod/crash-pod created'],
+          explanation:
+            'The new command prints "hello" then sleeps, staying alive. The pod will now show Running with 0 restarts.',
           clusterState: {
-            pods: [{ id: 'crash-pod', name: 'crash-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'busybox:1.36', restarts: 0 }],
-            services: [], deployments: [], namespaces: ['default'], events: ['crash-pod: Started container app'],
+            pods: [
+              {
+                id: 'crash-pod',
+                name: 'crash-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'busybox:1.36',
+                restarts: 0,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['crash-pod: Started container app'],
           },
         },
         {
           id: 'p8-m1-s6',
           title: 'Reproduce OOMKilled',
-          instruction: 'Deploy a pod that allocates more memory than its limit. It will be killed by the kernel OOM killer.',
+          instruction:
+            'Deploy a pod that allocates more memory than its limit. It will be killed by the kernel OOM killer.',
           yamlContent: `apiVersion: v1
 kind: Pod
 metadata:
@@ -300,16 +380,32 @@ spec:
       requests:
         memory: "32Mi"`,
           output: ['pod/oom-pod created'],
-          explanation: 'The stress tool tries to allocate 150Mi, but the memory limit is 64Mi. The Linux OOM killer will send SIGKILL (exit code 137).',
+          explanation:
+            'The stress tool tries to allocate 150Mi, but the memory limit is 64Mi. The Linux OOM killer will send SIGKILL (exit code 137).',
           clusterState: {
-            pods: [{ id: 'oom-pod', name: 'oom-pod', namespace: 'default', node: 'node-1', status: 'Pending', labels: {}, image: 'polinux/stress', restarts: 0 }],
-            services: [], deployments: [], namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'oom-pod',
+                name: 'oom-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Pending',
+                labels: {},
+                image: 'polinux/stress',
+                restarts: 0,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
           },
         },
         {
           id: 'p8-m1-s7',
           title: 'Confirm OOMKilled via describe',
-          instruction: 'After the pod runs briefly and dies, describe it to see the OOMKilled reason and exit code 137.',
+          instruction:
+            'After the pod runs briefly and dies, describe it to see the OOMKilled reason and exit code 137.',
           command: 'kubectl describe pod oom-pod',
           output: [
             'Containers:',
@@ -324,26 +420,58 @@ spec:
             '    Ready:          False',
             '    Restart Count:  2',
           ],
-          explanation: 'Reason: OOMKilled is the definitive signal. Exit Code 137 = 128 + 9 (SIGKILL). The fix is to increase resources.limits.memory or reduce the application\'s memory usage.',
+          explanation:
+            "Reason: OOMKilled is the definitive signal. Exit Code 137 = 128 + 9 (SIGKILL). The fix is to increase resources.limits.memory or reduce the application's memory usage.",
           clusterState: {
-            pods: [{ id: 'oom-pod', name: 'oom-pod', namespace: 'default', node: 'node-1', status: 'Failed', labels: {}, image: 'polinux/stress', restarts: 2 }],
-            services: [], deployments: [], namespaces: ['default'],
-            events: ['oom-pod: OOMKilling memory-hog container', 'oom-pod: Back-off restarting failed container'],
+            pods: [
+              {
+                id: 'oom-pod',
+                name: 'oom-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Failed',
+                labels: {},
+                image: 'polinux/stress',
+                restarts: 2,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [
+              'oom-pod: OOMKilling memory-hog container',
+              'oom-pod: Back-off restarting failed container',
+            ],
           },
         },
         {
           id: 'p8-m1-s8',
           title: 'Diagnose ImagePullBackOff',
-          instruction: 'Create a pod with a non-existent image tag. Read the Events to understand the exact pull error.',
+          instruction:
+            'Create a pod with a non-existent image tag. Read the Events to understand the exact pull error.',
           command: 'kubectl run bad-image --image=nginx:this-tag-does-not-exist-99999',
           output: [
             'NAME        READY   STATUS             RESTARTS   AGE',
             'bad-image   0/1     ImagePullBackOff   0          45s',
           ],
-          explanation: 'No restarts because the container never started — the image could not be pulled. kubectl describe pod bad-image shows the exact error in Events.',
+          explanation:
+            'No restarts because the container never started — the image could not be pulled. kubectl describe pod bad-image shows the exact error in Events.',
           clusterState: {
-            pods: [{ id: 'bad-image', name: 'bad-image', namespace: 'default', node: 'node-1', status: 'Pending', labels: {}, image: 'nginx:this-tag-does-not-exist-99999', restarts: 0 }],
-            services: [], deployments: [], namespaces: ['default'],
+            pods: [
+              {
+                id: 'bad-image',
+                name: 'bad-image',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Pending',
+                labels: {},
+                image: 'nginx:this-tag-does-not-exist-99999',
+                restarts: 0,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
             events: [
               'bad-image: Failed to pull image "nginx:this-tag-does-not-exist-99999": not found',
               'bad-image: Error: ErrImagePull',
@@ -356,7 +484,8 @@ spec:
       quiz: [
         {
           id: 'p8-m1-q1',
-          question: 'A pod shows CrashLoopBackOff with 6 restarts. kubectl logs pod-name returns empty output. Why?',
+          question:
+            'A pod shows CrashLoopBackOff with 6 restarts. kubectl logs pod-name returns empty output. Why?',
           options: [
             'The container has no log driver configured',
             'The pod is in backoff window — the container is not currently running, so there are no live logs',
@@ -364,11 +493,13 @@ spec:
             'You need to use kubectl logs --all-containers to see output',
           ],
           answer: 1,
-          explanation: 'After 6 restarts the backoff timer reaches ~5 minutes. During the wait window, the container is Waiting — not running — so there are no live logs. Use --previous to read the last terminated container\'s logs.',
+          explanation:
+            "After 6 restarts the backoff timer reaches ~5 minutes. During the wait window, the container is Waiting — not running — so there are no live logs. Use --previous to read the last terminated container's logs.",
         },
         {
           id: 'p8-m1-q2',
-          question: 'kubectl describe pod shows: Last State Terminated, Reason: OOMKilled, Exit Code: 137. What does exit code 137 represent?',
+          question:
+            'kubectl describe pod shows: Last State Terminated, Reason: OOMKilled, Exit Code: 137. What does exit code 137 represent?',
           options: [
             'The application exited with its own error code 137',
             '128 + signal 9 (SIGKILL) — the Linux kernel OOM killer forcibly terminated the process',
@@ -376,11 +507,13 @@ spec:
             '137 seconds of runtime before the container was stopped',
           ],
           answer: 1,
-          explanation: 'Exit code 137 = 128 + 9. In Linux, when a process is killed by a signal, the exit code is 128 + signal_number. SIGKILL is signal 9, so 128 + 9 = 137. The OOM killer sends SIGKILL.',
+          explanation:
+            'Exit code 137 = 128 + 9. In Linux, when a process is killed by a signal, the exit code is 128 + signal_number. SIGKILL is signal 9, so 128 + 9 = 137. The OOM killer sends SIGKILL.',
         },
         {
           id: 'p8-m1-q3',
-          question: 'A pod is stuck in Pending with this event: "0/3 nodes are available: 3 Insufficient memory." What is the correct fix?',
+          question:
+            'A pod is stuck in Pending with this event: "0/3 nodes are available: 3 Insufficient memory." What is the correct fix?',
           options: [
             'kubectl cordon all nodes and uncordon them to reset scheduling',
             'Delete and recreate the pod — it will get scheduled eventually',
@@ -388,11 +521,13 @@ spec:
             'Add a nodeSelector to target the node with most free memory',
           ],
           answer: 2,
-          explanation: 'The scheduler cannot place the pod because no node has enough allocatable memory to satisfy the request. Fix the root cause: reduce the memory request, or free up cluster resources. Deleting and recreating the pod will not change anything.',
+          explanation:
+            'The scheduler cannot place the pod because no node has enough allocatable memory to satisfy the request. Fix the root cause: reduce the memory request, or free up cluster resources. Deleting and recreating the pod will not change anything.',
         },
         {
           id: 'p8-m1-q4',
-          question: 'A multi-container pod named "web" has containers "nginx" and "sidecar". The sidecar is crashing. Which command gets the previous sidecar logs?',
+          question:
+            'A multi-container pod named "web" has containers "nginx" and "sidecar". The sidecar is crashing. Which command gets the previous sidecar logs?',
           options: [
             'kubectl logs web --previous',
             'kubectl logs web -c sidecar --previous',
@@ -400,7 +535,8 @@ spec:
             'kubectl describe pod web --container=sidecar',
           ],
           answer: 1,
-          explanation: 'For multi-container pods, you must specify the container name with -c. The --previous flag reads the last terminated instance of that container. Without -c, kubectl logs defaults to the first container.',
+          explanation:
+            'For multi-container pods, you must specify the container name with -c. The --previous flag reads the last terminated instance of that container. Without -c, kubectl logs defaults to the first container.',
         },
         {
           id: 'p8-m1-q5',
@@ -412,7 +548,8 @@ spec:
             '0 out of 2 readiness probes have passed',
           ],
           answer: 1,
-          explanation: '"Init:0/2" means 0 of 2 init containers have completed. Init containers run sequentially before app containers. If the first init container fails, it blocks the rest and the pod never starts.',
+          explanation:
+            '"Init:0/2" means 0 of 2 init containers have completed. Init containers run sequentially before app containers. If the first init container fails, it blocks the rest and the pod never starts.',
         },
         {
           id: 'p8-m1-q6',
@@ -424,7 +561,8 @@ spec:
             'The container was terminated by a liveness probe failure',
           ],
           answer: 2,
-          explanation: 'Exit code 127 is the shell\'s "command not found" exit code. It means the binary or script specified in command/args does not exist in the container image. Check your entrypoint spelling and that the binary is installed in the image.',
+          explanation:
+            'Exit code 127 is the shell\'s "command not found" exit code. It means the binary or script specified in command/args does not exist in the container image. Check your entrypoint spelling and that the binary is installed in the image.',
         },
       ],
       exercises: [
@@ -447,7 +585,8 @@ spec:
             'kubectl logs -l app=broken-app shows "ok"',
             'kubectl describe pod shows no CrashLoopBackOff events',
           ],
-          expectedOutcome: 'CrashLoopBackOff root-caused via --previous logs and exit code, deployment patched to healthy state.',
+          expectedOutcome:
+            'CrashLoopBackOff root-caused via --previous logs and exit code, deployment patched to healthy state.',
           cleanup: ['kubectl delete deployment broken-app --ignore-not-found'],
         },
         {
@@ -467,7 +606,8 @@ spec:
             'kubectl describe pod oom-debug shows Reason: OOMKilled and Exit Code: 137',
             'kubectl get pod oom-fixed shows Running status',
           ],
-          expectedOutcome: 'OOMKilled confirmed via exit code 137, fixed by increasing memory limits.',
+          expectedOutcome:
+            'OOMKilled confirmed via exit code 137, fixed by increasing memory limits.',
           cleanup: ['kubectl delete pod oom-debug oom-fixed --ignore-not-found'],
         },
         {
@@ -488,7 +628,8 @@ spec:
             'kubectl describe pod pending-pod Events shows "FailedScheduling" with "node(s) didn\'t match Pod\'s node affinity/selector"',
             'kubectl get pod fixed-pod shows Running',
           ],
-          expectedOutcome: 'Pending pod diagnosed via FailedScheduling event, nodeSelector removed to unblock scheduling.',
+          expectedOutcome:
+            'Pending pod diagnosed via FailedScheduling event, nodeSelector removed to unblock scheduling.',
           cleanup: ['kubectl delete pod pending-pod fixed-pod --ignore-not-found'],
         },
       ],
@@ -499,7 +640,8 @@ spec:
       id: 'p8-m2',
       slug: 'troubleshooting-networking',
       title: 'Troubleshooting Networking',
-      description: 'Fix "connection refused", DNS lookup failures, and NetworkPolicy blocks using kubectl exec, port-forward, and endpoint inspection.',
+      description:
+        'Fix "connection refused", DNS lookup failures, and NetworkPolicy blocks using kubectl exec, port-forward, and endpoint inspection.',
       duration: '90 min',
       difficulty: 'advanced',
       learningObjectives: [
@@ -651,7 +793,8 @@ kubectl port-forward pod/<pod-name> 8080:80
         {
           id: 'p8-m2-s1',
           title: 'Create a broken service with wrong selector',
-          instruction: 'Deploy a pod with label app=backend, then create a service whose selector targets app=api (a different label). This is the most common networking mistake.',
+          instruction:
+            'Deploy a pod with label app=backend, then create a service whose selector targets app=api (a different label). This is the most common networking mistake.',
           yamlContent: `# Pod with label app=backend
 apiVersion: v1
 kind: Pod
@@ -680,58 +823,154 @@ spec:
   - port: 80
     targetPort: 80`,
           output: ['pod/backend-pod created', 'service/my-svc created'],
-          explanation: 'The Service selector is app=api but the Pod has app=backend. The Service will have no Endpoints. Any curl to this Service will fail with connection refused.',
+          explanation:
+            'The Service selector is app=api but the Pod has app=backend. The Service will have no Endpoints. Any curl to this Service will fail with connection refused.',
           clusterState: {
-            pods: [{ id: 'backend-pod', name: 'backend-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [{ id: 'my-svc', name: 'my-svc', namespace: 'default', type: 'ClusterIP', selector: { app: 'api' }, port: 80, clusterIP: '10.96.100.1' }],
-            deployments: [], namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'backend-pod',
+                name: 'backend-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'my-svc',
+                name: 'my-svc',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'api' },
+                port: 80,
+                clusterIP: '10.96.100.1',
+              },
+            ],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
           },
         },
         {
           id: 'p8-m2-s2',
           title: 'Diagnose empty endpoints',
-          instruction: 'Check the endpoints. An empty endpoints list is the definitive sign of a selector mismatch.',
+          instruction:
+            'Check the endpoints. An empty endpoints list is the definitive sign of a selector mismatch.',
           command: 'kubectl get endpoints my-svc',
-          output: [
-            'NAME     ENDPOINTS   AGE',
-            'my-svc   <none>      30s',
-          ],
-          explanation: '"<none>" means no Pods are selected by this Service\'s selector. The connection will always fail — kube-proxy has nowhere to route traffic. This is the first check for any "connection refused" error.',
+          output: ['NAME     ENDPOINTS   AGE', 'my-svc   <none>      30s'],
+          explanation:
+            '"<none>" means no Pods are selected by this Service\'s selector. The connection will always fail — kube-proxy has nowhere to route traffic. This is the first check for any "connection refused" error.',
           clusterState: {
-            pods: [{ id: 'backend-pod', name: 'backend-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [{ id: 'my-svc', name: 'my-svc', namespace: 'default', type: 'ClusterIP', selector: { app: 'api' }, port: 80, clusterIP: '10.96.100.1' }],
-            deployments: [], namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'backend-pod',
+                name: 'backend-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'my-svc',
+                name: 'my-svc',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'api' },
+                port: 80,
+                clusterIP: '10.96.100.1',
+              },
+            ],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
           },
           tip: 'kubectl get svc,endpoints my-svc shows both in one command. Fast on the exam.',
         },
         {
           id: 'p8-m2-s3',
           title: 'Compare selector vs pod labels',
-          instruction: 'Compare the service selector with the actual pod labels to find the mismatch.',
-          command: 'kubectl get svc my-svc -o jsonpath=\'{.spec.selector}\' && echo "" && kubectl get pod backend-pod --show-labels',
+          instruction:
+            'Compare the service selector with the actual pod labels to find the mismatch.',
+          command:
+            'kubectl get svc my-svc -o jsonpath=\'{.spec.selector}\' && echo "" && kubectl get pod backend-pod --show-labels',
           output: [
             '{"app":"api"}',
             'NAME          READY   STATUS    RESTARTS   LABELS',
             'backend-pod   1/1     Running   0          app=backend',
           ],
-          explanation: 'Service selector: app=api. Pod label: app=backend. These do not match — that\'s the bug. Fix: change the selector to app=backend to match the actual pod.',
+          explanation:
+            "Service selector: app=api. Pod label: app=backend. These do not match — that's the bug. Fix: change the selector to app=backend to match the actual pod.",
           clusterState: {
-            pods: [{ id: 'backend-pod', name: 'backend-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [{ id: 'my-svc', name: 'my-svc', namespace: 'default', type: 'ClusterIP', selector: { app: 'api' }, port: 80, clusterIP: '10.96.100.1' }],
-            deployments: [], namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'backend-pod',
+                name: 'backend-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'my-svc',
+                name: 'my-svc',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'api' },
+                port: 80,
+                clusterIP: '10.96.100.1',
+              },
+            ],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
           },
         },
         {
           id: 'p8-m2-s4',
           title: 'Fix the selector',
           instruction: 'Patch the service selector to match the pod label.',
-          command: 'kubectl patch svc my-svc --type=merge -p \'{"spec":{"selector":{"app":"backend"}}}\'',
+          command:
+            'kubectl patch svc my-svc --type=merge -p \'{"spec":{"selector":{"app":"backend"}}}\'',
           output: ['service/my-svc patched'],
-          explanation: 'The selector is now app=backend, which matches the pod label. The Service will immediately populate its Endpoints list.',
+          explanation:
+            'The selector is now app=backend, which matches the pod label. The Service will immediately populate its Endpoints list.',
           clusterState: {
-            pods: [{ id: 'backend-pod', name: 'backend-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [{ id: 'my-svc', name: 'my-svc', namespace: 'default', type: 'ClusterIP', selector: { app: 'backend' }, port: 80, clusterIP: '10.96.100.1' }],
-            deployments: [], namespaces: ['default'],
+            pods: [
+              {
+                id: 'backend-pod',
+                name: 'backend-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'my-svc',
+                name: 'my-svc',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'backend' },
+                port: 80,
+                clusterIP: '10.96.100.1',
+              },
+            ],
+            deployments: [],
+            namespaces: ['default'],
             events: ['my-svc: Endpoints updated — 10.244.1.5:80'],
           },
         },
@@ -740,47 +979,99 @@ spec:
           title: 'Verify endpoints populated',
           instruction: 'Confirm the fix: endpoints now show the backend-pod IP.',
           command: 'kubectl get endpoints my-svc',
-          output: [
-            'NAME     ENDPOINTS        AGE',
-            'my-svc   10.244.1.5:80   2m',
-          ],
-          explanation: 'The endpoint is now populated with the pod IP and port. Traffic to my-svc:80 will route to backend-pod:80. The connection refused error is fixed.',
+          output: ['NAME     ENDPOINTS        AGE', 'my-svc   10.244.1.5:80   2m'],
+          explanation:
+            'The endpoint is now populated with the pod IP and port. Traffic to my-svc:80 will route to backend-pod:80. The connection refused error is fixed.',
           clusterState: {
-            pods: [{ id: 'backend-pod', name: 'backend-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [{ id: 'my-svc', name: 'my-svc', namespace: 'default', type: 'ClusterIP', selector: { app: 'backend' }, port: 80, clusterIP: '10.96.100.1' }],
-            deployments: [], namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'backend-pod',
+                name: 'backend-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'my-svc',
+                name: 'my-svc',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'backend' },
+                port: 80,
+                clusterIP: '10.96.100.1',
+              },
+            ],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
           },
         },
         {
           id: 'p8-m2-s6',
           title: 'Test DNS resolution across namespaces',
-          instruction: 'Create a service in namespace "db" and try to reach it from the "default" namespace using both short name and FQDN.',
-          command: 'kubectl create namespace db && kubectl run db-server --image=nginx:1.27 --namespace=db --labels=app=db && kubectl expose pod db-server --port=80 --namespace=db --name=db-svc',
-          output: [
-            'namespace/db created',
-            'pod/db-server created',
-            'service/db-svc exposed',
-          ],
-          explanation: 'Creates a service "db-svc" in namespace "db". From the default namespace, the short name "db-svc" will fail DNS — you need the full FQDN.',
+          instruction:
+            'Create a service in namespace "db" and try to reach it from the "default" namespace using both short name and FQDN.',
+          command:
+            'kubectl create namespace db && kubectl run db-server --image=nginx:1.27 --namespace=db --labels=app=db && kubectl expose pod db-server --port=80 --namespace=db --name=db-svc',
+          output: ['namespace/db created', 'pod/db-server created', 'service/db-svc exposed'],
+          explanation:
+            'Creates a service "db-svc" in namespace "db". From the default namespace, the short name "db-svc" will fail DNS — you need the full FQDN.',
           clusterState: {
             pods: [
-              { id: 'backend-pod', name: 'backend-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'db-server', name: 'db-server', namespace: 'db', node: 'node-2', status: 'Running', labels: { app: 'db' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'backend-pod',
+                name: 'backend-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'db-server',
+                name: 'db-server',
+                namespace: 'db',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'db' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
-            services: [{ id: 'db-svc', name: 'db-svc', namespace: 'db', type: 'ClusterIP', selector: { app: 'db' }, port: 80, clusterIP: '10.96.200.1' }],
-            deployments: [], namespaces: ['default', 'db'], events: [],
+            services: [
+              {
+                id: 'db-svc',
+                name: 'db-svc',
+                namespace: 'db',
+                type: 'ClusterIP',
+                selector: { app: 'db' },
+                port: 80,
+                clusterIP: '10.96.200.1',
+              },
+            ],
+            deployments: [],
+            namespaces: ['default', 'db'],
+            events: [],
           },
         },
         {
           id: 'p8-m2-s7',
           title: 'Test short name DNS (fails) vs FQDN (works)',
-          instruction: 'Run a debug pod in default namespace. Test both short name and FQDN DNS resolution to understand cross-namespace DNS.',
-          command: 'kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- /bin/sh -c "nslookup db-svc; echo ---; nslookup db-svc.db.svc.cluster.local"',
+          instruction:
+            'Run a debug pod in default namespace. Test both short name and FQDN DNS resolution to understand cross-namespace DNS.',
+          command:
+            'kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- /bin/sh -c "nslookup db-svc; echo ---; nslookup db-svc.db.svc.cluster.local"',
           output: [
             'Server:    10.96.0.10',
             'Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local',
             '',
-            'nslookup: can\'t resolve \'db-svc\'',
+            "nslookup: can't resolve 'db-svc'",
             '---',
             'Server:    10.96.0.10',
             'Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local',
@@ -788,22 +1079,55 @@ spec:
             'Name:      db-svc.db.svc.cluster.local',
             'Address 1: 10.96.200.1 db-svc.db.svc.cluster.local',
           ],
-          explanation: 'Short name "db-svc" fails because DNS search domains only include the current namespace. The FQDN "db-svc.db.svc.cluster.local" works from any namespace. Always use FQDN for cross-namespace communication.',
+          explanation:
+            'Short name "db-svc" fails because DNS search domains only include the current namespace. The FQDN "db-svc.db.svc.cluster.local" works from any namespace. Always use FQDN for cross-namespace communication.',
           clusterState: {
             pods: [
-              { id: 'backend-pod', name: 'backend-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 },
-              { id: 'db-server', name: 'db-server', namespace: 'db', node: 'node-2', status: 'Running', labels: { app: 'db' }, image: 'nginx:1.27', restarts: 0 },
+              {
+                id: 'backend-pod',
+                name: 'backend-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+              {
+                id: 'db-server',
+                name: 'db-server',
+                namespace: 'db',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'db' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
             ],
-            services: [{ id: 'db-svc', name: 'db-svc', namespace: 'db', type: 'ClusterIP', selector: { app: 'db' }, port: 80, clusterIP: '10.96.200.1' }],
-            deployments: [], namespaces: ['default', 'db'], events: [],
+            services: [
+              {
+                id: 'db-svc',
+                name: 'db-svc',
+                namespace: 'db',
+                type: 'ClusterIP',
+                selector: { app: 'db' },
+                port: 80,
+                clusterIP: '10.96.200.1',
+              },
+            ],
+            deployments: [],
+            namespaces: ['default', 'db'],
+            events: [],
           },
           tip: 'DNS FQDN format: <service>.<namespace>.svc.cluster.local — memorize this for the CKA exam.',
         },
         {
           id: 'p8-m2-s8',
           title: 'Use port-forward to isolate pod vs service issues',
-          instruction: 'If you are not sure whether the problem is in the Service or the Pod, use port-forward to bypass the Service entirely and test the Pod directly.',
-          command: 'kubectl port-forward pod/backend-pod 8080:80 &\nsleep 1\ncurl -s http://localhost:8080 | head -5\nkill %1',
+          instruction:
+            'If you are not sure whether the problem is in the Service or the Pod, use port-forward to bypass the Service entirely and test the Pod directly.',
+          command:
+            'kubectl port-forward pod/backend-pod 8080:80 &\nsleep 1\ncurl -s http://localhost:8080 | head -5\nkill %1',
           output: [
             'Forwarding from 127.0.0.1:8080 -> 80',
             'Forwarding from [::1]:8080 -> 80',
@@ -811,11 +1135,35 @@ spec:
             '<html>',
             '<head>',
           ],
-          explanation: 'port-forward creates a direct tunnel to the Pod, bypassing kube-proxy and the Service. If this works but the Service doesn\'t, the issue is in the Service (selector, port mapping). If this also fails, the Pod itself is the problem.',
+          explanation:
+            "port-forward creates a direct tunnel to the Pod, bypassing kube-proxy and the Service. If this works but the Service doesn't, the issue is in the Service (selector, port mapping). If this also fails, the Pod itself is the problem.",
           clusterState: {
-            pods: [{ id: 'backend-pod', name: 'backend-pod', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'backend' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [{ id: 'my-svc', name: 'my-svc', namespace: 'default', type: 'ClusterIP', selector: { app: 'backend' }, port: 80, clusterIP: '10.96.100.1' }],
-            deployments: [], namespaces: ['default', 'db'], events: [],
+            pods: [
+              {
+                id: 'backend-pod',
+                name: 'backend-pod',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'backend' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'my-svc',
+                name: 'my-svc',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'backend' },
+                port: 80,
+                clusterIP: '10.96.100.1',
+              },
+            ],
+            deployments: [],
+            namespaces: ['default', 'db'],
+            events: [],
           },
         },
       ],
@@ -830,35 +1178,36 @@ spec:
             'CoreDNS is not running so the service cannot be resolved',
           ],
           answer: 1,
-          explanation: '"<none>" endpoints means the Service selector matches zero pods. The pods may be running fine — but their labels don\'t match. Compare kubectl get svc -o jsonpath=\'{.spec.selector}\' against kubectl get pods --show-labels.',
+          explanation:
+            "\"<none>\" endpoints means the Service selector matches zero pods. The pods may be running fine — but their labels don't match. Compare kubectl get svc -o jsonpath='{.spec.selector}' against kubectl get pods --show-labels.",
         },
         {
           id: 'p8-m2-q2',
-          question: 'A pod in namespace "frontend" tries to reach service "db" in namespace "backend" using the DNS name "db". It gets NXDOMAIN. What is the correct DNS name?',
-          options: [
-            'backend/db',
-            'db.backend',
-            'db.backend.svc.cluster.local',
-            'db.backend.svc',
-          ],
+          question:
+            'A pod in namespace "frontend" tries to reach service "db" in namespace "backend" using the DNS name "db". It gets NXDOMAIN. What is the correct DNS name?',
+          options: ['backend/db', 'db.backend', 'db.backend.svc.cluster.local', 'db.backend.svc'],
           answer: 2,
-          explanation: 'The full FQDN format is <service>.<namespace>.svc.cluster.local. Short names only resolve within the same namespace because the DNS search domain is set to <current-namespace>.svc.cluster.local.',
+          explanation:
+            'The full FQDN format is <service>.<namespace>.svc.cluster.local. Short names only resolve within the same namespace because the DNS search domain is set to <current-namespace>.svc.cluster.local.',
         },
         {
           id: 'p8-m2-q3',
-          question: 'You want to test if a Pod responds on port 8080, bypassing all Service and kube-proxy routing. Which command achieves this?',
+          question:
+            'You want to test if a Pod responds on port 8080, bypassing all Service and kube-proxy routing. Which command achieves this?',
           options: [
             'kubectl exec -it <pod> -- curl localhost:8080',
             'kubectl port-forward pod/<pod-name> 8080:8080',
             'kubectl expose pod <pod-name> --port=8080 --type=NodePort',
-            'kubectl get pod <pod-name> -o jsonpath=\'{.status.podIP}\'',
+            "kubectl get pod <pod-name> -o jsonpath='{.status.podIP}'",
           ],
           answer: 1,
-          explanation: 'kubectl port-forward creates a direct tunnel from your local machine to the Pod, bypassing kube-proxy and any Services. If this works but the Service doesn\'t, the issue is in the Service configuration.',
+          explanation:
+            "kubectl port-forward creates a direct tunnel from your local machine to the Pod, bypassing kube-proxy and any Services. If this works but the Service doesn't, the issue is in the Service configuration.",
         },
         {
           id: 'p8-m2-q4',
-          question: 'All pods in a namespace suddenly lose DNS resolution at the same time. What is the first thing to check?',
+          question:
+            'All pods in a namespace suddenly lose DNS resolution at the same time. What is the first thing to check?',
           options: [
             'kubectl get networkpolicy — a new policy may be blocking DNS port 53',
             'kubectl get pods -n kube-system -l k8s-app=kube-dns — CoreDNS may be down',
@@ -866,11 +1215,13 @@ spec:
             'kubectl get nodes — the DNS node may have gone NotReady',
           ],
           answer: 1,
-          explanation: 'Cluster-wide simultaneous DNS failure strongly indicates CoreDNS is down. Check: kubectl get pods -n kube-system -l k8s-app=kube-dns. If CoreDNS pods are not Running, all cluster DNS breaks immediately.',
+          explanation:
+            'Cluster-wide simultaneous DNS failure strongly indicates CoreDNS is down. Check: kubectl get pods -n kube-system -l k8s-app=kube-dns. If CoreDNS pods are not Running, all cluster DNS breaks immediately.',
         },
         {
           id: 'p8-m2-q5',
-          question: 'After applying a NetworkPolicy with podSelector: {} and policyTypes: [Ingress] (no ingress rules), what happens to the selected pods?',
+          question:
+            'After applying a NetworkPolicy with podSelector: {} and policyTypes: [Ingress] (no ingress rules), what happens to the selected pods?',
           options: [
             'All ingress traffic is allowed — an empty rules list means no restrictions',
             'All ingress traffic to matching pods is denied — no ingress rules means deny all ingress',
@@ -878,11 +1229,13 @@ spec:
             'The NetworkPolicy has no effect — you need explicit deny rules',
           ],
           answer: 1,
-          explanation: 'This is the default-deny pattern. When a NetworkPolicy selects pods (even with podSelector: {} = all pods), and lists policyTypes without providing any rules, ALL traffic of that type is denied. No ingress rules = deny all ingress.',
+          explanation:
+            'This is the default-deny pattern. When a NetworkPolicy selects pods (even with podSelector: {} = all pods), and lists policyTypes without providing any rules, ALL traffic of that type is denied. No ingress rules = deny all ingress.',
         },
         {
           id: 'p8-m2-q6',
-          question: 'A Service has targetPort: 8080 but the container is actually listening on port 3000. The service port is 80. What symptom will you see?',
+          question:
+            'A Service has targetPort: 8080 but the container is actually listening on port 3000. The service port is 80. What symptom will you see?',
           options: [
             'ImagePullBackOff — Kubernetes cannot start the container',
             'Endpoints will be empty because no pods match the targetPort',
@@ -890,7 +1243,8 @@ spec:
             'The service will automatically detect the correct port',
           ],
           answer: 2,
-          explanation: 'Endpoints are determined by the selector, not the port. Pods will appear in the Endpoints list. But kube-proxy forwards traffic to port 8080, which nobody is listening on, so you get "connection refused". Fix: set targetPort to 3000.',
+          explanation:
+            'Endpoints are determined by the selector, not the port. Pods will appear in the Endpoints list. But kube-proxy forwards traffic to port 8080, which nobody is listening on, so you get "connection refused". Fix: set targetPort to 3000.',
         },
       ],
       exercises: [
@@ -898,7 +1252,7 @@ spec:
           id: 'p8-m2-e1',
           title: 'Debug: Fix a service with wrong selector and targetPort',
           kind: 'debug',
-          goal: 'A deployment is running but the service can\'t reach it. Find both bugs: wrong selector AND wrong targetPort.',
+          goal: "A deployment is running but the service can't reach it. Find both bugs: wrong selector AND wrong targetPort.",
           commands: [
             'kubectl create deployment api-server --image=nginx:1.27 --port=80',
             'kubectl expose deployment api-server --port=80 --target-port=8080 --name=api-broken-svc',
@@ -914,13 +1268,16 @@ spec:
             'curl returns nginx welcome HTML',
           ],
           expectedOutcome: 'Service selector and targetPort fixed, curl succeeds.',
-          cleanup: ['kubectl delete deployment api-server --ignore-not-found', 'kubectl delete svc api-broken-svc --ignore-not-found'],
+          cleanup: [
+            'kubectl delete deployment api-server --ignore-not-found',
+            'kubectl delete svc api-broken-svc --ignore-not-found',
+          ],
         },
         {
           id: 'p8-m2-e2',
           title: 'Debug: Diagnose cross-namespace DNS failure',
           kind: 'debug',
-          goal: 'A pod can\'t resolve a service in another namespace using the short name. Fix the DNS name to use FQDN.',
+          goal: "A pod can't resolve a service in another namespace using the short name. Fix the DNS name to use FQDN.",
           commands: [
             'kubectl create namespace payments',
             'kubectl run payment-api --image=nginx:1.27 --namespace=payments',
@@ -929,10 +1286,11 @@ spec:
             'kubectl run client --image=busybox:1.36 --rm -it --restart=Never -- nslookup payment-svc.payments.svc.cluster.local',
           ],
           verify: [
-            'First nslookup shows "can\'t resolve \'payment-svc\'"',
+            "First nslookup shows \"can't resolve 'payment-svc'\"",
             'Second nslookup resolves successfully with the ClusterIP',
           ],
-          expectedOutcome: 'Cross-namespace DNS behavior understood: short name fails, FQDN succeeds.',
+          expectedOutcome:
+            'Cross-namespace DNS behavior understood: short name fails, FQDN succeeds.',
           cleanup: ['kubectl delete namespace payments --ignore-not-found'],
         },
         {
@@ -944,7 +1302,7 @@ spec:
             'kubectl run server --image=nginx:1.27 --labels=app=server',
             'kubectl expose pod server --port=80 --name=server-svc',
             'kubectl run client --image=curlimages/curl:8.7.1 --rm -it --restart=Never -- curl http://server-svc:80 -s -o /dev/null -w "%{http_code}"',
-            'kubectl apply -f - <<\'EOF\'\napiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: deny-all\n  namespace: default\nspec:\n  podSelector:\n    matchLabels:\n      app: server\n  policyTypes:\n  - Ingress\nEOF',
+            "kubectl apply -f - <<'EOF'\napiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: deny-all\n  namespace: default\nspec:\n  podSelector:\n    matchLabels:\n      app: server\n  policyTypes:\n  - Ingress\nEOF",
             'kubectl run client --image=curlimages/curl:8.7.1 --rm -it --restart=Never -- curl http://server-svc:80 --connect-timeout 5',
             'kubectl describe networkpolicy deny-all',
             'kubectl get networkpolicy',
@@ -956,8 +1314,13 @@ spec:
             'Second curl times out or fails (after deny-all NetworkPolicy)',
             'Third curl returns 200 again (after NetworkPolicy deleted)',
           ],
-          expectedOutcome: 'NetworkPolicy as traffic blocker identified and removed to restore connectivity.',
-          cleanup: ['kubectl delete pod server --ignore-not-found', 'kubectl delete svc server-svc --ignore-not-found', 'kubectl delete networkpolicy deny-all --ignore-not-found'],
+          expectedOutcome:
+            'NetworkPolicy as traffic blocker identified and removed to restore connectivity.',
+          cleanup: [
+            'kubectl delete pod server --ignore-not-found',
+            'kubectl delete svc server-svc --ignore-not-found',
+            'kubectl delete networkpolicy deny-all --ignore-not-found',
+          ],
         },
       ],
     },
@@ -967,7 +1330,8 @@ spec:
       id: 'p8-m3',
       slug: 'troubleshooting-nodes',
       title: 'Troubleshooting Nodes',
-      description: 'Diagnose NotReady nodes by reading kubelet logs, inspecting node conditions, and safely cordoning and draining problem nodes.',
+      description:
+        'Diagnose NotReady nodes by reading kubelet logs, inspecting node conditions, and safely cordoning and draining problem nodes.',
       duration: '75 min',
       difficulty: 'advanced',
       learningObjectives: [
@@ -1096,17 +1460,21 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
             'node-1      Ready      <none>          10d   v1.30.0',
             'node-2      NotReady   <none>          10d   v1.30.0',
           ],
-          explanation: 'node-2 is NotReady. This means the kubelet on node-2 has stopped reporting to the API server, or it is reporting a critical condition. All pods on node-2 will be evicted after 300 seconds.',
+          explanation:
+            'node-2 is NotReady. This means the kubelet on node-2 has stopped reporting to the API server, or it is reporting a critical condition. All pods on node-2 will be evicted after 300 seconds.',
           clusterState: {
             pods: [],
-            services: [], deployments: [], namespaces: ['default'],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
             events: ['node-2: Node node-2 status is now: NodeNotReady'],
           },
         },
         {
           id: 'p8-m3-s2',
           title: 'Read node conditions with describe',
-          instruction: 'Use kubectl describe node to see the exact conditions and events on the NotReady node.',
+          instruction:
+            'Use kubectl describe node to see the exact conditions and events on the NotReady node.',
           command: 'kubectl describe node node-2',
           output: [
             'Name:               node-2',
@@ -1124,13 +1492,16 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
             'Events:',
             '  Normal   NodeNotReady  2m    node-lifecycle-controller  Node node-2 status is now: NodeNotReady',
           ],
-          explanation: 'Ready=False with Reason "KubeletNotReady: kubelet stopped posting node status" — the kubelet process is dead or unreachable. This is the most common exam scenario. SSH to the node and restart kubelet.',
+          explanation:
+            'Ready=False with Reason "KubeletNotReady: kubelet stopped posting node status" — the kubelet process is dead or unreachable. This is the most common exam scenario. SSH to the node and restart kubelet.',
           clusterState: {
             pods: [],
-            services: [], deployments: [], namespaces: ['default'],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
             events: ['node-2: Ready=False — kubelet stopped posting node status'],
           },
-          tip: 'The LastHeartbeatTime tells you when the kubelet last checked in. If it\'s minutes ago, the kubelet died around that time.',
+          tip: "The LastHeartbeatTime tells you when the kubelet last checked in. If it's minutes ago, the kubelet died around that time.",
         },
         {
           id: 'p8-m3-s3',
@@ -1147,10 +1518,13 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
             '  failed to load Kubelet config file /var/lib/kubelet/config.yaml:',
             '  failed to load kubelet config: ...',
           ],
-          explanation: 'kubelet service is "failed" — it crashed on startup due to a bad config file. The log shows exactly which file and what error. Fix the config and restart.',
+          explanation:
+            'kubelet service is "failed" — it crashed on startup due to a bad config file. The log shows exactly which file and what error. Fix the config and restart.',
           clusterState: {
             pods: [],
-            services: [], deployments: [], namespaces: ['default'],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
             events: ['node-2: kubelet.service entered failed state'],
           },
           tip: 'journalctl -u kubelet -n 100 --no-pager gives you the last 100 log lines. This is your primary kubelet diagnostic tool on the CKA exam.',
@@ -1163,30 +1537,39 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
           output: [
             'Jun 05 09:55:00 node-2 kubelet[12345]: E0605 09:55:00 server.go:205]',
             '  "Failed to load kubelet config file" err="failed to load config file',
-            '  /var/lib/kubelet/config.yaml: couldn\'t get kubelet configuration',
+            "  /var/lib/kubelet/config.yaml: couldn't get kubelet configuration",
             '  from file: open /var/lib/kubelet/config.yaml: no such file or directory"',
           ],
-          explanation: 'The kubelet config file is missing. On kubeadm clusters, /var/lib/kubelet/config.yaml must exist. It may have been accidentally deleted, or this is a new node that was never properly configured.',
+          explanation:
+            'The kubelet config file is missing. On kubeadm clusters, /var/lib/kubelet/config.yaml must exist. It may have been accidentally deleted, or this is a new node that was never properly configured.',
           clusterState: {
             pods: [],
-            services: [], deployments: [], namespaces: ['default'], events: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
           },
         },
         {
           id: 'p8-m3-s5',
           title: 'Restart kubelet after fix',
-          instruction: 'After fixing the root cause (restoring config, fixing certificate, etc.), restart the kubelet service.',
-          command: 'ssh node-2 "systemctl daemon-reload && systemctl restart kubelet && systemctl status kubelet"',
+          instruction:
+            'After fixing the root cause (restoring config, fixing certificate, etc.), restart the kubelet service.',
+          command:
+            'ssh node-2 "systemctl daemon-reload && systemctl restart kubelet && systemctl status kubelet"',
           output: [
             '● kubelet.service - kubelet: The Kubernetes Node Agent',
             '     Active: active (running) since Thu 2026-06-05 10:05:00 UTC; 3s ago',
             'Jun 05 10:05:00 node-2 kubelet: I0605 10:05:00 server.go:425]',
             '  "Kubelet version" kubeletVersion="v1.30.0"',
           ],
-          explanation: 'kubelet is now active (running). Within 30-60 seconds, the node will report its status to the API server and transition back to Ready.',
+          explanation:
+            'kubelet is now active (running). Within 30-60 seconds, the node will report its status to the API server and transition back to Ready.',
           clusterState: {
             pods: [],
-            services: [], deployments: [], namespaces: ['default'],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
             events: ['node-2: kubelet restarted', 'node-2: Node node-2 status is now: NodeReady'],
           },
         },
@@ -1200,18 +1583,23 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
             'node-1      Ready    <none>          10d   v1.30.0',
             'node-2      Ready    <none>          10d   v1.30.0',
           ],
-          explanation: 'Both nodes are Ready. Kubernetes will now schedule new pods on node-2 again. Pods that were evicted during the downtime have already been rescheduled on node-1.',
+          explanation:
+            'Both nodes are Ready. Kubernetes will now schedule new pods on node-2 again. Pods that were evicted during the downtime have already been rescheduled on node-1.',
           clusterState: {
             pods: [],
-            services: [], deployments: [], namespaces: ['default'],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
             events: ['node-2: Node node-2 status is now: NodeReady'],
           },
         },
         {
           id: 'p8-m3-s7',
           title: 'Cordon a node for maintenance',
-          instruction: 'Before doing maintenance, cordon the node to prevent new pod scheduling. Then drain it to safely evict existing pods.',
-          command: 'kubectl cordon node-1 && kubectl drain node-1 --ignore-daemonsets --delete-emptydir-data',
+          instruction:
+            'Before doing maintenance, cordon the node to prevent new pod scheduling. Then drain it to safely evict existing pods.',
+          command:
+            'kubectl cordon node-1 && kubectl drain node-1 --ignore-daemonsets --delete-emptydir-data',
           output: [
             'node/node-1 cordoned',
             'node/node-1 already cordoned',
@@ -1220,10 +1608,13 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
             'pod/backend-pod evicted',
             'node/node-1 drained',
           ],
-          explanation: 'Cordon marks the node Unschedulable. Drain evicts all pods except DaemonSet pods (which cannot move). The --ignore-daemonsets flag is required or drain refuses to proceed.',
+          explanation:
+            'Cordon marks the node Unschedulable. Drain evicts all pods except DaemonSet pods (which cannot move). The --ignore-daemonsets flag is required or drain refuses to proceed.',
           clusterState: {
             pods: [],
-            services: [], deployments: [], namespaces: ['default'],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
             events: ['node-1: marked unschedulable', 'node-1: evicting pod default/backend-pod'],
           },
           tip: 'Always use both flags: --ignore-daemonsets --delete-emptydir-data. Forgetting either is a common exam mistake that causes drain to fail.',
@@ -1231,13 +1622,17 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
         {
           id: 'p8-m3-s8',
           title: 'Uncordon the node after maintenance',
-          instruction: 'After maintenance is complete, uncordon the node to allow scheduling again.',
+          instruction:
+            'After maintenance is complete, uncordon the node to allow scheduling again.',
           command: 'kubectl uncordon node-1',
           output: ['node/node-1 uncordoned'],
-          explanation: 'The node is Schedulable again. New pods will start being assigned to it. Existing pods that were evicted remain on node-2 — Kubernetes does not rebalance automatically.',
+          explanation:
+            'The node is Schedulable again. New pods will start being assigned to it. Existing pods that were evicted remain on node-2 — Kubernetes does not rebalance automatically.',
           clusterState: {
             pods: [],
-            services: [], deployments: [], namespaces: ['default'],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
             events: ['node-1: marked schedulable'],
           },
         },
@@ -1245,7 +1640,8 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
       quiz: [
         {
           id: 'p8-m3-q1',
-          question: 'A node shows NotReady. kubectl describe node shows Ready=False with message "kubelet stopped posting node status." What is the most likely cause and first action?',
+          question:
+            'A node shows NotReady. kubectl describe node shows Ready=False with message "kubelet stopped posting node status." What is the most likely cause and first action?',
           options: [
             'A NetworkPolicy is blocking the kubelet — delete all NetworkPolicies',
             'The kubelet process on the node has stopped — SSH to the node and run: systemctl restart kubelet',
@@ -1253,7 +1649,8 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
             'The etcd cluster lost quorum — restore etcd from backup',
           ],
           answer: 1,
-          explanation: '"kubelet stopped posting node status" means the kubelet heartbeat to the API server stopped. The kubelet is either dead or crashed. SSH to the node, run systemctl status kubelet and journalctl -u kubelet to diagnose, then restart the service.',
+          explanation:
+            '"kubelet stopped posting node status" means the kubelet heartbeat to the API server stopped. The kubelet is either dead or crashed. SSH to the node, run systemctl status kubelet and journalctl -u kubelet to diagnose, then restart the service.',
         },
         {
           id: 'p8-m3-q2',
@@ -1265,7 +1662,8 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
             'cat /var/log/kubelet.log | tail -50',
           ],
           answer: 1,
-          explanation: 'kubelet is a systemd service. Its logs are managed by journald. journalctl -u kubelet is the correct tool. -n 50 shows last 50 lines, --no-pager prevents paging in non-interactive sessions.',
+          explanation:
+            'kubelet is a systemd service. Its logs are managed by journald. journalctl -u kubelet is the correct tool. -n 50 shows last 50 lines, --no-pager prevents paging in non-interactive sessions.',
         },
         {
           id: 'p8-m3-q3',
@@ -1277,11 +1675,13 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
             'cordon is for worker nodes, drain is for control plane nodes',
           ],
           answer: 1,
-          explanation: 'cordon = mark node Unschedulable (no new pods, existing pods untouched). drain = cordon first, then evict all pods that can be evicted. Use cordon when you need to stop scheduling temporarily. Use drain before rebooting a node.',
+          explanation:
+            'cordon = mark node Unschedulable (no new pods, existing pods untouched). drain = cordon first, then evict all pods that can be evicted. Use cordon when you need to stop scheduling temporarily. Use drain before rebooting a node.',
         },
         {
           id: 'p8-m3-q4',
-          question: 'kubectl drain node-1 fails with: "cannot delete Pods not managed by ReplicationController, ReplicaSet, Job, DaemonSet or StatefulSet." What flag do you add?',
+          question:
+            'kubectl drain node-1 fails with: "cannot delete Pods not managed by ReplicationController, ReplicaSet, Job, DaemonSet or StatefulSet." What flag do you add?',
           options: [
             '--force (deletes pods even without a controller)',
             '--ignore-daemonsets',
@@ -1289,11 +1689,13 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
             '--grace-period=0',
           ],
           answer: 0,
-          explanation: 'Bare pods (not managed by any controller) block drain because there is no controller to recreate them elsewhere. --force tells drain to delete them anyway. Use with caution — the pod will be permanently deleted. In the CKA exam, this flag is often needed alongside --ignore-daemonsets.',
+          explanation:
+            'Bare pods (not managed by any controller) block drain because there is no controller to recreate them elsewhere. --force tells drain to delete them anyway. Use with caution — the pod will be permanently deleted. In the CKA exam, this flag is often needed alongside --ignore-daemonsets.',
         },
         {
           id: 'p8-m3-q5',
-          question: 'A node shows DiskPressure=True. What immediate effect does this have on pod scheduling?',
+          question:
+            'A node shows DiskPressure=True. What immediate effect does this have on pod scheduling?',
           options: [
             'Kubernetes taints the node with node.kubernetes.io/disk-pressure:NoSchedule, preventing new pod scheduling',
             'All pods on the node are immediately evicted',
@@ -1301,11 +1703,13 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
             'The node is marked NotReady and no longer accepts any traffic',
           ],
           answer: 0,
-          explanation: 'When disk pressure is detected, the node controller automatically taints the node with disk-pressure:NoSchedule. No new pods will schedule there. Existing pods continue running unless eviction thresholds are crossed (hard eviction). The node stays Ready but is Tainted.',
+          explanation:
+            'When disk pressure is detected, the node controller automatically taints the node with disk-pressure:NoSchedule. No new pods will schedule there. Existing pods continue running unless eviction thresholds are crossed (hard eviction). The node stays Ready but is Tainted.',
         },
         {
           id: 'p8-m3-q6',
-          question: 'After a node goes NotReady, how long does a pod with default tolerations have before it is evicted and rescheduled?',
+          question:
+            'After a node goes NotReady, how long does a pod with default tolerations have before it is evicted and rescheduled?',
           options: [
             'Immediately — pods on NotReady nodes are evicted right away',
             '60 seconds — the default pod termination grace period',
@@ -1313,7 +1717,8 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
             '600 seconds — the node eviction timeout',
           ],
           answer: 2,
-          explanation: 'When a node goes NotReady, Kubernetes taints it with node.kubernetes.io/not-ready:NoExecute. By default, pods tolerate this taint for 300 seconds (tolerationSeconds: 300). After 5 minutes without the node recovering, pods are evicted and rescheduled.',
+          explanation:
+            'When a node goes NotReady, Kubernetes taints it with node.kubernetes.io/not-ready:NoExecute. By default, pods tolerate this taint for 300 seconds (tolerationSeconds: 300). After 5 minutes without the node recovering, pods are evicted and rescheduled.',
         },
       ],
       exercises: [
@@ -1381,7 +1786,10 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
             'kubectl get nodes shows node-2 schedulable after taint removal',
           ],
           expectedOutcome: 'Taint and toleration interaction understood and demonstrated.',
-          cleanup: ['kubectl delete pod tainted-test tolerated-test --ignore-not-found', 'kubectl taint node node-2 maintenance- --ignore-not-found || true'],
+          cleanup: [
+            'kubectl delete pod tainted-test tolerated-test --ignore-not-found',
+            'kubectl taint node node-2 maintenance- --ignore-not-found || true',
+          ],
         },
       ],
     },
@@ -1391,7 +1799,8 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
       id: 'p8-m4',
       slug: 'troubleshooting-cluster',
       title: 'Troubleshooting the Control Plane',
-      description: 'Diagnose kube-apiserver, kube-scheduler, kube-controller-manager, and etcd failures. Fix broken static pod manifests and verify control plane health.',
+      description:
+        'Diagnose kube-apiserver, kube-scheduler, kube-controller-manager, and etcd failures. Fix broken static pod manifests and verify control plane health.',
       duration: '90 min',
       difficulty: 'advanced',
       learningObjectives: [
@@ -1399,7 +1808,7 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
         'Diagnose kube-apiserver failure: certificate error, wrong etcd endpoint, bad flag',
         'Check control plane component health via kubectl get componentstatuses and pod inspection',
         'Verify etcd health using etcdctl',
-        'Understand why kubectl can\'t connect to server and the diagnostic sequence',
+        "Understand why kubectl can't connect to server and the diagnostic sequence",
         'Fix a broken static pod manifest and verify control plane recovery',
       ],
       keyConcepts: [
@@ -1420,7 +1829,7 @@ When a node goes NotReady, Kubernetes taints it with \`node.kubernetes.io/not-re
         'Can diagnose kube-apiserver failure by checking: (1) pod status, (2) kubelet journal, (3) manifest file for typos',
         'Can run etcdctl endpoint health with correct TLS flags',
         'Can fix a broken static pod manifest and wait for kubelet to detect the change and restart the pod',
-        'Can check kubectl can\'t connect and identify whether the issue is API server or kubeconfig',
+        "Can check kubectl can't connect and identify whether the issue is API server or kubeconfig",
         'Can interpret kubectl get componentstatuses (or kubectl get cs) output',
       ],
       theory: `> 🧠 **Brain Warm-Up**: The kube-apiserver static pod manifest in /etc/kubernetes/manifests/kube-apiserver.yaml has a typo in the \`--etcd-servers\` flag. Walk through exactly what happens next — which component notices the error, what the error looks like, and what the observable symptoms are before you even run a single kubectl command.
@@ -1536,7 +1945,8 @@ ETCDCTL_API=3 etcdctl member list \\
         {
           id: 'p8-m4-s1',
           title: 'Explore control plane static pod manifests',
-          instruction: 'List the static pod manifests on the control plane node. These four files define the entire control plane.',
+          instruction:
+            'List the static pod manifests on the control plane node. These four files define the entire control plane.',
           command: 'ls -la /etc/kubernetes/manifests/',
           output: [
             'total 32',
@@ -1545,15 +1955,55 @@ ETCDCTL_API=3 etcdctl member list \\
             '-rw------- 1 root root 3384 Jun  5 09:00 kube-controller-manager.yaml',
             '-rw------- 1 root root 1463 Jun  5 09:00 kube-scheduler.yaml',
           ],
-          explanation: 'These four YAML files define the control plane. kubelet watches this directory. Edit any file and kubelet will recreate the corresponding pod within seconds. This is the first place to look during control plane incidents.',
+          explanation:
+            'These four YAML files define the control plane. kubelet watches this directory. Edit any file and kubelet will recreate the corresponding pod within seconds. This is the first place to look during control plane incidents.',
           clusterState: {
             pods: [
-              { id: 'kube-apiserver-cp', name: 'kube-apiserver-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 0 },
-              { id: 'kube-scheduler-cp', name: 'kube-scheduler-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-scheduler' }, image: 'registry.k8s.io/kube-scheduler:v1.30.0', restarts: 0 },
-              { id: 'kube-cm-cp', name: 'kube-controller-manager-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-controller-manager' }, image: 'registry.k8s.io/kube-controller-manager:v1.30.0', restarts: 0 },
-              { id: 'etcd-cp', name: 'etcd-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'etcd' }, image: 'registry.k8s.io/etcd:3.5.12-0', restarts: 0 },
+              {
+                id: 'kube-apiserver-cp',
+                name: 'kube-apiserver-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'kube-apiserver' },
+                image: 'registry.k8s.io/kube-apiserver:v1.30.0',
+                restarts: 0,
+              },
+              {
+                id: 'kube-scheduler-cp',
+                name: 'kube-scheduler-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'kube-scheduler' },
+                image: 'registry.k8s.io/kube-scheduler:v1.30.0',
+                restarts: 0,
+              },
+              {
+                id: 'kube-cm-cp',
+                name: 'kube-controller-manager-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'kube-controller-manager' },
+                image: 'registry.k8s.io/kube-controller-manager:v1.30.0',
+                restarts: 0,
+              },
+              {
+                id: 'etcd-cp',
+                name: 'etcd-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'etcd' },
+                image: 'registry.k8s.io/etcd:3.5.12-0',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: [],
             highlightedComponent: 'apiserver',
           },
           tip: 'On the CKA exam, control plane nodes in kubeadm clusters always have manifests in /etc/kubernetes/manifests/. You will often need to fix a typo or wrong path in one of these files.',
@@ -1561,8 +2011,10 @@ ETCDCTL_API=3 etcdctl member list \\
         {
           id: 'p8-m4-s2',
           title: 'Inspect kube-apiserver manifest',
-          instruction: 'Read the kube-apiserver static pod manifest. Understand the key flags: --etcd-servers, --tls-cert-file, --service-cluster-ip-range.',
-          command: 'grep -E "etcd-servers|tls-cert|advertise-address|port" /etc/kubernetes/manifests/kube-apiserver.yaml',
+          instruction:
+            'Read the kube-apiserver static pod manifest. Understand the key flags: --etcd-servers, --tls-cert-file, --service-cluster-ip-range.',
+          command:
+            'grep -E "etcd-servers|tls-cert|advertise-address|port" /etc/kubernetes/manifests/kube-apiserver.yaml',
           output: [
             '    - --advertise-address=10.0.0.10',
             '    - --etcd-servers=https://127.0.0.1:2379',
@@ -1570,27 +2022,54 @@ ETCDCTL_API=3 etcdctl member list \\
             '    - --tls-private-key-file=/etc/kubernetes/pki/apiserver.key',
             '    - --secure-port=6443',
           ],
-          explanation: 'Key flags to know: --etcd-servers (must match the etcd listening address), --tls-cert-file (certificate path — if wrong, apiserver fails to start), --advertise-address (control plane node IP). A typo in any of these is a common exam scenario.',
+          explanation:
+            'Key flags to know: --etcd-servers (must match the etcd listening address), --tls-cert-file (certificate path — if wrong, apiserver fails to start), --advertise-address (control plane node IP). A typo in any of these is a common exam scenario.',
           clusterState: {
             pods: [
-              { id: 'kube-apiserver-cp', name: 'kube-apiserver-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 0 },
+              {
+                id: 'kube-apiserver-cp',
+                name: 'kube-apiserver-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'kube-apiserver' },
+                image: 'registry.k8s.io/kube-apiserver:v1.30.0',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: [],
             highlightedComponent: 'apiserver',
           },
         },
         {
           id: 'p8-m4-s3',
           title: 'Simulate a broken kube-apiserver manifest',
-          instruction: 'Introduce a typo in the --etcd-servers flag (a common exam scenario). This will cause kube-apiserver to crash.',
-          command: 'cp /etc/kubernetes/manifests/kube-apiserver.yaml /tmp/kube-apiserver.yaml.bak\nsed -i \'s/--etcd-servers=https:\\/\\/127.0.0.1:2379/--etcd-serverss=https:\\/\\/127.0.0.1:2379/\' /etc/kubernetes/manifests/kube-apiserver.yaml',
+          instruction:
+            'Introduce a typo in the --etcd-servers flag (a common exam scenario). This will cause kube-apiserver to crash.',
+          command:
+            "cp /etc/kubernetes/manifests/kube-apiserver.yaml /tmp/kube-apiserver.yaml.bak\nsed -i 's/--etcd-servers=https:\\/\\/127.0.0.1:2379/--etcd-serverss=https:\\/\\/127.0.0.1:2379/' /etc/kubernetes/manifests/kube-apiserver.yaml",
           output: ['(no output — file edited in place)'],
-          explanation: '--etcd-servers was changed to --etcd-serverss (double s). This is an unknown flag. kube-apiserver will fail to start. kubelet will try to restart it repeatedly.',
+          explanation:
+            '--etcd-servers was changed to --etcd-serverss (double s). This is an unknown flag. kube-apiserver will fail to start. kubelet will try to restart it repeatedly.',
           clusterState: {
             pods: [
-              { id: 'kube-apiserver-cp', name: 'kube-apiserver-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Failed', labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 3 },
+              {
+                id: 'kube-apiserver-cp',
+                name: 'kube-apiserver-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Failed',
+                labels: { component: 'kube-apiserver' },
+                image: 'registry.k8s.io/kube-apiserver:v1.30.0',
+                restarts: 3,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
             events: ['kube-apiserver-controlplane: Failed to start: unknown flag: --etcd-serverss'],
             highlightedComponent: 'apiserver',
           },
@@ -1599,17 +2078,30 @@ ETCDCTL_API=3 etcdctl member list \\
         {
           id: 'p8-m4-s4',
           title: 'Observe kubectl failure when API server is down',
-          instruction: 'After the apiserver crashes, all kubectl commands fail. This is the symptom you need to recognize.',
+          instruction:
+            'After the apiserver crashes, all kubectl commands fail. This is the symptom you need to recognize.',
           command: 'kubectl get nodes',
           output: [
             'The connection to the server 127.0.0.1:6443 was refused - did you specify the right host or port?',
           ],
-          explanation: '"Connection refused" on port 6443 = kube-apiserver is not running or not listening. kubectl talks exclusively to the API server — if it\'s down, no kubectl commands work. On the control plane node, use crictl or journalctl to diagnose without kubectl.',
+          explanation:
+            '"Connection refused" on port 6443 = kube-apiserver is not running or not listening. kubectl talks exclusively to the API server — if it\'s down, no kubectl commands work. On the control plane node, use crictl or journalctl to diagnose without kubectl.',
           clusterState: {
             pods: [
-              { id: 'kube-apiserver-cp', name: 'kube-apiserver-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Failed', labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 5 },
+              {
+                id: 'kube-apiserver-cp',
+                name: 'kube-apiserver-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Failed',
+                labels: { component: 'kube-apiserver' },
+                image: 'registry.k8s.io/kube-apiserver:v1.30.0',
+                restarts: 5,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
             events: ['kube-apiserver: cannot listen on TCP: flag unknown: --etcd-serverss'],
             highlightedComponent: 'apiserver',
           },
@@ -1617,8 +2109,10 @@ ETCDCTL_API=3 etcdctl member list \\
         {
           id: 'p8-m4-s5',
           title: 'Diagnose via crictl and journalctl (no kubectl)',
-          instruction: 'When kubectl is unavailable, use crictl (container runtime) and journalctl (kubelet logs) to diagnose the issue.',
-          command: 'crictl ps -a | grep apiserver\njournalctl -u kubelet -n 30 --no-pager | grep -i "apiserver\\|error"',
+          instruction:
+            'When kubectl is unavailable, use crictl (container runtime) and journalctl (kubelet logs) to diagnose the issue.',
+          command:
+            'crictl ps -a | grep apiserver\njournalctl -u kubelet -n 30 --no-pager | grep -i "apiserver\\|error"',
           output: [
             'CONTAINER   IMAGE                CREATED   STATE    NAME              ATTEMPT',
             'abc123def   kube-apiserver:...   5s ago    Exited   kube-apiserver    6',
@@ -1626,12 +2120,25 @@ ETCDCTL_API=3 etcdctl member list \\
             'Jun 05 10:15:00 cp kubelet[999]: E0605 kube-apiserver[12345]:',
             '  unknown flag: --etcd-serverss',
           ],
-          explanation: 'crictl ps -a shows all containers including exited ones (like kubectl get pods but without the API server). journalctl -u kubelet shows why the container keeps failing. The error "unknown flag: --etcd-serverss" points directly to the manifest typo.',
+          explanation:
+            'crictl ps -a shows all containers including exited ones (like kubectl get pods but without the API server). journalctl -u kubelet shows why the container keeps failing. The error "unknown flag: --etcd-serverss" points directly to the manifest typo.',
           clusterState: {
             pods: [
-              { id: 'kube-apiserver-cp', name: 'kube-apiserver-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Failed', labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 6 },
+              {
+                id: 'kube-apiserver-cp',
+                name: 'kube-apiserver-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Failed',
+                labels: { component: 'kube-apiserver' },
+                image: 'registry.k8s.io/kube-apiserver:v1.30.0',
+                restarts: 6,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: [],
             highlightedComponent: 'apiserver',
           },
           tip: 'crictl is your fallback when kubectl is unavailable. On kubeadm clusters: crictl ps, crictl logs <container-id>, crictl inspect <container-id>.',
@@ -1639,15 +2146,29 @@ ETCDCTL_API=3 etcdctl member list \\
         {
           id: 'p8-m4-s6',
           title: 'Fix the broken manifest',
-          instruction: 'Correct the typo in the kube-apiserver manifest. kubelet will detect the change and recreate the pod automatically.',
-          command: 'sed -i \'s/--etcd-serverss=/--etcd-servers=/\' /etc/kubernetes/manifests/kube-apiserver.yaml',
+          instruction:
+            'Correct the typo in the kube-apiserver manifest. kubelet will detect the change and recreate the pod automatically.',
+          command:
+            "sed -i 's/--etcd-serverss=/--etcd-servers=/' /etc/kubernetes/manifests/kube-apiserver.yaml",
           output: ['(no output — file edited in place)'],
-          explanation: 'The typo is fixed. kubelet watches /etc/kubernetes/manifests/ via inotify. Within seconds it will detect the change and terminate the failing container, then start a new one with the corrected manifest.',
+          explanation:
+            'The typo is fixed. kubelet watches /etc/kubernetes/manifests/ via inotify. Within seconds it will detect the change and terminate the failing container, then start a new one with the corrected manifest.',
           clusterState: {
             pods: [
-              { id: 'kube-apiserver-cp', name: 'kube-apiserver-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Pending', labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 0 },
+              {
+                id: 'kube-apiserver-cp',
+                name: 'kube-apiserver-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Pending',
+                labels: { component: 'kube-apiserver' },
+                image: 'registry.k8s.io/kube-apiserver:v1.30.0',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
             events: ['kube-apiserver-controlplane: kubelet recreating pod after manifest change'],
             highlightedComponent: 'apiserver',
           },
@@ -1655,7 +2176,8 @@ ETCDCTL_API=3 etcdctl member list \\
         {
           id: 'p8-m4-s7',
           title: 'Wait for kube-apiserver recovery',
-          instruction: 'Watch the kube-apiserver pod recover. It takes 30-60 seconds for the pod to start and begin accepting requests.',
+          instruction:
+            'Watch the kube-apiserver pod recover. It takes 30-60 seconds for the pod to start and begin accepting requests.',
           command: 'watch -n2 "kubectl get pods -n kube-system | grep apiserver"',
           output: [
             'NAME                              READY   STATUS    RESTARTS   AGE',
@@ -1663,15 +2185,54 @@ ETCDCTL_API=3 etcdctl member list \\
             '...',
             'kube-apiserver-controlplane       1/1     Running   0          45s',
           ],
-          explanation: 'The pod transitions from Pending → ContainerCreating → Running. Once Running, kubectl works again cluster-wide.',
+          explanation:
+            'The pod transitions from Pending → ContainerCreating → Running. Once Running, kubectl works again cluster-wide.',
           clusterState: {
             pods: [
-              { id: 'kube-apiserver-cp', name: 'kube-apiserver-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 0 },
-              { id: 'kube-scheduler-cp', name: 'kube-scheduler-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-scheduler' }, image: 'registry.k8s.io/kube-scheduler:v1.30.0', restarts: 0 },
-              { id: 'kube-cm-cp', name: 'kube-controller-manager-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-controller-manager' }, image: 'registry.k8s.io/kube-controller-manager:v1.30.0', restarts: 0 },
-              { id: 'etcd-cp', name: 'etcd-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'etcd' }, image: 'registry.k8s.io/etcd:3.5.12-0', restarts: 0 },
+              {
+                id: 'kube-apiserver-cp',
+                name: 'kube-apiserver-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'kube-apiserver' },
+                image: 'registry.k8s.io/kube-apiserver:v1.30.0',
+                restarts: 0,
+              },
+              {
+                id: 'kube-scheduler-cp',
+                name: 'kube-scheduler-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'kube-scheduler' },
+                image: 'registry.k8s.io/kube-scheduler:v1.30.0',
+                restarts: 0,
+              },
+              {
+                id: 'kube-cm-cp',
+                name: 'kube-controller-manager-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'kube-controller-manager' },
+                image: 'registry.k8s.io/kube-controller-manager:v1.30.0',
+                restarts: 0,
+              },
+              {
+                id: 'etcd-cp',
+                name: 'etcd-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'etcd' },
+                image: 'registry.k8s.io/etcd:3.5.12-0',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
             events: ['kube-apiserver-controlplane: Started container kube-apiserver'],
             highlightedComponent: 'apiserver',
           },
@@ -1680,17 +2241,32 @@ ETCDCTL_API=3 etcdctl member list \\
         {
           id: 'p8-m4-s8',
           title: 'Check etcd health',
-          instruction: 'Verify etcd is healthy using etcdctl. This requires TLS credentials from /etc/kubernetes/pki/etcd/.',
-          command: 'ETCDCTL_API=3 etcdctl endpoint health \\\n  --endpoints=https://127.0.0.1:2379 \\\n  --cacert=/etc/kubernetes/pki/etcd/ca.crt \\\n  --cert=/etc/kubernetes/pki/etcd/server.crt \\\n  --key=/etc/kubernetes/pki/etcd/server.key',
+          instruction:
+            'Verify etcd is healthy using etcdctl. This requires TLS credentials from /etc/kubernetes/pki/etcd/.',
+          command:
+            'ETCDCTL_API=3 etcdctl endpoint health \\\n  --endpoints=https://127.0.0.1:2379 \\\n  --cacert=/etc/kubernetes/pki/etcd/ca.crt \\\n  --cert=/etc/kubernetes/pki/etcd/server.crt \\\n  --key=/etc/kubernetes/pki/etcd/server.key',
           output: [
             'https://127.0.0.1:2379 is healthy: successfully committed proposal: took = 2.345ms',
           ],
-          explanation: '"is healthy" confirms etcd is running, accepting proposals, and committing them to the Raft log. You must provide all three TLS flags — etcd requires mTLS. These cert paths are always in /etc/kubernetes/pki/etcd/ on kubeadm clusters.',
+          explanation:
+            '"is healthy" confirms etcd is running, accepting proposals, and committing them to the Raft log. You must provide all three TLS flags — etcd requires mTLS. These cert paths are always in /etc/kubernetes/pki/etcd/ on kubeadm clusters.',
           clusterState: {
             pods: [
-              { id: 'etcd-cp', name: 'etcd-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'etcd' }, image: 'registry.k8s.io/etcd:3.5.12-0', restarts: 0 },
+              {
+                id: 'etcd-cp',
+                name: 'etcd-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'etcd' },
+                image: 'registry.k8s.io/etcd:3.5.12-0',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: [],
             highlightedComponent: 'etcd',
           },
           tip: 'Memorize the etcdctl health check command for the CKA exam. Set ETCDCTL_API=3 first — without it, etcdctl defaults to v2 API which behaves differently.',
@@ -1699,7 +2275,8 @@ ETCDCTL_API=3 etcdctl member list \\
       quiz: [
         {
           id: 'p8-m4-q1',
-          question: 'kubectl get nodes returns "The connection to the server 127.0.0.1:6443 was refused." What is the first thing to check?',
+          question:
+            'kubectl get nodes returns "The connection to the server 127.0.0.1:6443 was refused." What is the first thing to check?',
           options: [
             'Check if the cluster nodes are online with ping',
             'Verify the kube-apiserver static pod manifest has no typos and the apiserver container is running',
@@ -1707,11 +2284,13 @@ ETCDCTL_API=3 etcdctl member list \\
             'Restart the etcd service: systemctl restart etcd',
           ],
           answer: 1,
-          explanation: 'Port 6443 is where kube-apiserver listens. "Connection refused" = kube-apiserver is not running or not listening on that port. Check: crictl ps | grep apiserver, then journalctl -u kubelet | grep apiserver, then inspect /etc/kubernetes/manifests/kube-apiserver.yaml.',
+          explanation:
+            'Port 6443 is where kube-apiserver listens. "Connection refused" = kube-apiserver is not running or not listening on that port. Check: crictl ps | grep apiserver, then journalctl -u kubelet | grep apiserver, then inspect /etc/kubernetes/manifests/kube-apiserver.yaml.',
         },
         {
           id: 'p8-m4-q2',
-          question: 'You fix a typo in /etc/kubernetes/manifests/kube-apiserver.yaml. What action do you need to take next?',
+          question:
+            'You fix a typo in /etc/kubernetes/manifests/kube-apiserver.yaml. What action do you need to take next?',
           options: [
             'Run: kubectl apply -f /etc/kubernetes/manifests/kube-apiserver.yaml',
             'Run: systemctl restart kubelet to trigger the manifest reload',
@@ -1719,11 +2298,13 @@ ETCDCTL_API=3 etcdctl member list \\
             'Run: kubectl delete pod kube-apiserver -n kube-system to trigger recreation',
           ],
           answer: 2,
-          explanation: 'kubelet uses inotify to watch /etc/kubernetes/manifests/. Any change to a file triggers automatic pod deletion and recreation with the new manifest. You do NOT need to restart kubelet or use kubectl (which may not be available if apiserver was down).',
+          explanation:
+            'kubelet uses inotify to watch /etc/kubernetes/manifests/. Any change to a file triggers automatic pod deletion and recreation with the new manifest. You do NOT need to restart kubelet or use kubectl (which may not be available if apiserver was down).',
         },
         {
           id: 'p8-m4-q3',
-          question: 'New pods are being created but they stay Pending forever without any FailedScheduling events. kube-apiserver is running. What component is likely failing?',
+          question:
+            'New pods are being created but they stay Pending forever without any FailedScheduling events. kube-apiserver is running. What component is likely failing?',
           options: [
             'etcd — pods cannot be written to the datastore',
             'kube-scheduler — pods are accepted by apiserver but never assigned to a node',
@@ -1731,7 +2312,8 @@ ETCDCTL_API=3 etcdctl member list \\
             'CoreDNS — pods cannot resolve hostnames',
           ],
           answer: 1,
-          explanation: 'kube-scheduler watches for unscheduled pods (spec.nodeName is empty) and assigns them to nodes. If the scheduler is down, pods are accepted by the API server and stored in etcd, but never get a nodeName assigned — they stay Pending forever with no scheduling events.',
+          explanation:
+            'kube-scheduler watches for unscheduled pods (spec.nodeName is empty) and assigns them to nodes. If the scheduler is down, pods are accepted by the API server and stored in etcd, but never get a nodeName assigned — they stay Pending forever with no scheduling events.',
         },
         {
           id: 'p8-m4-q4',
@@ -1743,11 +2325,13 @@ ETCDCTL_API=3 etcdctl member list \\
             'kubectl exec -n kube-system etcd-controlplane -- etcdctl endpoint health',
           ],
           answer: 1,
-          explanation: 'etcdctl requires: ETCDCTL_API=3 (v3 API), --endpoints pointing to the etcd URL, and all three TLS flags. The cert paths on kubeadm clusters are always in /etc/kubernetes/pki/etcd/. Option 3 is v2 API syntax. Option 4 is missing the TLS flags.',
+          explanation:
+            'etcdctl requires: ETCDCTL_API=3 (v3 API), --endpoints pointing to the etcd URL, and all three TLS flags. The cert paths on kubeadm clusters are always in /etc/kubernetes/pki/etcd/. Option 3 is v2 API syntax. Option 4 is missing the TLS flags.',
         },
         {
           id: 'p8-m4-q5',
-          question: 'kube-controller-manager is not running. Which immediate operational impact does this have?',
+          question:
+            'kube-controller-manager is not running. Which immediate operational impact does this have?',
           options: [
             'kubectl commands stop working immediately',
             'Existing pods keep running but new Deployments, ReplicaSets, and other controllers stop creating/replacing pods',
@@ -1755,11 +2339,13 @@ ETCDCTL_API=3 etcdctl member list \\
             'DNS resolution stops working cluster-wide',
           ],
           answer: 1,
-          explanation: 'The controller manager runs all built-in controllers (Deployment, ReplicaSet, Job, etc.). Without it, controllers don\'t run reconciliation loops. Existing pods continue running (kubelet manages them), but if a pod dies or a Deployment is scaled, no new pods are created. The cluster becomes partially functional.',
+          explanation:
+            "The controller manager runs all built-in controllers (Deployment, ReplicaSet, Job, etc.). Without it, controllers don't run reconciliation loops. Existing pods continue running (kubelet manages them), but if a pod dies or a Deployment is scaled, no new pods are created. The cluster becomes partially functional.",
         },
         {
           id: 'p8-m4-q6',
-          question: 'When kubectl is unavailable because the API server is down, which tool can you use to inspect containers on the control plane node?',
+          question:
+            'When kubectl is unavailable because the API server is down, which tool can you use to inspect containers on the control plane node?',
           options: [
             'docker ps — Docker is always available on Kubernetes nodes',
             'kubectl --local — a local mode that works without the API server',
@@ -1767,7 +2353,8 @@ ETCDCTL_API=3 etcdctl member list \\
             'podman ps — Podman is the default runtime in Kubernetes 1.30',
           ],
           answer: 2,
-          explanation: 'crictl is the CRI (Container Runtime Interface) CLI. It communicates directly with containerd or CRI-O without needing the API server. It supports: crictl ps (list containers), crictl logs <id> (get logs), crictl inspect <id> (inspect container). It is available on all kubeadm cluster nodes.',
+          explanation:
+            'crictl is the CRI (Container Runtime Interface) CLI. It communicates directly with containerd or CRI-O without needing the API server. It supports: crictl ps (list containers), crictl logs <id> (get logs), crictl inspect <id> (inspect container). It is available on all kubeadm cluster nodes.',
         },
       ],
       exercises: [
@@ -1791,7 +2378,8 @@ ETCDCTL_API=3 etcdctl member list \\
             'After fix: kubectl get pods -n kube-system shows kube-scheduler-controlplane Running 1/1',
             'kubectl get pods shows new pods get scheduled (not stuck Pending)',
           ],
-          expectedOutcome: 'Broken scheduler manifest identified, image tag corrected, scheduler recovered.',
+          expectedOutcome:
+            'Broken scheduler manifest identified, image tag corrected, scheduler recovered.',
           cleanup: [],
         },
         {
@@ -1813,7 +2401,8 @@ ETCDCTL_API=3 etcdctl member list \\
             'etcdctl endpoint health shows "is healthy"',
             'smoke-test pod schedules, runs, and exits successfully',
           ],
-          expectedOutcome: 'Full control plane health verified across API server, scheduler, controller manager, and etcd.',
+          expectedOutcome:
+            'Full control plane health verified across API server, scheduler, controller manager, and etcd.',
           cleanup: ['kubectl delete pod smoke-test --ignore-not-found'],
         },
         {
@@ -1836,7 +2425,8 @@ ETCDCTL_API=3 etcdctl member list \\
             'journalctl shows apiserver failing to connect to etcd',
             'After fix: kubectl get nodes shows cluster nodes Ready',
           ],
-          expectedOutcome: 'kube-apiserver etcd connectivity failure diagnosed via etcdctl and kubelet logs, manifest corrected.',
+          expectedOutcome:
+            'kube-apiserver etcd connectivity failure diagnosed via etcdctl and kubelet logs, manifest corrected.',
           cleanup: [],
         },
       ],

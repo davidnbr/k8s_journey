@@ -9,8 +9,8 @@ export type ReviewIntervalIndex = 0 | 1 | 2 | 3
 export type ModuleStatus = 'not_started' | 'in_progress' | 'completed'
 
 export interface ReviewState {
-  completedAt: number        // unix ms when module was first completed
-  reviewsDone: number[]      // unix ms timestamps of each completed review interval
+  completedAt: number // unix ms when module was first completed
+  reviewsDone: number[] // unix ms timestamps of each completed review interval
 }
 
 export interface DueReview {
@@ -20,8 +20,8 @@ export interface DueReview {
   phaseTitle: string
   intervalIndex: ReviewIntervalIndex
   daysInterval: number
-  dueAt: number              // unix ms
-  overdueDays: number        // 0 = due today, >0 = overdue
+  dueAt: number // unix ms
+  overdueDays: number // 0 = due today, >0 = overdue
 }
 
 function statusKey(phaseSlug: string, moduleSlug: string) {
@@ -34,7 +34,11 @@ function reviewKey(phaseSlug: string, moduleSlug: string) {
 
 // ─── Module status ────────────────────────────────────────────────────────────
 
-const MODULE_STATUSES: ReadonlySet<string> = new Set<ModuleStatus>(['not_started', 'in_progress', 'completed'])
+const MODULE_STATUSES: ReadonlySet<string> = new Set<ModuleStatus>([
+  'not_started',
+  'in_progress',
+  'completed',
+])
 
 export function getModuleStatus(phaseSlug: string, moduleSlug: string): ModuleStatus {
   if (typeof window === 'undefined') return 'not_started'
@@ -69,7 +73,11 @@ function getReviewState(phaseSlug: string, moduleSlug: string): ReviewState | nu
   if (typeof window === 'undefined') return null
   const raw = localStorage.getItem(reviewKey(phaseSlug, moduleSlug))
   if (!raw) return null
-  try { return JSON.parse(raw) as ReviewState } catch { return null }
+  try {
+    return JSON.parse(raw) as ReviewState
+  } catch {
+    return null
+  }
 }
 
 function saveReviewState(phaseSlug: string, moduleSlug: string, state: ReviewState) {
@@ -78,19 +86,33 @@ function saveReviewState(phaseSlug: string, moduleSlug: string, state: ReviewSta
   window.dispatchEvent(new Event('k8s-progress-change'))
 }
 
-export function markReviewDone(phaseSlug: string, moduleSlug: string, intervalIndex: ReviewIntervalIndex) {
+export function markReviewDone(
+  phaseSlug: string,
+  moduleSlug: string,
+  intervalIndex: ReviewIntervalIndex
+) {
   // Seed review state if the module was never marked completed (stale UI / cleared storage)
   // so the action isn't a silent no-op.
-  const state = getReviewState(phaseSlug, moduleSlug) ?? { completedAt: Date.now(), reviewsDone: [] }
+  const state = getReviewState(phaseSlug, moduleSlug) ?? {
+    completedAt: Date.now(),
+    reviewsDone: [],
+  }
   const updated: ReviewState = {
     ...state,
-    reviewsDone: [...state.reviewsDone.slice(0, intervalIndex), Date.now(), ...state.reviewsDone.slice(intervalIndex + 1)],
+    reviewsDone: [
+      ...state.reviewsDone.slice(0, intervalIndex),
+      Date.now(),
+      ...state.reviewsDone.slice(intervalIndex + 1),
+    ],
   }
   saveReviewState(phaseSlug, moduleSlug, updated)
 }
 
 // Returns the next review interval index that is due, or null if all done
-export function getNextReviewDue(phaseSlug: string, moduleSlug: string): {
+export function getNextReviewDue(
+  phaseSlug: string,
+  moduleSlug: string
+): {
   intervalIndex: ReviewIntervalIndex
   dueAt: number
   overdueDays: number
@@ -102,15 +124,18 @@ export function getNextReviewDue(phaseSlug: string, moduleSlug: string): {
   const MS_PER_DAY = 86_400_000
 
   for (let i = 0; i < REVIEW_INTERVALS.length; i++) {
-    if (state.reviewsDone[i]) continue  // already done
+    if (state.reviewsDone[i]) continue // already done
     const dueAt = state.completedAt + REVIEW_INTERVALS[i] * MS_PER_DAY
     const overdueDays = Math.max(0, Math.floor((now - dueAt) / MS_PER_DAY))
     return { intervalIndex: i as ReviewIntervalIndex, dueAt, overdueDays }
   }
-  return null  // all reviews completed
+  return null // all reviews completed
 }
 
-export function getReviewProgress(phaseSlug: string, moduleSlug: string): {
+export function getReviewProgress(
+  phaseSlug: string,
+  moduleSlug: string
+): {
   done: number
   total: number
 } {

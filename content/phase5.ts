@@ -1,13 +1,12 @@
 import type { Phase } from '@/lib/types'
 
-
-
 const phase5: Phase = {
   id: 'phase-5',
   slug: 'phase-5',
   title: 'Advanced Kubernetes: Helm, CRDs & Observability',
   shortTitle: 'Advanced',
-  description: 'Package and deploy with Helm, extend Kubernetes with CRDs and Operators, and build observability into your cluster with metrics, logging, and tracing.',
+  description:
+    'Package and deploy with Helm, extend Kubernetes with CRDs and Operators, and build observability into your cluster with metrics, logging, and tracing.',
   weeks: 'Week 9–12',
   hours: '~19 hours',
   color: 'text-rose-400',
@@ -18,7 +17,8 @@ const phase5: Phase = {
       id: 'p5-m1',
       slug: 'helm',
       title: 'Helm: Kubernetes Package Manager',
-      description: 'Package, version, and deploy Kubernetes applications with Helm charts — the apt/brew for your cluster.',
+      description:
+        'Package, version, and deploy Kubernetes applications with Helm charts — the apt/brew for your cluster.',
       duration: '75 min',
       difficulty: 'intermediate',
       theory: `> 🧠 **Brain Warm-Up**: If Helm v3 stores release state directly inside the cluster as Kubernetes Secrets (and lacks a server-side daemon like Helm v2's Tiller), how does it handle concurrent deployments to the same release without causing race conditions or state corruption?
@@ -132,20 +132,25 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
           id: 'p5-m1-s1',
           title: 'Add a Helm repository',
           instruction: 'Add the ingress-nginx Helm repository and update the local chart index.',
-          command: 'helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx && helm repo update',
+          command:
+            'helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx && helm repo update',
           output: [
             '"ingress-nginx" has been added to your repositories',
             'Hang tight while we grab the latest from your chart repositories...',
             '...Successfully got an update from the "ingress-nginx" chart repository',
             'Update Complete. Happy Helming!',
           ],
-          explanation: 'Helm repositories are HTTP servers that serve a chart index (index.yaml) and the packaged chart tarballs. Adding a repo caches the index locally. The ingress-nginx repo is maintained by the Kubernetes project itself and contains the NGINX Ingress Controller chart.',
+          explanation:
+            'Helm repositories are HTTP servers that serve a chart index (index.yaml) and the packaged chart tarballs. Adding a repo caches the index locally. The ingress-nginx repo is maintained by the Kubernetes project itself and contains the NGINX Ingress Controller chart.',
           clusterState: {
             pods: [],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: ['Helm repo ingress-nginx added', 'Chart index updated from kubernetes.github.io'],
+            events: [
+              'Helm repo ingress-nginx added',
+              'Chart index updated from kubernetes.github.io',
+            ],
             highlightedComponent: 'apiserver',
           },
           tip: 'Artifact Hub (artifacthub.io) is the main discovery site for Helm charts. Find the exact repo add command for any chart there.',
@@ -159,7 +164,8 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'NAME                            CHART VERSION   APP VERSION   DESCRIPTION',
             'ingress-nginx/ingress-nginx     4.11.3          1.11.3        Ingress controller for Kubernetes using NGINX...',
           ],
-          explanation: 'The search output shows the chart name, chart version (the Helm package version), and app version (the underlying software version). These are independent — a chart at version 4.11.3 may package nginx 1.11.3. You can pin a specific chart version with --version on helm install.',
+          explanation:
+            'The search output shows the chart name, chart version (the Helm package version), and app version (the underlying software version). These are independent — a chart at version 4.11.3 may package nginx 1.11.3. You can pin a specific chart version with --version on helm install.',
           clusterState: {
             pods: [],
             services: [],
@@ -172,7 +178,8 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
         {
           id: 'p5-m1-s3',
           title: 'Inspect default values',
-          instruction: 'Preview the configurable values for the ingress-nginx chart before installing.',
+          instruction:
+            'Preview the configurable values for the ingress-nginx chart before installing.',
           command: 'helm show values ingress-nginx/ingress-nginx | head -40',
           output: [
             '## Default values for ingress-nginx.',
@@ -194,13 +201,16 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             '      http: 80',
             '      https: 443',
           ],
-          explanation: 'values.yaml is the contract between the chart author and the operator. Any field here can be overridden with --set (for single values) or -f myvalues.yaml (for many overrides). The chart templates reference these values via {{ .Values.<path> }}. Reading values before installing tells you exactly what you can customize.',
+          explanation:
+            'values.yaml is the contract between the chart author and the operator. Any field here can be overridden with --set (for single values) or -f myvalues.yaml (for many overrides). The chart templates reference these values via {{ .Values.<path> }}. Reading values before installing tells you exactly what you can customize.',
           clusterState: {
             pods: [],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: ['Inspecting ingress-nginx chart values (controller.replicaCount, service.type, resources...)'],
+            events: [
+              'Inspecting ingress-nginx chart values (controller.replicaCount, service.type, resources...)',
+            ],
             highlightedComponent: 'apiserver',
           },
           tip: 'Save a full values dump with helm show values ingress-nginx/ingress-nginx > my-values.yaml, edit it, then pass -f my-values.yaml on install. This gives you a version-controlled override file.',
@@ -208,8 +218,10 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
         {
           id: 'p5-m1-s4',
           title: 'Install the chart',
-          instruction: 'Install ingress-nginx as a release named my-ingress with 2 controller replicas.',
-          command: 'helm install my-ingress ingress-nginx/ingress-nginx --set controller.replicaCount=2 -n ingress-nginx --create-namespace',
+          instruction:
+            'Install ingress-nginx as a release named my-ingress with 2 controller replicas.',
+          command:
+            'helm install my-ingress ingress-nginx/ingress-nginx --set controller.replicaCount=2 -n ingress-nginx --create-namespace',
           output: [
             'NAME: my-ingress',
             'LAST DEPLOYED: Sun Mar 22 10:00:00 2026',
@@ -220,19 +232,53 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'NOTES:',
             'The ingress-nginx controller has been installed.',
             'Get the application URL by running these commands:',
-            '  export SERVICE_IP=$(kubectl get svc my-ingress-ingress-nginx-controller -n ingress-nginx -o jsonpath=\'{.status.loadBalancer.ingress[0].ip}\')',
+            "  export SERVICE_IP=$(kubectl get svc my-ingress-ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')",
           ],
-          explanation: 'Helm rendered all chart templates with the provided values, applied them to the cluster, and recorded the release in a Secret in the ingress-nginx namespace. --create-namespace creates the namespace if it does not exist. REVISION: 1 is the first deployment — each helm upgrade increments this. STATUS: deployed means all resources were accepted by the API server.',
+          explanation:
+            'Helm rendered all chart templates with the provided values, applied them to the cluster, and recorded the release in a Secret in the ingress-nginx namespace. --create-namespace creates the namespace if it does not exist. REVISION: 1 is the first deployment — each helm upgrade increments this. STATUS: deployed means all resources were accepted by the API server.',
           clusterState: {
             pods: [
-              { id: 'my-ingress-ctrl-7f8d2', name: 'my-ingress-ingress-nginx-controller-7f8d2', namespace: 'ingress-nginx', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
-              { id: 'my-ingress-ctrl-9c3a1', name: 'my-ingress-ingress-nginx-controller-9c3a1', namespace: 'ingress-nginx', node: 'node-2', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
+              {
+                id: 'my-ingress-ctrl-7f8d2',
+                name: 'my-ingress-ingress-nginx-controller-7f8d2',
+                namespace: 'ingress-nginx',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+                restarts: 0,
+              },
+              {
+                id: 'my-ingress-ctrl-9c3a1',
+                name: 'my-ingress-ingress-nginx-controller-9c3a1',
+                namespace: 'ingress-nginx',
+                node: 'node-2',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'my-ingress-svc', name: 'my-ingress-ingress-nginx-controller', namespace: 'ingress-nginx', type: 'LoadBalancer', selector: { 'app.kubernetes.io/name': 'ingress-nginx' }, port: 80, clusterIP: '10.96.45.12' },
+              {
+                id: 'my-ingress-svc',
+                name: 'my-ingress-ingress-nginx-controller',
+                namespace: 'ingress-nginx',
+                type: 'LoadBalancer',
+                selector: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                port: 80,
+                clusterIP: '10.96.45.12',
+              },
             ],
             deployments: [
-              { id: 'my-ingress-deploy', name: 'my-ingress-ingress-nginx-controller', namespace: 'ingress-nginx', replicas: 2, availableReplicas: 2, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3' },
+              {
+                id: 'my-ingress-deploy',
+                name: 'my-ingress-ingress-nginx-controller',
+                namespace: 'ingress-nginx',
+                replicas: 2,
+                availableReplicas: 2,
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+              },
             ],
             namespaces: ['default', 'ingress-nginx'],
             events: [
@@ -252,17 +298,51 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'NAME        NAMESPACE       REVISION  UPDATED                   STATUS    CHART                    APP VERSION',
             'my-ingress  ingress-nginx   1         2026-03-22 10:00:00 UTC   deployed  ingress-nginx-4.11.3     1.11.3',
           ],
-          explanation: 'helm list shows all releases in the specified namespace (or all namespaces with -A). REVISION tracks how many times this release has been installed or upgraded. Helm stores release history as Kubernetes Secrets in the release namespace — each revision is a separate Secret with the rendered manifests, allowing rollback to any previous state.',
+          explanation:
+            'helm list shows all releases in the specified namespace (or all namespaces with -A). REVISION tracks how many times this release has been installed or upgraded. Helm stores release history as Kubernetes Secrets in the release namespace — each revision is a separate Secret with the rendered manifests, allowing rollback to any previous state.',
           clusterState: {
             pods: [
-              { id: 'my-ingress-ctrl-7f8d2', name: 'my-ingress-ingress-nginx-controller-7f8d2', namespace: 'ingress-nginx', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
-              { id: 'my-ingress-ctrl-9c3a1', name: 'my-ingress-ingress-nginx-controller-9c3a1', namespace: 'ingress-nginx', node: 'node-2', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
+              {
+                id: 'my-ingress-ctrl-7f8d2',
+                name: 'my-ingress-ingress-nginx-controller-7f8d2',
+                namespace: 'ingress-nginx',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+                restarts: 0,
+              },
+              {
+                id: 'my-ingress-ctrl-9c3a1',
+                name: 'my-ingress-ingress-nginx-controller-9c3a1',
+                namespace: 'ingress-nginx',
+                node: 'node-2',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'my-ingress-svc', name: 'my-ingress-ingress-nginx-controller', namespace: 'ingress-nginx', type: 'LoadBalancer', selector: { 'app.kubernetes.io/name': 'ingress-nginx' }, port: 80, clusterIP: '10.96.45.12' },
+              {
+                id: 'my-ingress-svc',
+                name: 'my-ingress-ingress-nginx-controller',
+                namespace: 'ingress-nginx',
+                type: 'LoadBalancer',
+                selector: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                port: 80,
+                clusterIP: '10.96.45.12',
+              },
             ],
             deployments: [
-              { id: 'my-ingress-deploy', name: 'my-ingress-ingress-nginx-controller', namespace: 'ingress-nginx', replicas: 2, availableReplicas: 2, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3' },
+              {
+                id: 'my-ingress-deploy',
+                name: 'my-ingress-ingress-nginx-controller',
+                namespace: 'ingress-nginx',
+                replicas: 2,
+                availableReplicas: 2,
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+              },
             ],
             namespaces: ['default', 'ingress-nginx'],
             events: ['helm list -n ingress-nginx → my-ingress REVISION 1 deployed'],
@@ -272,8 +352,10 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
         {
           id: 'p5-m1-s6',
           title: 'Upgrade and rollback',
-          instruction: 'Upgrade to 3 replicas, inspect revision history, then roll back to revision 1.',
-          command: 'helm upgrade my-ingress ingress-nginx/ingress-nginx --set controller.replicaCount=3 -n ingress-nginx && helm history my-ingress -n ingress-nginx',
+          instruction:
+            'Upgrade to 3 replicas, inspect revision history, then roll back to revision 1.',
+          command:
+            'helm upgrade my-ingress ingress-nginx/ingress-nginx --set controller.replicaCount=3 -n ingress-nginx && helm history my-ingress -n ingress-nginx',
           output: [
             'Release "my-ingress" has been upgraded. Happy Helming!',
             'NAME: my-ingress',
@@ -284,18 +366,61 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             '1         2026-03-22 10:00:00 UTC   superseded  ingress-nginx-4.11.3   Install complete',
             '2         2026-03-22 10:05:00 UTC   deployed    ingress-nginx-4.11.3   Upgrade complete',
           ],
-          explanation: 'helm upgrade increments the REVISION to 2. The previous revision is now "superseded" but still stored. helm history shows every revision with its status and description. To roll back: helm rollback my-ingress 1 -n ingress-nginx — Helm re-applies the revision 1 manifests (2 replicas), creating REVISION 3 with description "Rollback to 1". Rollback is always a forward operation — it never destroys history.',
+          explanation:
+            'helm upgrade increments the REVISION to 2. The previous revision is now "superseded" but still stored. helm history shows every revision with its status and description. To roll back: helm rollback my-ingress 1 -n ingress-nginx — Helm re-applies the revision 1 manifests (2 replicas), creating REVISION 3 with description "Rollback to 1". Rollback is always a forward operation — it never destroys history.',
           clusterState: {
             pods: [
-              { id: 'my-ingress-ctrl-7f8d2', name: 'my-ingress-ingress-nginx-controller-7f8d2', namespace: 'ingress-nginx', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
-              { id: 'my-ingress-ctrl-9c3a1', name: 'my-ingress-ingress-nginx-controller-9c3a1', namespace: 'ingress-nginx', node: 'node-2', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
-              { id: 'my-ingress-ctrl-4b7e9', name: 'my-ingress-ingress-nginx-controller-4b7e9', namespace: 'ingress-nginx', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
+              {
+                id: 'my-ingress-ctrl-7f8d2',
+                name: 'my-ingress-ingress-nginx-controller-7f8d2',
+                namespace: 'ingress-nginx',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+                restarts: 0,
+              },
+              {
+                id: 'my-ingress-ctrl-9c3a1',
+                name: 'my-ingress-ingress-nginx-controller-9c3a1',
+                namespace: 'ingress-nginx',
+                node: 'node-2',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+                restarts: 0,
+              },
+              {
+                id: 'my-ingress-ctrl-4b7e9',
+                name: 'my-ingress-ingress-nginx-controller-4b7e9',
+                namespace: 'ingress-nginx',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'my-ingress-svc', name: 'my-ingress-ingress-nginx-controller', namespace: 'ingress-nginx', type: 'LoadBalancer', selector: { 'app.kubernetes.io/name': 'ingress-nginx' }, port: 80, clusterIP: '10.96.45.12' },
+              {
+                id: 'my-ingress-svc',
+                name: 'my-ingress-ingress-nginx-controller',
+                namespace: 'ingress-nginx',
+                type: 'LoadBalancer',
+                selector: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                port: 80,
+                clusterIP: '10.96.45.12',
+              },
             ],
             deployments: [
-              { id: 'my-ingress-deploy', name: 'my-ingress-ingress-nginx-controller', namespace: 'ingress-nginx', replicas: 3, availableReplicas: 3, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3' },
+              {
+                id: 'my-ingress-deploy',
+                name: 'my-ingress-ingress-nginx-controller',
+                namespace: 'ingress-nginx',
+                replicas: 3,
+                availableReplicas: 3,
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+              },
             ],
             namespaces: ['default', 'ingress-nginx'],
             events: [
@@ -319,11 +444,13 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'They are different names for the same thing — a Chart becomes a Release after it is pushed to Artifact Hub',
           ],
           answer: 1,
-          explanation: 'A Chart is the package — a directory of YAML templates and a values.yaml file, versioned and distributed via a repository. A Release is what you get when you install a chart: a named, running instance in the cluster. You can install the same chart multiple times (as different release names) to get multiple independent releases.',
+          explanation:
+            'A Chart is the package — a directory of YAML templates and a values.yaml file, versioned and distributed via a repository. A Release is what you get when you install a chart: a named, running instance in the cluster. You can install the same chart multiple times (as different release names) to get multiple independent releases.',
         },
         {
           id: 'p5-m1-q2',
-          question: 'You install the same Helm chart twice with different release names. What is the result?',
+          question:
+            'You install the same Helm chart twice with different release names. What is the result?',
           options: [
             'An error — a chart can only be installed once per namespace',
             'The second install overwrites the first',
@@ -331,23 +458,21 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'One release with doubled replica counts',
           ],
           answer: 2,
-          explanation: 'Each helm install with a different release name creates a completely independent release. Resources are named using the release name (e.g., {{ .Release.Name }}-deployment), so they do not conflict. This is how teams run multiple isolated instances of the same software — for example, two separate prometheus stacks for different tenants.',
+          explanation:
+            'Each helm install with a different release name creates a completely independent release. Resources are named using the release name (e.g., {{ .Release.Name }}-deployment), so they do not conflict. This is how teams run multiple isolated instances of the same software — for example, two separate prometheus stacks for different tenants.',
         },
         {
           id: 'p5-m1-q3',
           question: 'Which file in a Helm chart defines the default configuration values?',
-          options: [
-            'Chart.yaml',
-            'templates/values.yaml',
-            'values.yaml',
-            'defaults.yaml',
-          ],
+          options: ['Chart.yaml', 'templates/values.yaml', 'values.yaml', 'defaults.yaml'],
           answer: 2,
-          explanation: 'values.yaml at the root of the chart directory contains all default values. Chart.yaml contains chart metadata (name, version, description, dependencies). The templates/ directory contains the Go template YAML files. Operators override values.yaml defaults using --set on the command line or -f to pass a custom values file.',
+          explanation:
+            'values.yaml at the root of the chart directory contains all default values. Chart.yaml contains chart metadata (name, version, description, dependencies). The templates/ directory contains the Go template YAML files. Operators override values.yaml defaults using --set on the command line or -f to pass a custom values file.',
         },
         {
           id: 'p5-m1-q4',
-          question: 'Helm v3 removed which component compared to Helm v2, and why was that a security improvement?',
+          question:
+            'Helm v3 removed which component compared to Helm v2, and why was that a security improvement?',
           options: [
             'Removed chart repositories — charts are now stored directly in the cluster as ConfigMaps',
             'Removed Tiller, a server-side component that ran with cluster-admin privileges inside the cluster',
@@ -355,18 +480,65 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'Removed rollback support to simplify the release model',
           ],
           answer: 1,
-          explanation: 'Helm v2 required Tiller, a server-side pod running in kube-system with cluster-admin permissions. Any workload that could reach Tiller could issue arbitrary Kubernetes API calls — a major privilege escalation risk. Helm v3 is entirely client-side: it uses your kubeconfig credentials directly, so permissions are limited to what your own account allows.',
+          explanation:
+            'Helm v2 required Tiller, a server-side pod running in kube-system with cluster-admin permissions. Any workload that could reach Tiller could issue arbitrary Kubernetes API calls — a major privilege escalation risk. Helm v3 is entirely client-side: it uses your kubeconfig credentials directly, so permissions are limited to what your own account allows.',
         },
       ],
       coverage: {
-        concepts: ['chart: package of Kubernetes manifests', 'Chart.yaml: chart metadata', 'values.yaml: default config values', 'templates/: Go template YAML files', 'release: named installation of a chart', 'revision: each upgrade increments revision', 'values override: defaults → -f file → --set'],
-        commands: ['helm repo add', 'helm repo update', 'helm search repo', 'helm install', 'helm upgrade', 'helm rollback', 'helm list', 'helm uninstall', 'helm template --dry-run', 'helm get values', 'helm status', 'helm history'],
-        architecture: ['Helm v3 client-side only — no Tiller', 'release state stored as Secrets in target namespace', 'Go templates render values.yaml into final YAML', 'chart dependencies declared in Chart.yaml'],
-        techniques: ['dry-run with --dry-run --debug before install', 'override values with --set and -f custom-values.yaml', 'inspect rendered output with helm template', 'rollback to previous revision with helm rollback', 'upgrade in place with helm upgrade --install'],
-        procedures: ['add chart repository', 'search for chart version', 'install with custom values', 'upgrade release with new values', 'view history and rollback on failure', 'uninstall release'],
+        concepts: [
+          'chart: package of Kubernetes manifests',
+          'Chart.yaml: chart metadata',
+          'values.yaml: default config values',
+          'templates/: Go template YAML files',
+          'release: named installation of a chart',
+          'revision: each upgrade increments revision',
+          'values override: defaults → -f file → --set',
+        ],
+        commands: [
+          'helm repo add',
+          'helm repo update',
+          'helm search repo',
+          'helm install',
+          'helm upgrade',
+          'helm rollback',
+          'helm list',
+          'helm uninstall',
+          'helm template --dry-run',
+          'helm get values',
+          'helm status',
+          'helm history',
+        ],
+        architecture: [
+          'Helm v3 client-side only — no Tiller',
+          'release state stored as Secrets in target namespace',
+          'Go templates render values.yaml into final YAML',
+          'chart dependencies declared in Chart.yaml',
+        ],
+        techniques: [
+          'dry-run with --dry-run --debug before install',
+          'override values with --set and -f custom-values.yaml',
+          'inspect rendered output with helm template',
+          'rollback to previous revision with helm rollback',
+          'upgrade in place with helm upgrade --install',
+        ],
+        procedures: [
+          'add chart repository',
+          'search for chart version',
+          'install with custom values',
+          'upgrade release with new values',
+          'view history and rollback on failure',
+          'uninstall release',
+        ],
         toolsAndPlugins: ['helm', 'kubectl', 'minikube'],
-        cases: ['helm install fails — CRD or API version incompatibility', 'release in failed state — helm rollback or helm upgrade --force', 'wrong values applied — debug with helm get values and helm template'],
-        scenarios: ['install nginx-ingress controller from Artifact Hub', 'upgrade a release with new image tag, verify, rollback if broken'],
+        cases: [
+          'helm install fails — CRD or API version incompatibility',
+          'release in failed state — helm rollback or helm upgrade --force',
+          'wrong values applied — debug with helm get values and helm template',
+        ],
+        scenarios: [
+          'install nginx-ingress controller from Artifact Hub',
+          'upgrade a release with new image tag, verify, rollback if broken',
+        ],
       },
       exercises: [
         {
@@ -384,7 +556,11 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'helm status my-nginx',
             'helm get values my-nginx',
           ],
-          verify: ['helm list shows my-nginx with STATUS deployed', 'helm status shows deployed resources', 'helm get values shows service.type=NodePort'],
+          verify: [
+            'helm list shows my-nginx with STATUS deployed',
+            'helm status shows deployed resources',
+            'helm get values shows service.type=NodePort',
+          ],
           expectedOutcome: 'Chart installed, release state inspected.',
           cleanup: ['helm uninstall my-nginx'],
         },
@@ -400,7 +576,10 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'helm rollback sr-nginx 1',
             'helm history sr-nginx',
           ],
-          verify: ['history shows revision 1 then 2', 'rollback creates revision 3 reverting to revision 1 values'],
+          verify: [
+            'history shows revision 1 then 2',
+            'rollback creates revision 3 reverting to revision 1 values',
+          ],
           expectedOutcome: 'Upgrade and rollback cycle completed.',
           cleanup: ['helm uninstall sr-nginx'],
         },
@@ -413,7 +592,10 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
             'helm install debug-nginx bitnami/nginx --set service.type=NodePort --dry-run --debug 2>&1 | head -50',
             'helm template my-release bitnami/nginx --set service.type=NodePort | grep -A5 “kind: Service”',
           ],
-          verify: ['dry-run shows rendered YAML without applying', 'helm template shows Service manifest with NodePort type'],
+          verify: [
+            'dry-run shows rendered YAML without applying',
+            'helm template shows Service manifest with NodePort type',
+          ],
           expectedOutcome: 'Dry-run and template inspection workflow confirmed.',
           cleanup: [],
         },
@@ -422,11 +604,7 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
           title: '7-day spaced review — Helm commands',
           kind: 'spaced-review',
           goal: 'Recall Helm lifecycle commands from memory.',
-          commands: [
-            'helm list -A',
-            'helm repo list',
-            'helm search repo nginx | head -5',
-          ],
+          commands: ['helm list -A', 'helm repo list', 'helm search repo nginx | head -5'],
           verify: ['All commands run without error', 'repo list shows added repos'],
           expectedOutcome: 'Helm commands recalled without notes.',
           cleanup: [],
@@ -439,7 +617,8 @@ Helm v3 uses your \`kubeconfig\` directly (client-side only), so permissions are
       id: 'p5-m2',
       slug: 'kustomize',
       title: 'Kustomize: Environment-Specific Config',
-      description: 'Manage per-environment configuration without templating — using overlays and patches built into kubectl.',
+      description:
+        'Manage per-environment configuration without templating — using overlays and patches built into kubectl.',
       duration: '60 min',
       difficulty: 'intermediate',
       theory: `> 🧠 **Brain Warm-Up**: Since Kustomize is purely template-free and processes resources using AST (Abstract Syntax Tree) transformation, how does it guarantee that references to renamed resources (like a ConfigMap hash suffix change) are correctly updated in Dependent Deployments or Pods without breaking them?
@@ -587,7 +766,8 @@ images:
     newTag: v1.5.2
 commonLabels:
   env: production`,
-          explanation: 'The base has generic manifests with no environment-specific values. The production overlay references the base, adds a namePrefix (so all resources become prod-webapp instead of webapp), overrides the image tag to v1.5.2, and adds an env: production label to every resource. No template syntax — just YAML describing transformations.',
+          explanation:
+            'The base has generic manifests with no environment-specific values. The production overlay references the base, adds a namePrefix (so all resources become prod-webapp instead of webapp), overrides the image tag to v1.5.2, and adds an env: production label to every resource. No template syntax — just YAML describing transformations.',
           clusterState: {
             pods: [],
             services: [],
@@ -624,13 +804,16 @@ commonLabels:
             'metadata:',
             '  name: webapp',
           ],
-          explanation: 'kubectl kustomize renders the final YAML without applying it — like helm template for Helm. This is useful for reviewing what will be sent to the API server. The base output is the raw manifests with no transformations applied. Compare this with the production overlay output in the next step.',
+          explanation:
+            'kubectl kustomize renders the final YAML without applying it — like helm template for Helm. This is useful for reviewing what will be sent to the API server. The base output is the raw manifests with no transformations applied. Compare this with the production overlay output in the next step.',
           clusterState: {
             pods: [],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: ['kubectl kustomize base/ → rendered 2 resources (Deployment + Service, no patches)'],
+            events: [
+              'kubectl kustomize base/ → rendered 2 resources (Deployment + Service, no patches)',
+            ],
             highlightedComponent: 'apiserver',
           },
           tip: 'kubectl kustomize outputs to stdout so you can pipe it: kubectl kustomize overlays/production/ | kubectl apply -f - (equivalent to kubectl apply -k overlays/production/).',
@@ -638,7 +821,8 @@ commonLabels:
         {
           id: 'p5-m2-s3',
           title: 'Preview the production overlay',
-          instruction: 'Render the production overlay to see how namePrefix and image override are applied.',
+          instruction:
+            'Render the production overlay to see how namePrefix and image override are applied.',
           command: 'kubectl kustomize overlays/production/',
           output: [
             'apiVersion: apps/v1',
@@ -659,7 +843,8 @@ commonLabels:
             '      - image: myrepo/webapp:v1.5.2',
             '        name: webapp',
           ],
-          explanation: 'The production overlay output shows three transformations applied to the base: (1) name changed from webapp to prod-webapp via namePrefix, (2) image tag changed from latest to v1.5.2 via the images override, (3) env: production label added to all resources and pod templates via commonLabels. None of the base files were modified — the overlay is purely additive.',
+          explanation:
+            'The production overlay output shows three transformations applied to the base: (1) name changed from webapp to prod-webapp via namePrefix, (2) image tag changed from latest to v1.5.2 via the images override, (3) env: production label added to all resources and pod templates via commonLabels. None of the base files were modified — the overlay is purely additive.',
           clusterState: {
             pods: [],
             services: [],
@@ -677,20 +862,42 @@ commonLabels:
           title: 'Apply the production overlay',
           instruction: 'Deploy the production overlay to the cluster with kubectl apply -k.',
           command: 'kubectl apply -k overlays/production/',
-          output: [
-            'deployment.apps/prod-webapp created',
-            'service/prod-webapp created',
-          ],
-          explanation: 'kubectl apply -k is the Kustomize-aware form of kubectl apply. It renders the overlay to plain YAML and sends it to the API server in a single operation. The -k flag (vs -f) tells kubectl to treat the argument as a kustomization directory rather than a plain manifest file or directory.',
+          output: ['deployment.apps/prod-webapp created', 'service/prod-webapp created'],
+          explanation:
+            'kubectl apply -k is the Kustomize-aware form of kubectl apply. It renders the overlay to plain YAML and sends it to the API server in a single operation. The -k flag (vs -f) tells kubectl to treat the argument as a kustomization directory rather than a plain manifest file or directory.',
           clusterState: {
             pods: [
-              { id: 'prod-webapp-d7f3a', name: 'prod-webapp-d7f3a', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'webapp', env: 'production' }, image: 'myrepo/webapp:v1.5.2', restarts: 0 },
+              {
+                id: 'prod-webapp-d7f3a',
+                name: 'prod-webapp-d7f3a',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'webapp', env: 'production' },
+                image: 'myrepo/webapp:v1.5.2',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'prod-webapp-svc', name: 'prod-webapp', namespace: 'default', type: 'ClusterIP', selector: { app: 'webapp' }, port: 80, clusterIP: '10.96.88.33' },
+              {
+                id: 'prod-webapp-svc',
+                name: 'prod-webapp',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'webapp' },
+                port: 80,
+                clusterIP: '10.96.88.33',
+              },
             ],
             deployments: [
-              { id: 'prod-webapp-deploy', name: 'prod-webapp', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'myrepo/webapp:v1.5.2' },
+              {
+                id: 'prod-webapp-deploy',
+                name: 'prod-webapp',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'myrepo/webapp:v1.5.2',
+              },
             ],
             namespaces: ['default'],
             events: [
@@ -704,7 +911,8 @@ commonLabels:
         {
           id: 'p5-m2-s5',
           title: 'Preview changes before applying',
-          instruction: 'Use kubectl diff to safely preview what would change before applying an update.',
+          instruction:
+            'Use kubectl diff to safely preview what would change before applying an update.',
           command: 'kubectl diff -k overlays/production/',
           output: [
             'diff -u -N /tmp/LIVE/apps.v1.Deployment.default.prod-webapp /tmp/MERGED/apps.v1.Deployment.default.prod-webapp',
@@ -716,16 +924,41 @@ commonLabels:
             '+      - image: myrepo/webapp:v1.6.0',
             '         name: webapp',
           ],
-          explanation: 'kubectl diff -k compares the rendered overlay against the live cluster state and outputs a standard unified diff. Lines prefixed with - are what is currently running; lines with + are what would be applied. This is a safe read-only operation — nothing is changed. Running diff before apply is a production best practice, especially in CI pipelines.',
+          explanation:
+            'kubectl diff -k compares the rendered overlay against the live cluster state and outputs a standard unified diff. Lines prefixed with - are what is currently running; lines with + are what would be applied. This is a safe read-only operation — nothing is changed. Running diff before apply is a production best practice, especially in CI pipelines.',
           clusterState: {
             pods: [
-              { id: 'prod-webapp-d7f3a', name: 'prod-webapp-d7f3a', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'webapp', env: 'production' }, image: 'myrepo/webapp:v1.5.2', restarts: 0 },
+              {
+                id: 'prod-webapp-d7f3a',
+                name: 'prod-webapp-d7f3a',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'webapp', env: 'production' },
+                image: 'myrepo/webapp:v1.5.2',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'prod-webapp-svc', name: 'prod-webapp', namespace: 'default', type: 'ClusterIP', selector: { app: 'webapp' }, port: 80, clusterIP: '10.96.88.33' },
+              {
+                id: 'prod-webapp-svc',
+                name: 'prod-webapp',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'webapp' },
+                port: 80,
+                clusterIP: '10.96.88.33',
+              },
             ],
             deployments: [
-              { id: 'prod-webapp-deploy', name: 'prod-webapp', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'myrepo/webapp:v1.5.2' },
+              {
+                id: 'prod-webapp-deploy',
+                name: 'prod-webapp',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'myrepo/webapp:v1.5.2',
+              },
             ],
             namespaces: ['default'],
             events: [
@@ -739,7 +972,8 @@ commonLabels:
       quiz: [
         {
           id: 'p5-m2-q1',
-          question: 'What is the key difference between a Kustomize overlay and a Helm values override?',
+          question:
+            'What is the key difference between a Kustomize overlay and a Helm values override?',
           options: [
             'Kustomize overlays require a separate binary; Helm values are built into kubectl',
             'Kustomize overlays use YAML patches applied to a base without templating; Helm values are injected into Go templates',
@@ -747,7 +981,8 @@ commonLabels:
             'They are functionally identical — Kustomize and Helm overlays both compile to the same internal format',
           ],
           answer: 1,
-          explanation: 'Kustomize uses a patch-based model: your base manifests are real, valid YAML and the overlay applies structural transformations (rename, relabel, image override) without any template syntax. Helm uses Go templates where the final YAML is generated by substituting values into template expressions like {{ .Values.image.tag }}. Kustomize requires no new syntax to learn; Helm requires understanding Go templates.',
+          explanation:
+            'Kustomize uses a patch-based model: your base manifests are real, valid YAML and the overlay applies structural transformations (rename, relabel, image override) without any template syntax. Helm uses Go templates where the final YAML is generated by substituting values into template expressions like {{ .Values.image.tag }}. Kustomize requires no new syntax to learn; Helm requires understanding Go templates.',
         },
         {
           id: 'p5-m2-q2',
@@ -759,19 +994,17 @@ commonLabels:
             'No — kustomize runs as a sidecar container in the cluster',
           ],
           answer: 2,
-          explanation: 'Kustomize has been integrated directly into kubectl since Kubernetes 1.14. You use it with kubectl apply -k <dir> or kubectl kustomize <dir>. A standalone kustomize binary also exists (for the latest features and fixes ahead of the kubectl release cycle), but for most use cases the kubectl-integrated version is sufficient and requires no additional installation.',
+          explanation:
+            'Kustomize has been integrated directly into kubectl since Kubernetes 1.14. You use it with kubectl apply -k <dir> or kubectl kustomize <dir>. A standalone kustomize binary also exists (for the latest features and fixes ahead of the kubectl release cycle), but for most use cases the kubectl-integrated version is sufficient and requires no additional installation.',
         },
         {
           id: 'p5-m2-q3',
-          question: 'You want to add a label env: production to ALL resources in a Kustomize overlay. Which field in kustomization.yaml handles this?',
-          options: [
-            'labels:',
-            'commonLabels:',
-            'patchesStrategicMerge:',
-            'resources:',
-          ],
+          question:
+            'You want to add a label env: production to ALL resources in a Kustomize overlay. Which field in kustomization.yaml handles this?',
+          options: ['labels:', 'commonLabels:', 'patchesStrategicMerge:', 'resources:'],
           answer: 1,
-          explanation: 'commonLabels in kustomization.yaml adds the specified labels to all resources managed by that kustomization, including the pod template spec inside Deployments. It also adds the labels as selector fields where applicable. For adding labels without affecting selectors, use the newer labels: field with includeSelectors: false.',
+          explanation:
+            'commonLabels in kustomization.yaml adds the specified labels to all resources managed by that kustomization, including the pod template spec inside Deployments. It also adds the labels as selector fields where applicable. For adding labels without affecting selectors, use the newer labels: field with includeSelectors: false.',
         },
         {
           id: 'p5-m2-q4',
@@ -783,18 +1016,56 @@ commonLabels:
             'When your team is already using Tiller in the cluster',
           ],
           answer: 2,
-          explanation: 'Kustomize shines for first-party applications where you own all the YAML and primarily need environment-specific overrides. The base/overlay model is clean, requires no template syntax, and kubectl apply -k fits naturally into CI pipelines. Choose Helm when you need chart versioning, want to share the package publicly, or have complex conditional logic that Go templates handle better than YAML patches.',
+          explanation:
+            'Kustomize shines for first-party applications where you own all the YAML and primarily need environment-specific overrides. The base/overlay model is clean, requires no template syntax, and kubectl apply -k fits naturally into CI pipelines. Choose Helm when you need chart versioning, want to share the package publicly, or have complex conditional logic that Go templates handle better than YAML patches.',
         },
       ],
       coverage: {
-        concepts: ['base: reusable YAML manifests', 'overlay: environment-specific patches', 'kustomization.yaml: entry point', 'strategic merge patch', 'JSON patch (RFC 6902)', 'commonLabels and namePrefix transformers', 'images transformer for tag overrides'],
-        commands: ['kubectl apply -k <dir>', 'kubectl diff -k <dir>', 'kubectl kustomize <dir>', 'kustomize build <dir>'],
-        architecture: ['kustomize reads kustomization.yaml, merges base + patches, renders final YAML', 'no template engine — pure YAML manipulation via patches', 'kubectl -k is built-in since kubectl 1.14', 'overlays reference base via relative path in resources field'],
-        techniques: ['base/overlay directory structure', 'image tag override with images field', 'replica patch with patchesStrategicMerge', 'commonLabels to tag all resources', 'namePrefix/nameSuffix to isolate environments'],
-        procedures: ['create base kustomization.yaml with deployment and service', 'create dev overlay with different replica count', 'create prod overlay with different image tag', 'apply overlay with kubectl apply -k', 'preview with kubectl kustomize'],
+        concepts: [
+          'base: reusable YAML manifests',
+          'overlay: environment-specific patches',
+          'kustomization.yaml: entry point',
+          'strategic merge patch',
+          'JSON patch (RFC 6902)',
+          'commonLabels and namePrefix transformers',
+          'images transformer for tag overrides',
+        ],
+        commands: [
+          'kubectl apply -k <dir>',
+          'kubectl diff -k <dir>',
+          'kubectl kustomize <dir>',
+          'kustomize build <dir>',
+        ],
+        architecture: [
+          'kustomize reads kustomization.yaml, merges base + patches, renders final YAML',
+          'no template engine — pure YAML manipulation via patches',
+          'kubectl -k is built-in since kubectl 1.14',
+          'overlays reference base via relative path in resources field',
+        ],
+        techniques: [
+          'base/overlay directory structure',
+          'image tag override with images field',
+          'replica patch with patchesStrategicMerge',
+          'commonLabels to tag all resources',
+          'namePrefix/nameSuffix to isolate environments',
+        ],
+        procedures: [
+          'create base kustomization.yaml with deployment and service',
+          'create dev overlay with different replica count',
+          'create prod overlay with different image tag',
+          'apply overlay with kubectl apply -k',
+          'preview with kubectl kustomize',
+        ],
         toolsAndPlugins: ['kubectl', 'kustomize', 'minikube'],
-        cases: ['kustomization.yaml missing resources list causes empty render', 'strategic merge patch wrong field path silently ignored', 'wrong overlay references cause unexpected merge behavior'],
-        scenarios: ['manage dev and prod environments with different replicas and image tags', 'add commonLabels to all resources without editing each manifest'],
+        cases: [
+          'kustomization.yaml missing resources list causes empty render',
+          'strategic merge patch wrong field path silently ignored',
+          'wrong overlay references cause unexpected merge behavior',
+        ],
+        scenarios: [
+          'manage dev and prod environments with different replicas and image tags',
+          'add commonLabels to all resources without editing each manifest',
+        ],
       },
       exercises: [
         {
@@ -841,9 +1112,16 @@ EOF`,
             'kubectl apply -k /tmp/kustomize-demo/overlays/prod',
             'kubectl get deployment web',
           ],
-          verify: ['kubectl kustomize shows replicas: 3 and image nginx:1.27', 'kubectl get deployment shows 3 replicas after apply'],
-          expectedOutcome: 'Base and overlay pattern working; image and replica overrides confirmed.',
-          cleanup: ['kubectl delete -k /tmp/kustomize-demo/overlays/prod --ignore-not-found', 'rm -rf /tmp/kustomize-demo'],
+          verify: [
+            'kubectl kustomize shows replicas: 3 and image nginx:1.27',
+            'kubectl get deployment shows 3 replicas after apply',
+          ],
+          expectedOutcome:
+            'Base and overlay pattern working; image and replica overrides confirmed.',
+          cleanup: [
+            'kubectl delete -k /tmp/kustomize-demo/overlays/prod --ignore-not-found',
+            'rm -rf /tmp/kustomize-demo',
+          ],
         },
         {
           id: 'p5-m2-e2',
@@ -865,7 +1143,9 @@ replicas:
 EOF`,
             'kubectl kustomize /tmp/kustomize-demo/overlays/prod | grep -A3 labels',
           ],
-          verify: ['rendered output shows env: production on Deployment metadata and pod template labels'],
+          verify: [
+            'rendered output shows env: production on Deployment metadata and pod template labels',
+          ],
           expectedOutcome: 'commonLabels applied to all resources via overlay transformer.',
           cleanup: [],
         },
@@ -878,7 +1158,10 @@ EOF`,
             'kubectl kustomize /tmp/kustomize-demo/base',
             'kubectl diff -k /tmp/kustomize-demo/overlays/prod 2>&1 || true',
           ],
-          verify: ['kustomize base renders default deployment', 'diff shows what would change vs live cluster'],
+          verify: [
+            'kustomize base renders default deployment',
+            'diff shows what would change vs live cluster',
+          ],
           expectedOutcome: 'kubectl kustomize and diff used to inspect changes before apply.',
           cleanup: ['rm -rf /tmp/kustomize-demo'],
         },
@@ -891,7 +1174,10 @@ EOF`,
             'kubectl kustomize --help | head -15',
             'kubectl explain kustomization 2>/dev/null || echo "kustomization is a file format, not a CRD"',
           ],
-          verify: ['kubectl kustomize --help shows build and apply options', 'Can state: base/overlay structure, kustomization.yaml fields'],
+          verify: [
+            'kubectl kustomize --help shows build and apply options',
+            'Can state: base/overlay structure, kustomization.yaml fields',
+          ],
           expectedOutcome: 'Kustomize workflow recalled without notes.',
           cleanup: [],
         },
@@ -903,7 +1189,8 @@ EOF`,
       id: 'p5-m3',
       slug: 'crds',
       title: 'Custom Resource Definitions (CRDs)',
-      description: 'Extend the Kubernetes API with your own resource types and understand the Operator pattern.',
+      description:
+        'Extend the Kubernetes API with your own resource types and understand the Operator pattern.',
       duration: '75 min',
       difficulty: 'advanced',
       theory: `> 🧠 **Brain Warm-Up**: When a Custom Resource (CR) is deleted, how does the API server coordinate with custom controllers to prevent etcd from leaking orphaned external resources (like cloud load balancers or disks) before the CR's metadata is completely expunged?
@@ -1048,7 +1335,8 @@ spec:
     shortNames:
       - db`,
           output: ['customresourcedefinition.apiextensions.k8s.io/databases.example.com created'],
-          explanation: 'The CRD registers a new API group (example.com) and kind (Database) with the API server. scope: Namespaced means instances are tied to a namespace (like Pods), not cluster-wide (like Nodes). The openAPIV3Schema validates that every Database CR has the required engine, version, and storage fields, and that engine is one of the allowed enum values.',
+          explanation:
+            'The CRD registers a new API group (example.com) and kind (Database) with the API server. scope: Namespaced means instances are tied to a namespace (like Pods), not cluster-wide (like Nodes). The openAPIV3Schema validates that every Database CR has the required engine, version, and storage fields, and that engine is one of the allowed enum values.',
           clusterState: {
             pods: [],
             services: [],
@@ -1071,7 +1359,8 @@ spec:
             'NAME                              CREATED AT',
             'databases.example.com             2026-03-22T10:00:00Z',
           ],
-          explanation: 'kubectl get crds lists all CustomResourceDefinitions in the cluster (they are cluster-scoped resources). In a real cluster running cert-manager, Prometheus Operator, or Argo CD, you would see dozens of CRDs here — certificates.cert-manager.io, servicemonitors.monitoring.coreos.com, applications.argoproj.io, and many more. Each represents an installed Operator\'s API surface.',
+          explanation:
+            "kubectl get crds lists all CustomResourceDefinitions in the cluster (they are cluster-scoped resources). In a real cluster running cert-manager, Prometheus Operator, or Argo CD, you would see dozens of CRDs here — certificates.cert-manager.io, servicemonitors.monitoring.coreos.com, applications.argoproj.io, and many more. Each represents an installed Operator's API surface.",
           clusterState: {
             pods: [],
             services: [],
@@ -1096,7 +1385,8 @@ spec:
   version: "16"
   storage: 10Gi`,
           output: ['database.example.com/my-postgres created'],
-          explanation: 'This CR uses the API group (example.com/v1) and kind (Database) that the CRD registered. The API server validates the spec against the openAPIV3Schema and stores it in etcd. If you tried engine: oracle (not in the enum), the request would be rejected immediately with a validation error.',
+          explanation:
+            'This CR uses the API group (example.com/v1) and kind (Database) that the CRD registered. The API server validates the spec against the openAPIV3Schema and stores it in etcd. If you tried engine: oracle (not in the enum), the request would be rejected immediately with a validation error.',
           clusterState: {
             pods: [],
             services: [],
@@ -1113,7 +1403,8 @@ spec:
         {
           id: 'p5-m3-s4',
           title: 'Query the Custom Resource',
-          instruction: 'List and describe the Database custom resource using familiar kubectl commands.',
+          instruction:
+            'List and describe the Database custom resource using familiar kubectl commands.',
           command: 'kubectl get databases && kubectl describe database my-postgres',
           output: [
             'NAME          AGE',
@@ -1129,7 +1420,8 @@ spec:
             '  Version:  16',
             'Events:       <none>',
           ],
-          explanation: 'kubectl get databases works exactly like kubectl get pods — the CRD registered the plural form "databases". kubectl describe gives the full object with spec fields. Notice Events: <none> — without a controller watching databases.example.com, no events are generated. The CR is purely passive data in etcd at this point.',
+          explanation:
+            'kubectl get databases works exactly like kubectl get pods — the CRD registered the plural form "databases". kubectl describe gives the full object with spec fields. Notice Events: <none> — without a controller watching databases.example.com, no events are generated. The CR is purely passive data in etcd at this point.',
           clusterState: {
             pods: [],
             services: [],
@@ -1146,13 +1438,16 @@ spec:
         {
           id: 'p5-m3-s5',
           title: 'Delete the CR and CRD',
-          instruction: 'Delete the custom resource instance, then delete the CRD itself to see the cascade.',
-          command: 'kubectl delete database my-postgres && kubectl delete crd databases.example.com',
+          instruction:
+            'Delete the custom resource instance, then delete the CRD itself to see the cascade.',
+          command:
+            'kubectl delete database my-postgres && kubectl delete crd databases.example.com',
           output: [
             'database.example.com "my-postgres" deleted',
             'customresourcedefinition.apiextensions.k8s.io "databases.example.com" deleted',
           ],
-          explanation: 'When you delete a CRD, all instances (CRs) of that CRD are also deleted — the CRD owns its CRs. This is why CRD deletion should be done carefully in production: if you uninstall an Operator by deleting its CRDs, all the CR instances (and possibly the resources they represent) are gone too. Operators typically provide an uninstall procedure that handles CR cleanup gracefully before removing CRDs.',
+          explanation:
+            'When you delete a CRD, all instances (CRs) of that CRD are also deleted — the CRD owns its CRs. This is why CRD deletion should be done carefully in production: if you uninstall an Operator by deleting its CRDs, all the CR instances (and possibly the resources they represent) are gone too. Operators typically provide an uninstall procedure that handles CR cleanup gracefully before removing CRDs.',
           clusterState: {
             pods: [],
             services: [],
@@ -1169,7 +1464,8 @@ spec:
       quiz: [
         {
           id: 'p5-m3-q1',
-          question: 'You create a CRD and an instance of the custom resource. What happens automatically?',
+          question:
+            'You create a CRD and an instance of the custom resource. What happens automatically?',
           options: [
             'Kubernetes provisions the resource described (e.g., creates an actual database)',
             'The API server validates and stores the CR in etcd, but nothing else happens without a controller',
@@ -1177,7 +1473,8 @@ spec:
             'The CR is replicated across all nodes for high availability',
           ],
           answer: 1,
-          explanation: 'CRDs alone are passive: they register a new schema with the API server and allow objects matching that schema to be stored in etcd. No action is taken on those objects until a controller (or operator) watches for them and implements reconciliation logic. This separation of schema from behaviour is fundamental to the Kubernetes extensibility model.',
+          explanation:
+            'CRDs alone are passive: they register a new schema with the API server and allow objects matching that schema to be stored in etcd. No action is taken on those objects until a controller (or operator) watches for them and implements reconciliation logic. This separation of schema from behaviour is fundamental to the Kubernetes extensibility model.',
         },
         {
           id: 'p5-m3-q2',
@@ -1189,7 +1486,8 @@ spec:
             'A Helm chart that installs third-party software',
           ],
           answer: 1,
-          explanation: 'An Operator is the combination of a CRD (which defines the desired state schema) and a controller (which watches CRs and reconciles actual state toward desired state). The controller encodes human operational knowledge: how to install, upgrade, scale, back up, and recover the application. cert-manager, Argo CD, and the Prometheus Operator are well-known examples.',
+          explanation:
+            'An Operator is the combination of a CRD (which defines the desired state schema) and a controller (which watches CRs and reconciles actual state toward desired state). The controller encodes human operational knowledge: how to install, upgrade, scale, back up, and recover the application. cert-manager, Argo CD, and the Prometheus Operator are well-known examples.',
         },
         {
           id: 'p5-m3-q3',
@@ -1201,7 +1499,8 @@ spec:
             'The kubelet on each node — it reads CRs and runs the corresponding workloads',
           ],
           answer: 2,
-          explanation: 'Controllers (or operators) are the active component. They run a watch loop against the API server, receive notifications when CRs are created/updated/deleted, and implement the reconciliation logic. The API server and etcd are purely passive for CRDs — they store and serve objects but do not act on them.',
+          explanation:
+            'Controllers (or operators) are the active component. They run a watch loop against the API server, receive notifications when CRs are created/updated/deleted, and implement the reconciliation logic. The API server and etcd are purely passive for CRDs — they store and serve objects but do not act on them.',
         },
         {
           id: 'p5-m3-q4',
@@ -1213,18 +1512,57 @@ spec:
             'metrics-server and the Kubernetes Dashboard',
           ],
           answer: 1,
-          explanation: 'cert-manager introduces a Certificate CRD — create a Certificate CR and the cert-manager controller talks to Let\'s Encrypt (or another CA) and creates a TLS Secret. Argo CD introduces an Application CRD — create an Application CR pointing at a Git repo and the Argo CD controller syncs the repo contents to the cluster. Both are classic Operators: CRD defines desired state, controller makes it real.',
+          explanation:
+            "cert-manager introduces a Certificate CRD — create a Certificate CR and the cert-manager controller talks to Let's Encrypt (or another CA) and creates a TLS Secret. Argo CD introduces an Application CRD — create an Application CR pointing at a Git repo and the Argo CD controller syncs the repo contents to the cluster. Both are classic Operators: CRD defines desired state, controller makes it real.",
         },
       ],
       coverage: {
-        concepts: ['CRD: registers new API resource type with API server', 'CR (Custom Resource): instance of a CRD', 'controller/operator: reconciles CRs to desired state', 'Operator pattern: CRD + controller = declarative extension', 'OpenAPI v3 validation schema in CRD', 'finalizers for clean-up before CR delete'],
-        commands: ['kubectl apply -f crd.yaml', 'kubectl get crds', 'kubectl explain <custom-resource>', 'kubectl get <custom-resource>', 'kubectl describe <custom-resource>', 'kubectl delete crd <name>'],
-        architecture: ['CRD registers new API group/version/resource with API server', 'CR stored in etcd like any built-in resource', 'controller watches CR events via informers', 'reconciliation loop: observe CR state → compute diff → apply changes'],
-        techniques: ['apply CRD first, then CR instance', 'kubectl explain for CRD-defined fields', 'inspect controller logs for reconciliation errors', 'use finalizers to prevent orphaned external resources'],
-        procedures: ['create CRD with schema', 'create CR instance', 'inspect with kubectl get/describe/explain', 'observe controller reconciling CR', 'delete CRD and see all CRs removed'],
+        concepts: [
+          'CRD: registers new API resource type with API server',
+          'CR (Custom Resource): instance of a CRD',
+          'controller/operator: reconciles CRs to desired state',
+          'Operator pattern: CRD + controller = declarative extension',
+          'OpenAPI v3 validation schema in CRD',
+          'finalizers for clean-up before CR delete',
+        ],
+        commands: [
+          'kubectl apply -f crd.yaml',
+          'kubectl get crds',
+          'kubectl explain <custom-resource>',
+          'kubectl get <custom-resource>',
+          'kubectl describe <custom-resource>',
+          'kubectl delete crd <name>',
+        ],
+        architecture: [
+          'CRD registers new API group/version/resource with API server',
+          'CR stored in etcd like any built-in resource',
+          'controller watches CR events via informers',
+          'reconciliation loop: observe CR state → compute diff → apply changes',
+        ],
+        techniques: [
+          'apply CRD first, then CR instance',
+          'kubectl explain for CRD-defined fields',
+          'inspect controller logs for reconciliation errors',
+          'use finalizers to prevent orphaned external resources',
+        ],
+        procedures: [
+          'create CRD with schema',
+          'create CR instance',
+          'inspect with kubectl get/describe/explain',
+          'observe controller reconciling CR',
+          'delete CRD and see all CRs removed',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube'],
-        cases: ['CR rejected — OpenAPI validation schema fails', 'CR applied but nothing happens — controller not deployed', 'CRD deleted — all CRs cascade deleted', 'finalizer blocks CR delete — controller must remove finalizer'],
-        scenarios: ['apply a CRD and create a CR to understand the pattern', 'observe what happens to CRs when CRD is deleted'],
+        cases: [
+          'CR rejected — OpenAPI validation schema fails',
+          'CR applied but nothing happens — controller not deployed',
+          'CRD deleted — all CRs cascade deleted',
+          'finalizer blocks CR delete — controller must remove finalizer',
+        ],
+        scenarios: [
+          'apply a CRD and create a CR to understand the pattern',
+          'observe what happens to CRs when CRD is deleted',
+        ],
       },
       exercises: [
         {
@@ -1278,9 +1616,17 @@ EOF`,
             'kubectl get databases',
             'kubectl describe database my-postgres',
           ],
-          verify: ['CRD registered: kubectl get crds shows databases.example.com', 'kubectl explain database.spec shows engine/version/replicas fields', 'CR created and visible via kubectl get databases'],
-          expectedOutcome: 'CRD registered, CR instance created, kubectl explain works for custom type.',
-          cleanup: ['kubectl delete database my-postgres', 'kubectl delete crd databases.example.com'],
+          verify: [
+            'CRD registered: kubectl get crds shows databases.example.com',
+            'kubectl explain database.spec shows engine/version/replicas fields',
+            'CR created and visible via kubectl get databases',
+          ],
+          expectedOutcome:
+            'CRD registered, CR instance created, kubectl explain works for custom type.',
+          cleanup: [
+            'kubectl delete database my-postgres',
+            'kubectl delete crd databases.example.com',
+          ],
         },
         {
           id: 'p5-m3-e2',
@@ -1308,13 +1654,17 @@ spec:
     singular: widget
     kind: Widget
 EOF`,
-            'kubectl apply -f - <<\'EOF\'\napiVersion: example.com/v1\nkind: Widget\nmetadata:\n  name: test-widget\nEOF',
+            "kubectl apply -f - <<'EOF'\napiVersion: example.com/v1\nkind: Widget\nmetadata:\n  name: test-widget\nEOF",
             'kubectl get widgets',
             'kubectl delete crd widgets.example.com',
             'kubectl get widgets 2>&1 || echo “CRD gone — resource type no longer exists”',
           ],
-          verify: ['kubectl get widgets returns error after CRD delete', 'Cascade delete confirmed'],
-          expectedOutcome: 'Understand that deleting a CRD removes all instances — destructive operation.',
+          verify: [
+            'kubectl get widgets returns error after CRD delete',
+            'Cascade delete confirmed',
+          ],
+          expectedOutcome:
+            'Understand that deleting a CRD removes all instances — destructive operation.',
           cleanup: [],
         },
         {
@@ -1372,9 +1722,12 @@ EOF`,
           goal: 'Recall CRD and Operator pattern from memory.',
           commands: [
             'kubectl get crds',
-            'kubectl api-resources | grep -v “^NAME” | awk \'{print $3}\' | sort -u | head -20',
+            "kubectl api-resources | grep -v “^NAME” | awk '{print $3}' | sort -u | head -20",
           ],
-          verify: ['kubectl get crds shows any installed CRDs', 'Can state: CRD = schema, CR = instance, controller = actor'],
+          verify: [
+            'kubectl get crds shows any installed CRDs',
+            'Can state: CRD = schema, CR = instance, controller = actor',
+          ],
           expectedOutcome: 'CRD/Operator pattern recalled without notes.',
           cleanup: [],
         },
@@ -1386,7 +1739,8 @@ EOF`,
       id: 'p5-m4',
       slug: 'observability',
       title: 'Observability: Metrics, Logging & Tracing',
-      description: 'Build the three pillars of observability into your cluster — metrics with Prometheus, logs with Loki, and traces with OpenTelemetry.',
+      description:
+        'Build the three pillars of observability into your cluster — metrics with Prometheus, logs with Loki, and traces with OpenTelemetry.',
       duration: '90 min',
       difficulty: 'advanced',
       theory: `> 🧠 **Brain Warm-Up**: Prometheus operator uses ServiceMonitor CRDs to dynamically configure Prometheus scrape targets. Under the hood, how does the Prometheus controller translate a ServiceMonitor custom resource into a Prometheus scrape configuration without requiring a restart of the Prometheus server process?
@@ -1495,7 +1849,8 @@ For tracing to work across microservice hops, applications must propagate the tr
           id: 'p5-m4-s1',
           title: 'Install metrics-server',
           instruction: 'Deploy metrics-server so kubectl top can show real-time resource usage.',
-          command: 'kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml',
+          command:
+            'kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml',
           output: [
             'serviceaccount/metrics-server created',
             'clusterrole.rbac.authorization.k8s.io/system:aggregated-metrics-reader created',
@@ -1505,16 +1860,41 @@ For tracing to work across microservice hops, applications must propagate the tr
             'deployment.apps/metrics-server created',
             'service/metrics-server created',
           ],
-          explanation: 'metrics-server is a Kubernetes Metrics API implementation. It aggregates CPU and memory usage reported by the kubelet on each node. It exposes data via the metrics.k8s.io API extension (note the apiservice resource created). kubectl top and HPA both use this API. metrics-server stores only the latest data point — for historical metrics, use Prometheus.',
+          explanation:
+            'metrics-server is a Kubernetes Metrics API implementation. It aggregates CPU and memory usage reported by the kubelet on each node. It exposes data via the metrics.k8s.io API extension (note the apiservice resource created). kubectl top and HPA both use this API. metrics-server stores only the latest data point — for historical metrics, use Prometheus.',
           clusterState: {
             pods: [
-              { id: 'metrics-server-7b4d2', name: 'metrics-server-7b4d2', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { 'k8s-app': 'metrics-server' }, image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.2', restarts: 0 },
+              {
+                id: 'metrics-server-7b4d2',
+                name: 'metrics-server-7b4d2',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'k8s-app': 'metrics-server' },
+                image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.2',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'metrics-server-svc', name: 'metrics-server', namespace: 'kube-system', type: 'ClusterIP', selector: { 'k8s-app': 'metrics-server' }, port: 443, clusterIP: '10.96.10.44' },
+              {
+                id: 'metrics-server-svc',
+                name: 'metrics-server',
+                namespace: 'kube-system',
+                type: 'ClusterIP',
+                selector: { 'k8s-app': 'metrics-server' },
+                port: 443,
+                clusterIP: '10.96.10.44',
+              },
             ],
             deployments: [
-              { id: 'metrics-server-deploy', name: 'metrics-server', namespace: 'kube-system', replicas: 1, availableReplicas: 1, image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.2' },
+              {
+                id: 'metrics-server-deploy',
+                name: 'metrics-server',
+                namespace: 'kube-system',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.2',
+              },
             ],
             namespaces: ['default', 'kube-system'],
             events: ['metrics-server deployed in kube-system', 'metrics.k8s.io API registered'],
@@ -1532,10 +1912,20 @@ For tracing to work across microservice hops, applications must propagate the tr
             'node-1   248m         6%     2143Mi          27%',
             'node-2   183m         4%     1876Mi          23%',
           ],
-          explanation: 'CPU is shown in millicores (m) — 248m = 0.248 CPU cores. Memory is in mebibytes (Mi). CPU% and MEMORY% are relative to the node\'s allocatable capacity (total minus reserved for system). A node at >85% memory is at risk of triggering node-pressure evictions. This command is the fastest way to identify a hot node.',
+          explanation:
+            "CPU is shown in millicores (m) — 248m = 0.248 CPU cores. Memory is in mebibytes (Mi). CPU% and MEMORY% are relative to the node's allocatable capacity (total minus reserved for system). A node at >85% memory is at risk of triggering node-pressure evictions. This command is the fastest way to identify a hot node.",
           clusterState: {
             pods: [
-              { id: 'metrics-server-7b4d2', name: 'metrics-server-7b4d2', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { 'k8s-app': 'metrics-server' }, image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.2', restarts: 0 },
+              {
+                id: 'metrics-server-7b4d2',
+                name: 'metrics-server-7b4d2',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'k8s-app': 'metrics-server' },
+                image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.2',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -1560,12 +1950,40 @@ For tracing to work across microservice hops, applications must propagate the tr
             'kube-system   coredns-6f6b679f8f-xr9t2                    4m           15Mi',
             'kube-system   metrics-server-7b4d2                         3m           22Mi',
           ],
-          explanation: 'kubectl top pods -A shows consumption across all namespaces. This is the fastest way to find a runaway pod consuming unexpected resources. Sort by memory with --sort-by=memory or by CPU with --sort-by=cpu. If a pod has no resource requests set, kubectl top will still show actual usage — but the scheduler had no information to make a good placement decision.',
+          explanation:
+            'kubectl top pods -A shows consumption across all namespaces. This is the fastest way to find a runaway pod consuming unexpected resources. Sort by memory with --sort-by=memory or by CPU with --sort-by=cpu. If a pod has no resource requests set, kubectl top will still show actual usage — but the scheduler had no information to make a good placement decision.',
           clusterState: {
             pods: [
-              { id: 'prod-webapp-d7f3a', name: 'prod-webapp-d7f3a', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'webapp' }, image: 'myrepo/webapp:v1.5.2', restarts: 0 },
-              { id: 'my-ingress-ctrl-7f8d2', name: 'my-ingress-ingress-nginx-controller-7f8d2', namespace: 'ingress-nginx', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
-              { id: 'metrics-server-7b4d2', name: 'metrics-server-7b4d2', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { 'k8s-app': 'metrics-server' }, image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.2', restarts: 0 },
+              {
+                id: 'prod-webapp-d7f3a',
+                name: 'prod-webapp-d7f3a',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'webapp' },
+                image: 'myrepo/webapp:v1.5.2',
+                restarts: 0,
+              },
+              {
+                id: 'my-ingress-ctrl-7f8d2',
+                name: 'my-ingress-ingress-nginx-controller-7f8d2',
+                namespace: 'ingress-nginx',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+                restarts: 0,
+              },
+              {
+                id: 'metrics-server-7b4d2',
+                name: 'metrics-server-7b4d2',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'k8s-app': 'metrics-server' },
+                image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.2',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -1578,8 +1996,10 @@ For tracing to work across microservice hops, applications must propagate the tr
         {
           id: 'p5-m4-s4',
           title: 'Deploy Prometheus + Grafana stack',
-          instruction: 'Install the kube-prometheus-stack Helm chart — a full observability stack in one command.',
-          command: 'helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && helm install kube-prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace',
+          instruction:
+            'Install the kube-prometheus-stack Helm chart — a full observability stack in one command.',
+          command:
+            'helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && helm install kube-prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace',
           output: [
             '"prometheus-community" has been added to your repositories',
             'NAME: kube-prometheus',
@@ -1590,22 +2010,98 @@ For tracing to work across microservice hops, applications must propagate the tr
             'kube-prometheus-stack has been installed.',
             'Visit https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack',
           ],
-          explanation: 'kube-prometheus-stack is a meta-chart that installs Prometheus Operator, Prometheus, Grafana, Alertmanager, node-exporter (as DaemonSet), kube-state-metrics, and a set of pre-built dashboards and alert rules. This single helm install replaces hundreds of lines of hand-crafted YAML. Helm is ideal here because this is third-party software with complex configuration managed by the chart maintainers.',
+          explanation:
+            'kube-prometheus-stack is a meta-chart that installs Prometheus Operator, Prometheus, Grafana, Alertmanager, node-exporter (as DaemonSet), kube-state-metrics, and a set of pre-built dashboards and alert rules. This single helm install replaces hundreds of lines of hand-crafted YAML. Helm is ideal here because this is third-party software with complex configuration managed by the chart maintainers.',
           clusterState: {
             pods: [
-              { id: 'prometheus-kube-prometheus-0', name: 'prometheus-kube-prometheus-prometheus-0', namespace: 'monitoring', node: 'node-1', status: 'Running', labels: { app: 'prometheus' }, image: 'quay.io/prometheus/prometheus:v2.55.1', restarts: 0 },
-              { id: 'kube-prometheus-grafana-7d9f3', name: 'kube-prometheus-grafana-7d9f3', namespace: 'monitoring', node: 'node-2', status: 'Running', labels: { 'app.kubernetes.io/name': 'grafana' }, image: 'docker.io/grafana/grafana:11.4.0', restarts: 0 },
-              { id: 'node-exporter-node1', name: 'kube-prometheus-prometheus-node-exporter-node1', namespace: 'monitoring', node: 'node-1', status: 'Running', labels: { app: 'prometheus-node-exporter' }, image: 'quay.io/prometheus/node-exporter:v1.8.2', restarts: 0 },
-              { id: 'node-exporter-node2', name: 'kube-prometheus-prometheus-node-exporter-node2', namespace: 'monitoring', node: 'node-2', status: 'Running', labels: { app: 'prometheus-node-exporter' }, image: 'quay.io/prometheus/node-exporter:v1.8.2', restarts: 0 },
-              { id: 'kube-state-metrics-6c8b2', name: 'kube-prometheus-kube-state-metrics-6c8b2', namespace: 'monitoring', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'kube-state-metrics' }, image: 'registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0', restarts: 0 },
+              {
+                id: 'prometheus-kube-prometheus-0',
+                name: 'prometheus-kube-prometheus-prometheus-0',
+                namespace: 'monitoring',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'prometheus' },
+                image: 'quay.io/prometheus/prometheus:v2.55.1',
+                restarts: 0,
+              },
+              {
+                id: 'kube-prometheus-grafana-7d9f3',
+                name: 'kube-prometheus-grafana-7d9f3',
+                namespace: 'monitoring',
+                node: 'node-2',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'grafana' },
+                image: 'docker.io/grafana/grafana:11.4.0',
+                restarts: 0,
+              },
+              {
+                id: 'node-exporter-node1',
+                name: 'kube-prometheus-prometheus-node-exporter-node1',
+                namespace: 'monitoring',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'prometheus-node-exporter' },
+                image: 'quay.io/prometheus/node-exporter:v1.8.2',
+                restarts: 0,
+              },
+              {
+                id: 'node-exporter-node2',
+                name: 'kube-prometheus-prometheus-node-exporter-node2',
+                namespace: 'monitoring',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'prometheus-node-exporter' },
+                image: 'quay.io/prometheus/node-exporter:v1.8.2',
+                restarts: 0,
+              },
+              {
+                id: 'kube-state-metrics-6c8b2',
+                name: 'kube-prometheus-kube-state-metrics-6c8b2',
+                namespace: 'monitoring',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'kube-state-metrics' },
+                image: 'registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'grafana-svc', name: 'kube-prometheus-grafana', namespace: 'monitoring', type: 'ClusterIP', selector: { 'app.kubernetes.io/name': 'grafana' }, port: 80, clusterIP: '10.96.55.21' },
-              { id: 'prometheus-svc', name: 'kube-prometheus-kube-prometheus-prometheus', namespace: 'monitoring', type: 'ClusterIP', selector: { app: 'prometheus' }, port: 9090, clusterIP: '10.96.55.22' },
+              {
+                id: 'grafana-svc',
+                name: 'kube-prometheus-grafana',
+                namespace: 'monitoring',
+                type: 'ClusterIP',
+                selector: { 'app.kubernetes.io/name': 'grafana' },
+                port: 80,
+                clusterIP: '10.96.55.21',
+              },
+              {
+                id: 'prometheus-svc',
+                name: 'kube-prometheus-kube-prometheus-prometheus',
+                namespace: 'monitoring',
+                type: 'ClusterIP',
+                selector: { app: 'prometheus' },
+                port: 9090,
+                clusterIP: '10.96.55.22',
+              },
             ],
             deployments: [
-              { id: 'grafana-deploy', name: 'kube-prometheus-grafana', namespace: 'monitoring', replicas: 1, availableReplicas: 1, image: 'docker.io/grafana/grafana:11.4.0' },
-              { id: 'kube-state-metrics-deploy', name: 'kube-prometheus-kube-state-metrics', namespace: 'monitoring', replicas: 1, availableReplicas: 1, image: 'registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0' },
+              {
+                id: 'grafana-deploy',
+                name: 'kube-prometheus-grafana',
+                namespace: 'monitoring',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'docker.io/grafana/grafana:11.4.0',
+              },
+              {
+                id: 'kube-state-metrics-deploy',
+                name: 'kube-prometheus-kube-state-metrics',
+                namespace: 'monitoring',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0',
+              },
             ],
             namespaces: ['default', 'ingress-nginx', 'kube-system', 'monitoring'],
             events: [
@@ -1629,23 +2125,86 @@ For tracing to work across microservice hops, applications must propagate the tr
             'kube-prometheus-prometheus-node-exporter-node2            1/1     Running   0          2m',
             'prometheus-kube-prometheus-prometheus-0                   2/2     Running   0          2m',
           ],
-          explanation: 'The monitoring stack includes: Prometheus (scrapes metrics, stores time-series), Grafana (visualization), Alertmanager (routes alerts), node-exporter on every node (DaemonSet — one pod per node, hardware metrics), and kube-state-metrics (Kubernetes object state metrics). node-exporter pods show a pod per node — that is the DaemonSet guarantee.',
+          explanation:
+            'The monitoring stack includes: Prometheus (scrapes metrics, stores time-series), Grafana (visualization), Alertmanager (routes alerts), node-exporter on every node (DaemonSet — one pod per node, hardware metrics), and kube-state-metrics (Kubernetes object state metrics). node-exporter pods show a pod per node — that is the DaemonSet guarantee.',
           clusterState: {
             pods: [
-              { id: 'prometheus-kube-prometheus-0', name: 'prometheus-kube-prometheus-prometheus-0', namespace: 'monitoring', node: 'node-1', status: 'Running', labels: { app: 'prometheus' }, image: 'quay.io/prometheus/prometheus:v2.55.1', restarts: 0 },
-              { id: 'kube-prometheus-grafana-7d9f3', name: 'kube-prometheus-grafana-7d9f3', namespace: 'monitoring', node: 'node-2', status: 'Running', labels: { 'app.kubernetes.io/name': 'grafana' }, image: 'docker.io/grafana/grafana:11.4.0', restarts: 0 },
-              { id: 'node-exporter-node1', name: 'kube-prometheus-prometheus-node-exporter-node1', namespace: 'monitoring', node: 'node-1', status: 'Running', labels: { app: 'prometheus-node-exporter' }, image: 'quay.io/prometheus/node-exporter:v1.8.2', restarts: 0 },
-              { id: 'node-exporter-node2', name: 'kube-prometheus-prometheus-node-exporter-node2', namespace: 'monitoring', node: 'node-2', status: 'Running', labels: { app: 'prometheus-node-exporter' }, image: 'quay.io/prometheus/node-exporter:v1.8.2', restarts: 0 },
-              { id: 'kube-state-metrics-6c8b2', name: 'kube-prometheus-kube-state-metrics-6c8b2', namespace: 'monitoring', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'kube-state-metrics' }, image: 'registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0', restarts: 0 },
+              {
+                id: 'prometheus-kube-prometheus-0',
+                name: 'prometheus-kube-prometheus-prometheus-0',
+                namespace: 'monitoring',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'prometheus' },
+                image: 'quay.io/prometheus/prometheus:v2.55.1',
+                restarts: 0,
+              },
+              {
+                id: 'kube-prometheus-grafana-7d9f3',
+                name: 'kube-prometheus-grafana-7d9f3',
+                namespace: 'monitoring',
+                node: 'node-2',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'grafana' },
+                image: 'docker.io/grafana/grafana:11.4.0',
+                restarts: 0,
+              },
+              {
+                id: 'node-exporter-node1',
+                name: 'kube-prometheus-prometheus-node-exporter-node1',
+                namespace: 'monitoring',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'prometheus-node-exporter' },
+                image: 'quay.io/prometheus/node-exporter:v1.8.2',
+                restarts: 0,
+              },
+              {
+                id: 'node-exporter-node2',
+                name: 'kube-prometheus-prometheus-node-exporter-node2',
+                namespace: 'monitoring',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'prometheus-node-exporter' },
+                image: 'quay.io/prometheus/node-exporter:v1.8.2',
+                restarts: 0,
+              },
+              {
+                id: 'kube-state-metrics-6c8b2',
+                name: 'kube-prometheus-kube-state-metrics-6c8b2',
+                namespace: 'monitoring',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'kube-state-metrics' },
+                image: 'registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'grafana-svc', name: 'kube-prometheus-grafana', namespace: 'monitoring', type: 'ClusterIP', selector: { 'app.kubernetes.io/name': 'grafana' }, port: 80, clusterIP: '10.96.55.21' },
+              {
+                id: 'grafana-svc',
+                name: 'kube-prometheus-grafana',
+                namespace: 'monitoring',
+                type: 'ClusterIP',
+                selector: { 'app.kubernetes.io/name': 'grafana' },
+                port: 80,
+                clusterIP: '10.96.55.21',
+              },
             ],
             deployments: [
-              { id: 'grafana-deploy', name: 'kube-prometheus-grafana', namespace: 'monitoring', replicas: 1, availableReplicas: 1, image: 'docker.io/grafana/grafana:11.4.0' },
+              {
+                id: 'grafana-deploy',
+                name: 'kube-prometheus-grafana',
+                namespace: 'monitoring',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'docker.io/grafana/grafana:11.4.0',
+              },
             ],
             namespaces: ['default', 'ingress-nginx', 'kube-system', 'monitoring'],
-            events: ['All 6 monitoring pods Running (Prometheus, Grafana, Alertmanager, 2x node-exporter, kube-state-metrics)'],
+            events: [
+              'All 6 monitoring pods Running (Prometheus, Grafana, Alertmanager, 2x node-exporter, kube-state-metrics)',
+            ],
             highlightedComponent: 'kubelet',
           },
           tip: 'Default Grafana credentials: admin / prom-operator. Change these immediately in a real cluster via the grafana.adminPassword value.',
@@ -1653,26 +2212,85 @@ For tracing to work across microservice hops, applications must propagate the tr
         {
           id: 'p5-m4-s6',
           title: 'Access Grafana dashboards',
-          instruction: 'Port-forward the Grafana service to your local machine and explore the pre-built dashboards.',
+          instruction:
+            'Port-forward the Grafana service to your local machine and explore the pre-built dashboards.',
           command: 'kubectl port-forward svc/kube-prometheus-grafana 3000:80 -n monitoring',
-          output: [
-            'Forwarding from 127.0.0.1:3000 -> 3000',
-            'Forwarding from [::1]:3000 -> 3000',
-          ],
-          explanation: 'kubectl port-forward creates a tunnel from your local port 3000 to the Grafana service\'s port 80 in the cluster. Navigate to http://localhost:3000 (admin / prom-operator). The kube-prometheus-stack pre-installs 30+ dashboards including: Kubernetes / Cluster Overview (node CPU, memory, pod count), Node Exporter / Nodes (per-node hardware metrics), Kubernetes / Workloads (per-namespace deployment health), and Kubernetes / Persistent Volumes.',
+          output: ['Forwarding from 127.0.0.1:3000 -> 3000', 'Forwarding from [::1]:3000 -> 3000'],
+          explanation:
+            "kubectl port-forward creates a tunnel from your local port 3000 to the Grafana service's port 80 in the cluster. Navigate to http://localhost:3000 (admin / prom-operator). The kube-prometheus-stack pre-installs 30+ dashboards including: Kubernetes / Cluster Overview (node CPU, memory, pod count), Node Exporter / Nodes (per-node hardware metrics), Kubernetes / Workloads (per-namespace deployment health), and Kubernetes / Persistent Volumes.",
           clusterState: {
             pods: [
-              { id: 'prometheus-kube-prometheus-0', name: 'prometheus-kube-prometheus-prometheus-0', namespace: 'monitoring', node: 'node-1', status: 'Running', labels: { app: 'prometheus' }, image: 'quay.io/prometheus/prometheus:v2.55.1', restarts: 0 },
-              { id: 'kube-prometheus-grafana-7d9f3', name: 'kube-prometheus-grafana-7d9f3', namespace: 'monitoring', node: 'node-2', status: 'Running', labels: { 'app.kubernetes.io/name': 'grafana' }, image: 'docker.io/grafana/grafana:11.4.0', restarts: 0 },
-              { id: 'node-exporter-node1', name: 'kube-prometheus-prometheus-node-exporter-node1', namespace: 'monitoring', node: 'node-1', status: 'Running', labels: { app: 'prometheus-node-exporter' }, image: 'quay.io/prometheus/node-exporter:v1.8.2', restarts: 0 },
-              { id: 'node-exporter-node2', name: 'kube-prometheus-prometheus-node-exporter-node2', namespace: 'monitoring', node: 'node-2', status: 'Running', labels: { app: 'prometheus-node-exporter' }, image: 'quay.io/prometheus/node-exporter:v1.8.2', restarts: 0 },
-              { id: 'kube-state-metrics-6c8b2', name: 'kube-prometheus-kube-state-metrics-6c8b2', namespace: 'monitoring', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'kube-state-metrics' }, image: 'registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0', restarts: 0 },
+              {
+                id: 'prometheus-kube-prometheus-0',
+                name: 'prometheus-kube-prometheus-prometheus-0',
+                namespace: 'monitoring',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'prometheus' },
+                image: 'quay.io/prometheus/prometheus:v2.55.1',
+                restarts: 0,
+              },
+              {
+                id: 'kube-prometheus-grafana-7d9f3',
+                name: 'kube-prometheus-grafana-7d9f3',
+                namespace: 'monitoring',
+                node: 'node-2',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'grafana' },
+                image: 'docker.io/grafana/grafana:11.4.0',
+                restarts: 0,
+              },
+              {
+                id: 'node-exporter-node1',
+                name: 'kube-prometheus-prometheus-node-exporter-node1',
+                namespace: 'monitoring',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'prometheus-node-exporter' },
+                image: 'quay.io/prometheus/node-exporter:v1.8.2',
+                restarts: 0,
+              },
+              {
+                id: 'node-exporter-node2',
+                name: 'kube-prometheus-prometheus-node-exporter-node2',
+                namespace: 'monitoring',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'prometheus-node-exporter' },
+                image: 'quay.io/prometheus/node-exporter:v1.8.2',
+                restarts: 0,
+              },
+              {
+                id: 'kube-state-metrics-6c8b2',
+                name: 'kube-prometheus-kube-state-metrics-6c8b2',
+                namespace: 'monitoring',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'kube-state-metrics' },
+                image: 'registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'grafana-svc', name: 'kube-prometheus-grafana', namespace: 'monitoring', type: 'ClusterIP', selector: { 'app.kubernetes.io/name': 'grafana' }, port: 80, clusterIP: '10.96.55.21' },
+              {
+                id: 'grafana-svc',
+                name: 'kube-prometheus-grafana',
+                namespace: 'monitoring',
+                type: 'ClusterIP',
+                selector: { 'app.kubernetes.io/name': 'grafana' },
+                port: 80,
+                clusterIP: '10.96.55.21',
+              },
             ],
             deployments: [
-              { id: 'grafana-deploy', name: 'kube-prometheus-grafana', namespace: 'monitoring', replicas: 1, availableReplicas: 1, image: 'docker.io/grafana/grafana:11.4.0' },
+              {
+                id: 'grafana-deploy',
+                name: 'kube-prometheus-grafana',
+                namespace: 'monitoring',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'docker.io/grafana/grafana:11.4.0',
+              },
             ],
             namespaces: ['default', 'ingress-nginx', 'kube-system', 'monitoring'],
             events: [
@@ -1687,7 +2305,8 @@ For tracing to work across microservice hops, applications must propagate the tr
       quiz: [
         {
           id: 'p5-m4-q1',
-          question: 'kubectl logs stops working for a pod that crashed 2 days ago and was replaced. How do you access those historical logs?',
+          question:
+            'kubectl logs stops working for a pod that crashed 2 days ago and was replaced. How do you access those historical logs?',
           options: [
             'kubectl logs --history <pod-name>',
             'kubectl describe pod <pod-name> shows the last 1000 log lines permanently',
@@ -1695,7 +2314,8 @@ For tracing to work across microservice hops, applications must propagate the tr
             'kubectl logs --previous <pod-name> always works regardless of how long ago the pod crashed',
           ],
           answer: 2,
-          explanation: 'kubectl logs (and kubectl logs --previous) only work while the pod still exists on the node. Once a pod is deleted or evicted, its logs are gone from the node filesystem. Centralized logging — a DaemonSet (Fluent Bit, Promtail) shipping logs to Loki or Elasticsearch — is the only way to retain logs beyond the pod lifecycle. kubectl logs --previous shows the previous container in the same pod, not logs from days ago.',
+          explanation:
+            'kubectl logs (and kubectl logs --previous) only work while the pod still exists on the node. Once a pod is deleted or evicted, its logs are gone from the node filesystem. Centralized logging — a DaemonSet (Fluent Bit, Promtail) shipping logs to Loki or Elasticsearch — is the only way to retain logs beyond the pod lifecycle. kubectl logs --previous shows the previous container in the same pod, not logs from days ago.',
         },
         {
           id: 'p5-m4-q2',
@@ -1707,7 +2327,8 @@ For tracing to work across microservice hops, applications must propagate the tr
             'metrics-server stores 30 days of history; kube-state-metrics stores only the latest data point',
           ],
           answer: 1,
-          explanation: 'metrics-server aggregates live resource usage (CPU cores, memory bytes) from the kubelet on each node and exposes them via the metrics.k8s.io API. It stores only the latest value. kube-state-metrics watches the Kubernetes API and converts object state into Prometheus-format metrics — is the deployment at desired replicas? is the pod in CrashLoopBackOff? These are completely different data sources and most production clusters run both.',
+          explanation:
+            'metrics-server aggregates live resource usage (CPU cores, memory bytes) from the kubelet on each node and exposes them via the metrics.k8s.io API. It stores only the latest value. kube-state-metrics watches the Kubernetes API and converts object state into Prometheus-format metrics — is the deployment at desired replicas? is the pod in CrashLoopBackOff? These are completely different data sources and most production clusters run both.',
         },
         {
           id: 'p5-m4-q3',
@@ -1719,11 +2340,13 @@ For tracing to work across microservice hops, applications must propagate the tr
             'Neither — Prometheus only reads from a central metrics database',
           ],
           answer: 1,
-          explanation: 'Prometheus uses a pull (scrape) model: it periodically sends HTTP GET requests to /metrics endpoints on the targets it is configured to watch. This makes Prometheus the authority on when and how often to collect data, and means the target does not need to know where Prometheus is. The Pushgateway exists for short-lived jobs that cannot be scraped, but it is the exception, not the rule.',
+          explanation:
+            'Prometheus uses a pull (scrape) model: it periodically sends HTTP GET requests to /metrics endpoints on the targets it is configured to watch. This makes Prometheus the authority on when and how often to collect data, and means the target does not need to know where Prometheus is. The Pushgateway exists for short-lived jobs that cannot be scraped, but it is the exception, not the rule.',
         },
         {
           id: 'p5-m4-q4',
-          question: 'Why is structured (JSON) logging preferred over plain text logs in Kubernetes?',
+          question:
+            'Why is structured (JSON) logging preferred over plain text logs in Kubernetes?',
           options: [
             'JSON logs are smaller and use less disk space than plain text',
             'Kubernetes requires JSON logs — plain text logs cause errors in kubelet',
@@ -1731,11 +2354,13 @@ For tracing to work across microservice hops, applications must propagate the tr
             'JSON logs are automatically forwarded to Prometheus as metrics',
           ],
           answer: 2,
-          explanation: 'Structured logs (JSON) emit each log entry as a JSON object with defined fields (timestamp, level, message, request_id, user_id, etc.). Log backends (Loki, Elasticsearch) can index these fields directly, enabling precise filtering ("show all ERROR logs for user_id=123") and reliable alerting ("alert if error_rate > 5%"). Plain text requires brittle regex patterns to extract the same information and breaks whenever the log format changes.',
+          explanation:
+            'Structured logs (JSON) emit each log entry as a JSON object with defined fields (timestamp, level, message, request_id, user_id, etc.). Log backends (Loki, Elasticsearch) can index these fields directly, enabling precise filtering ("show all ERROR logs for user_id=123") and reliable alerting ("alert if error_rate > 5%"). Plain text requires brittle regex patterns to extract the same information and breaks whenever the log format changes.',
         },
         {
           id: 'p5-m4-q5',
-          question: 'Which observability pillar helps you understand why a specific user request was slow across multiple microservices?',
+          question:
+            'Which observability pillar helps you understand why a specific user request was slow across multiple microservices?',
           options: [
             'Metrics — a Prometheus query can show per-service latency breakdown',
             'Logs — correlating log timestamps across services reveals the slow step',
@@ -1743,18 +2368,66 @@ For tracing to work across microservice hops, applications must propagate the tr
             'kubectl top — it shows real-time latency per pod',
           ],
           answer: 2,
-          explanation: 'Distributed tracing is specifically designed for this. A trace captures the complete request flow: Service A called Service B (12ms), which called the database (340ms — the bottleneck), which returned to Service B (2ms), which returned to Service A. Metrics can tell you the p99 latency is high; traces tell you exactly which hop in the chain is responsible. OpenTelemetry is the standard instrumentation SDK; Jaeger and Grafana Tempo are popular backends.',
+          explanation:
+            'Distributed tracing is specifically designed for this. A trace captures the complete request flow: Service A called Service B (12ms), which called the database (340ms — the bottleneck), which returned to Service B (2ms), which returned to Service A. Metrics can tell you the p99 latency is high; traces tell you exactly which hop in the chain is responsible. OpenTelemetry is the standard instrumentation SDK; Jaeger and Grafana Tempo are popular backends.',
         },
       ],
       coverage: {
-        concepts: ['three pillars: metrics, logs, traces', 'metrics: counters, gauges, histograms, summaries', 'Prometheus scrape model via /metrics endpoint', 'log aggregation via stdout/stderr → Loki/Elasticsearch', 'distributed tracing: spans, trace ID propagation', 'OpenTelemetry as standard instrumentation SDK'],
-        commands: ['minikube addons enable metrics-server', 'kubectl top pods', 'kubectl top nodes', 'kubectl logs -f -l app=web', 'kubectl logs --previous', 'helm install prometheus prometheus-community/kube-prometheus-stack', 'kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring'],
-        architecture: ['Prometheus scrapes /metrics every 15s via ServiceMonitor CRDs', 'Grafana queries Prometheus for dashboards and alerts', 'kubelet exports cAdvisor metrics per container', 'logs written to stdout/stderr, aggregated by node-level log agent'],
-        techniques: ['enable metrics-server addon for kubectl top', 'port-forward to access Grafana locally', 'filter logs across all replicas with -l selector', 'get previous container logs after crash with --previous', 'use kubectl top to identify CPU/memory hogs'],
-        procedures: ['enable metrics-server in minikube', 'check pod and node resource usage', 'stream logs from all replicas', 'install kube-prometheus-stack via Helm', 'access Grafana dashboard via port-forward'],
-        toolsAndPlugins: ['kubectl', 'minikube', 'Prometheus', 'Grafana', 'metrics-server', 'OpenTelemetry', 'Loki'],
-        cases: ['kubectl top fails — metrics-server not running or not ready', 'logs lost after pod restart — use --previous or central log aggregation', 'HPA broken — metrics-server required for CPU metrics'],
-        scenarios: ['identify the highest-CPU pod in a namespace', 'get logs from all replicas of a deployment simultaneously'],
+        concepts: [
+          'three pillars: metrics, logs, traces',
+          'metrics: counters, gauges, histograms, summaries',
+          'Prometheus scrape model via /metrics endpoint',
+          'log aggregation via stdout/stderr → Loki/Elasticsearch',
+          'distributed tracing: spans, trace ID propagation',
+          'OpenTelemetry as standard instrumentation SDK',
+        ],
+        commands: [
+          'minikube addons enable metrics-server',
+          'kubectl top pods',
+          'kubectl top nodes',
+          'kubectl logs -f -l app=web',
+          'kubectl logs --previous',
+          'helm install prometheus prometheus-community/kube-prometheus-stack',
+          'kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring',
+        ],
+        architecture: [
+          'Prometheus scrapes /metrics every 15s via ServiceMonitor CRDs',
+          'Grafana queries Prometheus for dashboards and alerts',
+          'kubelet exports cAdvisor metrics per container',
+          'logs written to stdout/stderr, aggregated by node-level log agent',
+        ],
+        techniques: [
+          'enable metrics-server addon for kubectl top',
+          'port-forward to access Grafana locally',
+          'filter logs across all replicas with -l selector',
+          'get previous container logs after crash with --previous',
+          'use kubectl top to identify CPU/memory hogs',
+        ],
+        procedures: [
+          'enable metrics-server in minikube',
+          'check pod and node resource usage',
+          'stream logs from all replicas',
+          'install kube-prometheus-stack via Helm',
+          'access Grafana dashboard via port-forward',
+        ],
+        toolsAndPlugins: [
+          'kubectl',
+          'minikube',
+          'Prometheus',
+          'Grafana',
+          'metrics-server',
+          'OpenTelemetry',
+          'Loki',
+        ],
+        cases: [
+          'kubectl top fails — metrics-server not running or not ready',
+          'logs lost after pod restart — use --previous or central log aggregation',
+          'HPA broken — metrics-server required for CPU metrics',
+        ],
+        scenarios: [
+          'identify the highest-CPU pod in a namespace',
+          'get logs from all replicas of a deployment simultaneously',
+        ],
       },
       exercises: [
         {
@@ -1770,7 +2443,11 @@ For tracing to work across microservice hops, applications must propagate the tr
             'kubectl top pods -l app=load-app',
             'kubectl top pods -A --sort-by=cpu | head -10',
           ],
-          verify: ['kubectl top nodes shows CPU% and MEMORY%', 'kubectl top pods shows per-pod resource usage', 'sorted output shows top CPU consumers'],
+          verify: [
+            'kubectl top nodes shows CPU% and MEMORY%',
+            'kubectl top pods shows per-pod resource usage',
+            'sorted output shows top CPU consumers',
+          ],
           expectedOutcome: 'metrics-server working; resource usage visible per pod and node.',
           cleanup: ['kubectl delete deployment load-app'],
         },
@@ -1786,9 +2463,16 @@ For tracing to work across microservice hops, applications must propagate the tr
             'kubectl run crasher --image=busybox:1.36 --restart=Never -- sh -c “echo crash; exit 1”',
             'kubectl logs crasher --previous',
           ],
-          verify: ['logs -l streams from all 3 pods', '--previous returns logs from the terminated container'],
-          expectedOutcome: 'Multi-replica log streaming and previous-container log retrieval confirmed.',
-          cleanup: ['kubectl delete deployment log-app', 'kubectl delete pod crasher --ignore-not-found'],
+          verify: [
+            'logs -l streams from all 3 pods',
+            '--previous returns logs from the terminated container',
+          ],
+          expectedOutcome:
+            'Multi-replica log streaming and previous-container log retrieval confirmed.',
+          cleanup: [
+            'kubectl delete deployment log-app',
+            'kubectl delete pod crasher --ignore-not-found',
+          ],
         },
         {
           id: 'p5-m4-e3',
@@ -1802,7 +2486,10 @@ For tracing to work across microservice hops, applications must propagate the tr
             'kubectl get apiservice v1beta1.metrics.k8s.io 2>&1 || true',
             'minikube addons enable metrics-server',
           ],
-          verify: ['kubectl top shows “error: Metrics API not available” when disabled', 'Re-enabling metrics-server restores kubectl top functionality'],
+          verify: [
+            'kubectl top shows “error: Metrics API not available” when disabled',
+            'Re-enabling metrics-server restores kubectl top functionality',
+          ],
           expectedOutcome: 'Metrics API absence diagnosed; metrics-server role understood.',
           cleanup: [],
         },
@@ -1814,7 +2501,7 @@ For tracing to work across microservice hops, applications must propagate the tr
           commands: [
             'kubectl top nodes',
             'kubectl top pods -A | head -10',
-            'kubectl logs -l app=<any-running-app> --tail=5 2>/dev/null || kubectl get pods --no-headers | head -1 | awk \'{print $1}\' | xargs kubectl logs --tail=5',
+            "kubectl logs -l app=<any-running-app> --tail=5 2>/dev/null || kubectl get pods --no-headers | head -1 | awk '{print $1}' | xargs kubectl logs --tail=5",
           ],
           verify: ['kubectl top works', 'logs retrievable from running pod'],
           expectedOutcome: 'Three pillars and observability commands recalled without notes.',
@@ -1828,7 +2515,8 @@ For tracing to work across microservice hops, applications must propagate the tr
       id: 'p5-m5',
       slug: 'production-readiness',
       title: 'Production Readiness Checklist',
-      description: 'Apply everything from the course — a comprehensive checklist for running Kubernetes workloads safely in production.',
+      description:
+        'Apply everything from the course — a comprehensive checklist for running Kubernetes workloads safely in production.',
       duration: '60 min',
       difficulty: 'advanced',
       theory: `> 🧠 **Brain Warm-Up**: When a worker node experiences disk pressure or memory pressure, the kubelet eviction manager initiates pod evictions. How does the kubelet choose which pods to evict first, and how do Pod QOS classes (Guaranteed, Burstable, BestEffort) and PodDisruptionBudgets affect this selection?
@@ -1948,10 +2636,20 @@ spec:
   - name: host-vol
     hostPath:                  # Problem 7: hostPath volume (node filesystem access)
       path: /var/data`,
-          explanation: 'This single pod spec has 7 production violations: (1) default ServiceAccount with broad API access, (2) :latest tag makes deployments non-reproducible, (3) no resource requests means the scheduler is blind and no limits means one container can starve neighbours, (4-5) no liveness/readiness probes means traffic is sent to unready pods and hung pods are never restarted, (6) plaintext secret in env — visible in kubectl describe and etcd, (7) hostPath mounts the node filesystem into the container — a container escape can access all node data.',
+          explanation:
+            'This single pod spec has 7 production violations: (1) default ServiceAccount with broad API access, (2) :latest tag makes deployments non-reproducible, (3) no resource requests means the scheduler is blind and no limits means one container can starve neighbours, (4-5) no liveness/readiness probes means traffic is sent to unready pods and hung pods are never restarted, (6) plaintext secret in env — visible in kubectl describe and etcd, (7) hostPath mounts the node filesystem into the container — a container escape can access all node data.',
           clusterState: {
             pods: [
-              { id: 'insecure-app', name: 'insecure-app', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'insecure-app' }, image: 'myrepo/app:latest', restarts: 3 },
+              {
+                id: 'insecure-app',
+                name: 'insecure-app',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'insecure-app' },
+                image: 'myrepo/app:latest',
+                restarts: 3,
+              },
             ],
             services: [],
             deployments: [],
@@ -2023,19 +2721,42 @@ spec:
             secretKeyRef:             # secret from a Secret object
               name: app-db-secret
               key: password`,
-          output: [
-            'serviceaccount/secure-app-sa created',
-            'deployment.apps/secure-app created',
-          ],
-          explanation: 'Every violation is fixed: dedicated SA with automountServiceAccountToken: false, pinned image tag, resource requests and limits, liveness and readiness probes, password from a Secret object, no hostPath, pod anti-affinity to spread replicas across nodes, and non-root securityContext. This is the minimum bar for a production workload.',
+          output: ['serviceaccount/secure-app-sa created', 'deployment.apps/secure-app created'],
+          explanation:
+            'Every violation is fixed: dedicated SA with automountServiceAccountToken: false, pinned image tag, resource requests and limits, liveness and readiness probes, password from a Secret object, no hostPath, pod anti-affinity to spread replicas across nodes, and non-root securityContext. This is the minimum bar for a production workload.',
           clusterState: {
             pods: [
-              { id: 'secure-app-8f3d1', name: 'secure-app-8f3d1', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'secure-app' }, image: 'myrepo/app:v2.3.1', restarts: 0 },
-              { id: 'secure-app-2c9b7', name: 'secure-app-2c9b7', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'secure-app' }, image: 'myrepo/app:v2.3.1', restarts: 0 },
+              {
+                id: 'secure-app-8f3d1',
+                name: 'secure-app-8f3d1',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'secure-app' },
+                image: 'myrepo/app:v2.3.1',
+                restarts: 0,
+              },
+              {
+                id: 'secure-app-2c9b7',
+                name: 'secure-app-2c9b7',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'secure-app' },
+                image: 'myrepo/app:v2.3.1',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [
-              { id: 'secure-app-deploy', name: 'secure-app', namespace: 'default', replicas: 2, availableReplicas: 2, image: 'myrepo/app:v2.3.1' },
+              {
+                id: 'secure-app-deploy',
+                name: 'secure-app',
+                namespace: 'default',
+                replicas: 2,
+                availableReplicas: 2,
+                image: 'myrepo/app:v2.3.1',
+              },
             ],
             namespaces: ['default'],
             events: [
@@ -2048,22 +2769,49 @@ spec:
         {
           id: 'p5-m5-s3',
           title: 'Check default ServiceAccount permissions',
-          instruction: 'Show how over-permissive the default ServiceAccount is, then disable auto-mounting.',
+          instruction:
+            'Show how over-permissive the default ServiceAccount is, then disable auto-mounting.',
           command: 'kubectl auth can-i --list --as=system:serviceaccount:default:default',
           output: [
             'Resources   Non-Resource URLs   Resource Names   Verbs',
             '*.*         []                  []               [*]',
             '            [*]                 []               [*]',
           ],
-          explanation: 'On a cluster with default RBAC settings, the default ServiceAccount in the default namespace has wildcard (*) permissions — full cluster-admin equivalent. Any pod using the default SA and not setting automountServiceAccountToken: false can read Secrets, create pods, and modify RBAC — a complete cluster compromise from a single container breakout. Always use dedicated SAs with minimal permissions and set automountServiceAccountToken: false on pods that do not need API access.',
+          explanation:
+            'On a cluster with default RBAC settings, the default ServiceAccount in the default namespace has wildcard (*) permissions — full cluster-admin equivalent. Any pod using the default SA and not setting automountServiceAccountToken: false can read Secrets, create pods, and modify RBAC — a complete cluster compromise from a single container breakout. Always use dedicated SAs with minimal permissions and set automountServiceAccountToken: false on pods that do not need API access.',
           clusterState: {
             pods: [
-              { id: 'secure-app-8f3d1', name: 'secure-app-8f3d1', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'secure-app' }, image: 'myrepo/app:v2.3.1', restarts: 0 },
-              { id: 'secure-app-2c9b7', name: 'secure-app-2c9b7', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'secure-app' }, image: 'myrepo/app:v2.3.1', restarts: 0 },
+              {
+                id: 'secure-app-8f3d1',
+                name: 'secure-app-8f3d1',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'secure-app' },
+                image: 'myrepo/app:v2.3.1',
+                restarts: 0,
+              },
+              {
+                id: 'secure-app-2c9b7',
+                name: 'secure-app-2c9b7',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'secure-app' },
+                image: 'myrepo/app:v2.3.1',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [
-              { id: 'secure-app-deploy', name: 'secure-app', namespace: 'default', replicas: 2, availableReplicas: 2, image: 'myrepo/app:v2.3.1' },
+              {
+                id: 'secure-app-deploy',
+                name: 'secure-app',
+                namespace: 'default',
+                replicas: 2,
+                availableReplicas: 2,
+                image: 'myrepo/app:v2.3.1',
+              },
             ],
             namespaces: ['default'],
             events: [
@@ -2077,7 +2825,8 @@ spec:
         {
           id: 'p5-m5-s4',
           title: 'Survey a production-ready cluster',
-          instruction: 'View the full picture of a well-configured cluster with all course concepts applied.',
+          instruction:
+            'View the full picture of a well-configured cluster with all course concepts applied.',
           command: 'kubectl get all -A',
           output: [
             'NAMESPACE      NAME                                                   READY   STATUS    RESTARTS',
@@ -2098,26 +2847,135 @@ spec:
             'ingress-nginx  service/my-ingress-ingress-nginx-controller LoadBalancer   10.96.45.12',
             'monitoring     service/kube-prometheus-grafana              ClusterIP      10.96.55.21',
           ],
-          explanation: 'This is the final state of the cluster after completing the entire course: secure-app running with 2 replicas across both nodes (anti-affinity), ingress-nginx providing external access via LoadBalancer, CoreDNS for service discovery, metrics-server for HPA and kubectl top, and the full Prometheus + Grafana monitoring stack in the monitoring namespace. Every component uses dedicated ServiceAccounts, resource requests/limits, and probes. This is production Kubernetes.',
+          explanation:
+            'This is the final state of the cluster after completing the entire course: secure-app running with 2 replicas across both nodes (anti-affinity), ingress-nginx providing external access via LoadBalancer, CoreDNS for service discovery, metrics-server for HPA and kubectl top, and the full Prometheus + Grafana monitoring stack in the monitoring namespace. Every component uses dedicated ServiceAccounts, resource requests/limits, and probes. This is production Kubernetes.',
           clusterState: {
             pods: [
-              { id: 'secure-app-8f3d1', name: 'secure-app-8f3d1', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'secure-app' }, image: 'myrepo/app:v2.3.1', restarts: 0 },
-              { id: 'secure-app-2c9b7', name: 'secure-app-2c9b7', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'secure-app' }, image: 'myrepo/app:v2.3.1', restarts: 0 },
-              { id: 'my-ingress-ctrl-7f8d2', name: 'my-ingress-ingress-nginx-controller-7f8d2', namespace: 'ingress-nginx', node: 'node-1', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
-              { id: 'my-ingress-ctrl-9c3a1', name: 'my-ingress-ingress-nginx-controller-9c3a1', namespace: 'ingress-nginx', node: 'node-2', status: 'Running', labels: { 'app.kubernetes.io/name': 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
-              { id: 'metrics-server-7b4d2', name: 'metrics-server-7b4d2', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { 'k8s-app': 'metrics-server' }, image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.2', restarts: 0 },
-              { id: 'prometheus-kube-prometheus-0', name: 'prometheus-kube-prometheus-prometheus-0', namespace: 'monitoring', node: 'node-1', status: 'Running', labels: { app: 'prometheus' }, image: 'quay.io/prometheus/prometheus:v2.55.1', restarts: 0 },
-              { id: 'kube-prometheus-grafana-7d9f3', name: 'kube-prometheus-grafana-7d9f3', namespace: 'monitoring', node: 'node-2', status: 'Running', labels: { 'app.kubernetes.io/name': 'grafana' }, image: 'docker.io/grafana/grafana:11.4.0', restarts: 0 },
+              {
+                id: 'secure-app-8f3d1',
+                name: 'secure-app-8f3d1',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'secure-app' },
+                image: 'myrepo/app:v2.3.1',
+                restarts: 0,
+              },
+              {
+                id: 'secure-app-2c9b7',
+                name: 'secure-app-2c9b7',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'secure-app' },
+                image: 'myrepo/app:v2.3.1',
+                restarts: 0,
+              },
+              {
+                id: 'my-ingress-ctrl-7f8d2',
+                name: 'my-ingress-ingress-nginx-controller-7f8d2',
+                namespace: 'ingress-nginx',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+                restarts: 0,
+              },
+              {
+                id: 'my-ingress-ctrl-9c3a1',
+                name: 'my-ingress-ingress-nginx-controller-9c3a1',
+                namespace: 'ingress-nginx',
+                node: 'node-2',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+                restarts: 0,
+              },
+              {
+                id: 'metrics-server-7b4d2',
+                name: 'metrics-server-7b4d2',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { 'k8s-app': 'metrics-server' },
+                image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.2',
+                restarts: 0,
+              },
+              {
+                id: 'prometheus-kube-prometheus-0',
+                name: 'prometheus-kube-prometheus-prometheus-0',
+                namespace: 'monitoring',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'prometheus' },
+                image: 'quay.io/prometheus/prometheus:v2.55.1',
+                restarts: 0,
+              },
+              {
+                id: 'kube-prometheus-grafana-7d9f3',
+                name: 'kube-prometheus-grafana-7d9f3',
+                namespace: 'monitoring',
+                node: 'node-2',
+                status: 'Running',
+                labels: { 'app.kubernetes.io/name': 'grafana' },
+                image: 'docker.io/grafana/grafana:11.4.0',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'secure-app-svc', name: 'secure-app', namespace: 'default', type: 'ClusterIP', selector: { app: 'secure-app' }, port: 8080, clusterIP: '10.96.77.55' },
-              { id: 'my-ingress-svc', name: 'my-ingress-ingress-nginx-controller', namespace: 'ingress-nginx', type: 'LoadBalancer', selector: { 'app.kubernetes.io/name': 'ingress-nginx' }, port: 80, clusterIP: '10.96.45.12' },
-              { id: 'grafana-svc', name: 'kube-prometheus-grafana', namespace: 'monitoring', type: 'ClusterIP', selector: { 'app.kubernetes.io/name': 'grafana' }, port: 80, clusterIP: '10.96.55.21' },
+              {
+                id: 'secure-app-svc',
+                name: 'secure-app',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'secure-app' },
+                port: 8080,
+                clusterIP: '10.96.77.55',
+              },
+              {
+                id: 'my-ingress-svc',
+                name: 'my-ingress-ingress-nginx-controller',
+                namespace: 'ingress-nginx',
+                type: 'LoadBalancer',
+                selector: { 'app.kubernetes.io/name': 'ingress-nginx' },
+                port: 80,
+                clusterIP: '10.96.45.12',
+              },
+              {
+                id: 'grafana-svc',
+                name: 'kube-prometheus-grafana',
+                namespace: 'monitoring',
+                type: 'ClusterIP',
+                selector: { 'app.kubernetes.io/name': 'grafana' },
+                port: 80,
+                clusterIP: '10.96.55.21',
+              },
             ],
             deployments: [
-              { id: 'secure-app-deploy', name: 'secure-app', namespace: 'default', replicas: 2, availableReplicas: 2, image: 'myrepo/app:v2.3.1' },
-              { id: 'my-ingress-deploy', name: 'my-ingress-ingress-nginx-controller', namespace: 'ingress-nginx', replicas: 2, availableReplicas: 2, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3' },
-              { id: 'grafana-deploy', name: 'kube-prometheus-grafana', namespace: 'monitoring', replicas: 1, availableReplicas: 1, image: 'docker.io/grafana/grafana:11.4.0' },
+              {
+                id: 'secure-app-deploy',
+                name: 'secure-app',
+                namespace: 'default',
+                replicas: 2,
+                availableReplicas: 2,
+                image: 'myrepo/app:v2.3.1',
+              },
+              {
+                id: 'my-ingress-deploy',
+                name: 'my-ingress-ingress-nginx-controller',
+                namespace: 'ingress-nginx',
+                replicas: 2,
+                availableReplicas: 2,
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+              },
+              {
+                id: 'grafana-deploy',
+                name: 'kube-prometheus-grafana',
+                namespace: 'monitoring',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'docker.io/grafana/grafana:11.4.0',
+              },
             ],
             namespaces: ['default', 'ingress-nginx', 'kube-system', 'monitoring'],
             events: [
@@ -2134,7 +2992,8 @@ spec:
       quiz: [
         {
           id: 'p5-m5-q1',
-          question: 'Name three things you should ALWAYS set on a production Pod that are optional for dev workloads.',
+          question:
+            'Name three things you should ALWAYS set on a production Pod that are optional for dev workloads.',
           options: [
             'A hostPath volume, a privileged security context, and automountServiceAccountToken: true',
             'Resource requests/limits, liveness probe, and readiness probe',
@@ -2142,7 +3001,8 @@ spec:
             'kubectl apply --force, --cascade=background, and --grace-period=0',
           ],
           answer: 1,
-          explanation: 'Resource requests and limits are required for correct scheduling and to prevent noisy-neighbor resource starvation. A liveness probe is required so Kubernetes can restart hung or deadlocked containers. A readiness probe is required so traffic is only sent to containers that have fully started. These are optional in dev (where you control the environment) but essential in production where multiple teams share nodes.',
+          explanation:
+            'Resource requests and limits are required for correct scheduling and to prevent noisy-neighbor resource starvation. A liveness probe is required so Kubernetes can restart hung or deadlocked containers. A readiness probe is required so traffic is only sent to containers that have fully started. These are optional in dev (where you control the environment) but essential in production where multiple teams share nodes.',
         },
         {
           id: 'p5-m5-q2',
@@ -2154,11 +3014,13 @@ spec:
             'Kubernetes 1.35 deprecated ServiceAccount tokens — they are no longer supported',
           ],
           answer: 2,
-          explanation: 'By default, Kubernetes mounts a ServiceAccount token into every pod. If an attacker gains code execution in a container, they can read this token and make authenticated API calls to the Kubernetes API server. Most application pods do not need API access at all. Setting automountServiceAccountToken: false removes the token from the pod filesystem, eliminating this attack vector entirely.',
+          explanation:
+            'By default, Kubernetes mounts a ServiceAccount token into every pod. If an attacker gains code execution in a container, they can read this token and make authenticated API calls to the Kubernetes API server. Most application pods do not need API access at all. Setting automountServiceAccountToken: false removes the token from the pod filesystem, eliminating this attack vector entirely.',
         },
         {
           id: 'p5-m5-q3',
-          question: 'What is GitOps and why is it preferred over manual kubectl apply in production?',
+          question:
+            'What is GitOps and why is it preferred over manual kubectl apply in production?',
           options: [
             'GitOps is a GitHub-specific feature that auto-deploys on push to main; manual kubectl is preferred for its flexibility',
             'GitOps means the cluster state is declared in Git and continuously reconciled by an agent (ArgoCD/Flux) — providing audit trail, rollback via git revert, drift detection, and no direct cluster access needed',
@@ -2166,7 +3028,8 @@ spec:
             'GitOps and manual kubectl are equivalent — GitOps is just a marketing term',
           ],
           answer: 1,
-          explanation: 'In a GitOps workflow, every desired cluster state is committed to Git (Helm values, Kustomize overlays, raw manifests). An agent (ArgoCD or Flux) watches the Git repo and automatically reconciles the cluster toward the declared state. Benefits: every change has a PR, author, and review; rollback is git revert; the agent alerts on drift (cluster diverged from Git); no human needs kubectl write access to production.',
+          explanation:
+            'In a GitOps workflow, every desired cluster state is committed to Git (Helm values, Kustomize overlays, raw manifests). An agent (ArgoCD or Flux) watches the Git repo and automatically reconciles the cluster toward the declared state. Benefits: every change has a PR, author, and review; rollback is git revert; the agent alerts on drift (cluster diverged from Git); no human needs kubectl write access to production.',
         },
         {
           id: 'p5-m5-q4',
@@ -2178,11 +3041,13 @@ spec:
             'Reduce the replica count to give each pod more memory, or disable the OOM killer in Linux',
           ],
           answer: 1,
-          explanation: 'OOMKilled means the container exceeded its memory limit and the Linux OOM killer terminated it. The two root causes and fixes: (1) the limit is set too low for legitimate usage — increase the memory limit (and request) to match the application\'s actual needs; (2) the application has a memory leak — fix the leak in the code. Increasing limits without investigating the root cause just delays the problem if there is a leak.',
+          explanation:
+            "OOMKilled means the container exceeded its memory limit and the Linux OOM killer terminated it. The two root causes and fixes: (1) the limit is set too low for legitimate usage — increase the memory limit (and request) to match the application's actual needs; (2) the application has a memory leak — fix the leak in the code. Increasing limits without investigating the root cause just delays the problem if there is a leak.",
         },
         {
           id: 'p5-m5-q5',
-          question: 'Your team is upgrading from Kubernetes 1.33 to 1.35. What is the safe upgrade path?',
+          question:
+            'Your team is upgrading from Kubernetes 1.33 to 1.35. What is the safe upgrade path?',
           options: [
             'Upgrade directly from 1.33 to 1.35 in one step — Kubernetes supports skipping minor versions',
             'Upgrade one minor version at a time: 1.33 → 1.34 → 1.35. Upgrade the control plane first, then each node group. Verify workloads after each step.',
@@ -2190,18 +3055,60 @@ spec:
             'Back up etcd, then delete the cluster and recreate it on 1.35',
           ],
           answer: 1,
-          explanation: 'Kubernetes only supports upgrading one minor version at a time (the N-2 rule means a 1.33 kubelet can talk to a 1.35 API server, but skipping directly is not tested and not supported). Always upgrade the control plane (API server, scheduler, controller-manager) before upgrading nodes — the API server must be at the newer version first. After each step, verify that workloads are healthy before proceeding to the next minor version.',
+          explanation:
+            'Kubernetes only supports upgrading one minor version at a time (the N-2 rule means a 1.33 kubelet can talk to a 1.35 API server, but skipping directly is not tested and not supported). Always upgrade the control plane (API server, scheduler, controller-manager) before upgrading nodes — the API server must be at the newer version first. After each step, verify that workloads are healthy before proceeding to the next minor version.',
         },
       ],
       coverage: {
-        concepts: ['resource requests and limits on every container', 'liveness + readiness + startup probes', 'PodDisruptionBudget for availability during disruptions', 'least-privilege ServiceAccount per workload', 'NetworkPolicy for namespace isolation', 'non-root container user', 'image tag pinning (no :latest)', 'upgrade path: one minor version at a time'],
-        commands: ['kubectl auth can-i --list --as=system:serviceaccount:ns:sa', 'kubectl get all -A', 'kubectl describe pod (check all sections)', 'kubectl top pods -A', 'kubectl get pdb -A', 'kubectl get events -A --sort-by=.lastTimestamp', 'kubectl get pods -A | grep -v Running'],
-        architecture: ['production readiness as cross-cutting concern from all phases', 'admission controllers enforce baseline security policies', 'Pod Security Standards: baseline/restricted', 'kubelet eviction order: BestEffort → Burstable → Guaranteed'],
-        techniques: ['audit deployment completeness with describe', 'use auth can-i --list for SA permission audit', 'check for unhealthy pods with kubectl get pods -A | grep -v Running', 'verify PDB covers critical workloads', 'check no :latest image tags in production'],
-        procedures: ['audit namespace for production readiness', 'verify resource limits on all containers', 'confirm probes configured', 'check SA is not default over-privileged SA', 'verify PDB in place for critical workloads'],
+        concepts: [
+          'resource requests and limits on every container',
+          'liveness + readiness + startup probes',
+          'PodDisruptionBudget for availability during disruptions',
+          'least-privilege ServiceAccount per workload',
+          'NetworkPolicy for namespace isolation',
+          'non-root container user',
+          'image tag pinning (no :latest)',
+          'upgrade path: one minor version at a time',
+        ],
+        commands: [
+          'kubectl auth can-i --list --as=system:serviceaccount:ns:sa',
+          'kubectl get all -A',
+          'kubectl describe pod (check all sections)',
+          'kubectl top pods -A',
+          'kubectl get pdb -A',
+          'kubectl get events -A --sort-by=.lastTimestamp',
+          'kubectl get pods -A | grep -v Running',
+        ],
+        architecture: [
+          'production readiness as cross-cutting concern from all phases',
+          'admission controllers enforce baseline security policies',
+          'Pod Security Standards: baseline/restricted',
+          'kubelet eviction order: BestEffort → Burstable → Guaranteed',
+        ],
+        techniques: [
+          'audit deployment completeness with describe',
+          'use auth can-i --list for SA permission audit',
+          'check for unhealthy pods with kubectl get pods -A | grep -v Running',
+          'verify PDB covers critical workloads',
+          'check no :latest image tags in production',
+        ],
+        procedures: [
+          'audit namespace for production readiness',
+          'verify resource limits on all containers',
+          'confirm probes configured',
+          'check SA is not default over-privileged SA',
+          'verify PDB in place for critical workloads',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube', 'Polaris (optional audit tool)'],
-        cases: ['default SA has cluster-admin — blast radius of compromise is total', 'missing resource limits causes noisy-neighbor starvation', 'missing readiness probe sends traffic to unready pod during deploy'],
-        scenarios: ['production audit of new deployment before going live', 'pre-upgrade workload health verification'],
+        cases: [
+          'default SA has cluster-admin — blast radius of compromise is total',
+          'missing resource limits causes noisy-neighbor starvation',
+          'missing readiness probe sends traffic to unready pod during deploy',
+        ],
+        scenarios: [
+          'production audit of new deployment before going live',
+          'pre-upgrade workload health verification',
+        ],
       },
       exercises: [
         {
@@ -2216,7 +3123,12 @@ spec:
             'kubectl auth can-i --list --as=system:serviceaccount:default:default -n default | head -20',
             'kubectl get pdb -n default',
           ],
-          verify: ['describe shows no resource limits set (gap identified)', 'no probes configured (gap identified)', 'default SA has broad permissions (gap identified)', 'no PDB for this deployment (gap identified)'],
+          verify: [
+            'describe shows no resource limits set (gap identified)',
+            'no probes configured (gap identified)',
+            'default SA has broad permissions (gap identified)',
+            'no PDB for this deployment (gap identified)',
+          ],
           expectedOutcome: 'All production readiness gaps identified via kubectl audit commands.',
           cleanup: ['kubectl delete deployment prod-check'],
         },
@@ -2279,9 +3191,17 @@ EOF`,
             'kubectl describe deployment hardened-app | grep -A10 Containers',
             'kubectl get pdb hardened-app-pdb',
           ],
-          verify: ['deployment shows resources, livenessProbe, readinessProbe in describe', 'PDB created with minAvailable: 1', 'serviceAccountName shows prod-sa not default'],
+          verify: [
+            'deployment shows resources, livenessProbe, readinessProbe in describe',
+            'PDB created with minAvailable: 1',
+            'serviceAccountName shows prod-sa not default',
+          ],
           expectedOutcome: 'All production readiness requirements satisfied.',
-          cleanup: ['kubectl delete deployment hardened-app', 'kubectl delete pdb hardened-app-pdb', 'kubectl delete serviceaccount prod-sa'],
+          cleanup: [
+            'kubectl delete deployment hardened-app',
+            'kubectl delete pdb hardened-app-pdb',
+            'kubectl delete serviceaccount prod-sa',
+          ],
         },
         {
           id: 'p5-m5-e3',
@@ -2294,7 +3214,10 @@ EOF`,
             'kubectl get nodes',
             'kubectl top nodes',
           ],
-          verify: ['Command shows any unhealthy pods across all namespaces', 'Events show recent failure reasons'],
+          verify: [
+            'Command shows any unhealthy pods across all namespaces',
+            'Events show recent failure reasons',
+          ],
           expectedOutcome: 'Cluster-wide health scan commands confirmed.',
           cleanup: [],
         },
@@ -2308,7 +3231,10 @@ EOF`,
             'kubectl get pdb -A',
             'kubectl top pods -A | sort -k3 -rh | head -5',
           ],
-          verify: ['Can list 8+ production checklist items from memory', 'Cluster health checks run without error'],
+          verify: [
+            'Can list 8+ production checklist items from memory',
+            'Cluster health checks run without error',
+          ],
           expectedOutcome: 'Production readiness checklist internalized.',
           cleanup: [],
         },
@@ -2320,7 +3246,8 @@ EOF`,
       id: 'p5-m6',
       slug: 'gitops',
       title: 'GitOps with ArgoCD',
-      description: 'Automate deployments by treating Git as the single source of truth for your cluster state.',
+      description:
+        'Automate deployments by treating Git as the single source of truth for your cluster state.',
       duration: '75 min',
       difficulty: 'advanced',
       theory: `> 🧠 **Brain Warm-Up**: If kubectl apply is the way to deploy to Kubernetes, why does running it from a CI/CD pipeline create problems at scale — with drift detection, multi-team collaboration, and audit trails? Think about what “who changed what and when” means without a canonical source of truth.
@@ -2432,7 +3359,8 @@ This lets you bootstrap an entire cluster's worth of applications with a single 
           id: 'p5-m6-s1',
           title: 'Install ArgoCD',
           instruction: 'Install ArgoCD into a dedicated namespace using the official manifest.',
-          command: 'kubectl create namespace argocd && kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml',
+          command:
+            'kubectl create namespace argocd && kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml',
           output: [
             'namespace/argocd created',
             'customresourcedefinition.apiextensions.k8s.io/applications.argoproj.io created',
@@ -2442,13 +3370,42 @@ This lets you bootstrap an entire cluster's worth of applications with a single 
             '...',
             'deployment.apps/argocd-server created',
           ],
-          explanation: 'ArgoCD installs into its own namespace. It creates several CRDs (Application, AppProject), Deployments (server, repo-server, application-controller), and RBAC resources. The application-controller is the core reconciliation loop.',
+          explanation:
+            'ArgoCD installs into its own namespace. It creates several CRDs (Application, AppProject), Deployments (server, repo-server, application-controller), and RBAC resources. The application-controller is the core reconciliation loop.',
           clusterState: {
             pods: [
-              { id: 'argo-server', name: 'argocd-server-xxx', namespace: 'argocd' as unknown as 'default', node: 'node-1', status: 'Running', labels: { app: 'argocd-server' }, image: 'argocd:latest', restarts: 0 },
-              { id: 'argo-ctrl', name: 'argocd-application-controller-0', namespace: 'argocd' as unknown as 'default', node: 'node-2', status: 'Running', labels: { app: 'argocd-application-controller' }, image: 'argocd:latest', restarts: 0 },
+              {
+                id: 'argo-server',
+                name: 'argocd-server-xxx',
+                namespace: 'argocd' as unknown as 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'argocd-server' },
+                image: 'argocd:latest',
+                restarts: 0,
+              },
+              {
+                id: 'argo-ctrl',
+                name: 'argocd-application-controller-0',
+                namespace: 'argocd' as unknown as 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'argocd-application-controller' },
+                image: 'argocd:latest',
+                restarts: 0,
+              },
             ],
-            services: [{ id: 'argo-svc', name: 'argocd-server', namespace: 'argocd' as unknown as 'default', type: 'ClusterIP', selector: { app: 'argocd-server' }, port: 443, clusterIP: '10.96.100.1' }],
+            services: [
+              {
+                id: 'argo-svc',
+                name: 'argocd-server',
+                namespace: 'argocd' as unknown as 'default',
+                type: 'ClusterIP',
+                selector: { app: 'argocd-server' },
+                port: 443,
+                clusterIP: '10.96.100.1',
+              },
+            ],
             deployments: [],
             namespaces: ['default', 'argocd'],
             events: ['ArgoCD installed successfully'],
@@ -2461,18 +3418,32 @@ This lets you bootstrap an entire cluster's worth of applications with a single 
           instruction: 'Retrieve the auto-generated admin password for the ArgoCD UI.',
           command: `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 --decode`,
           output: ['v8Kx3mNpQrL9wZdT'],
-          explanation: 'ArgoCD generates an initial admin password stored in a Secret. The password is base64-encoded so we pipe through base64 --decode to get the plaintext. Log into the UI at https://localhost:8080 with admin / this password, then change it immediately.',
+          explanation:
+            'ArgoCD generates an initial admin password stored in a Secret. The password is base64-encoded so we pipe through base64 --decode to get the plaintext. Log into the UI at https://localhost:8080 with admin / this password, then change it immediately.',
           clusterState: {
             pods: [
-              { id: 'argo-server', name: 'argocd-server-xxx', namespace: 'argocd' as unknown as 'default', node: 'node-1', status: 'Running', labels: { app: 'argocd-server' }, image: 'argocd:latest', restarts: 0 },
+              {
+                id: 'argo-server',
+                name: 'argocd-server-xxx',
+                namespace: 'argocd' as unknown as 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'argocd-server' },
+                image: 'argocd:latest',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'argocd'], events: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'argocd'],
+            events: [],
           },
         },
         {
           id: 'p5-m6-s3',
           title: 'Create an ArgoCD Application',
-          instruction: 'Apply an Application manifest that tells ArgoCD to sync a Git repository to your cluster.',
+          instruction:
+            'Apply an Application manifest that tells ArgoCD to sync a Git repository to your cluster.',
           command: 'kubectl apply -f -',
           yamlContent: `apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -2492,10 +3463,14 @@ spec:
     syncOptions:
     - CreateNamespace=true`,
           output: ['application.argoproj.io/guestbook created'],
-          explanation: 'This Application tells ArgoCD: “Watch the guestbook/ path on the main branch of this repo and ensure it matches the guestbook namespace in the local cluster.” Without syncPolicy.automated, it starts OutOfSync and waits for a manual sync.',
+          explanation:
+            'This Application tells ArgoCD: “Watch the guestbook/ path on the main branch of this repo and ensure it matches the guestbook namespace in the local cluster.” Without syncPolicy.automated, it starts OutOfSync and waits for a manual sync.',
           clusterState: {
             pods: [],
-            services: [], deployments: [], namespaces: ['default', 'argocd', 'guestbook'], events: ['Application guestbook created — OutOfSync'],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'argocd', 'guestbook'],
+            events: ['Application guestbook created — OutOfSync'],
           },
         },
         {
@@ -2512,13 +3487,42 @@ spec:
             'Sync Status:        Synced',
             'Health Status:      Healthy',
           ],
-          explanation: 'ArgoCD applies the manifests from Git to the cluster. After sync, STATUS becomes Synced and HEALTH becomes Healthy (all Deployment replicas running). ArgoCD\'s health assessment goes beyond kubectl — it checks Deployment rollout status, not just Pod running.',
+          explanation:
+            "ArgoCD applies the manifests from Git to the cluster. After sync, STATUS becomes Synced and HEALTH becomes Healthy (all Deployment replicas running). ArgoCD's health assessment goes beyond kubectl — it checks Deployment rollout status, not just Pod running.",
           clusterState: {
             pods: [
-              { id: 'gb-ui', name: 'guestbook-ui-xxx', namespace: 'guestbook' as unknown as 'default', node: 'node-1', status: 'Running', labels: { app: 'guestbook-ui' }, image: 'guestbook-ui:latest', restarts: 0 },
+              {
+                id: 'gb-ui',
+                name: 'guestbook-ui-xxx',
+                namespace: 'guestbook' as unknown as 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'guestbook-ui' },
+                image: 'guestbook-ui:latest',
+                restarts: 0,
+              },
             ],
-            services: [{ id: 'gb-svc', name: 'guestbook-ui', namespace: 'guestbook' as unknown as 'default', type: 'ClusterIP', selector: { app: 'guestbook-ui' }, port: 80, clusterIP: '10.96.110.5' }],
-            deployments: [{ id: 'gb-dep', name: 'guestbook-ui', namespace: 'guestbook' as unknown as 'default', replicas: 1, availableReplicas: 1, image: 'guestbook-ui:latest' }],
+            services: [
+              {
+                id: 'gb-svc',
+                name: 'guestbook-ui',
+                namespace: 'guestbook' as unknown as 'default',
+                type: 'ClusterIP',
+                selector: { app: 'guestbook-ui' },
+                port: 80,
+                clusterIP: '10.96.110.5',
+              },
+            ],
+            deployments: [
+              {
+                id: 'gb-dep',
+                name: 'guestbook-ui',
+                namespace: 'guestbook' as unknown as 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'guestbook-ui:latest',
+              },
+            ],
             namespaces: ['default', 'argocd', 'guestbook'],
             events: ['Application guestbook synced — Healthy'],
           },
@@ -2526,15 +3530,29 @@ spec:
         {
           id: 'p5-m6-s5',
           title: 'Enable auto-sync with self-healing',
-          instruction: 'Patch the Application to enable automated sync — ArgoCD will now apply Git changes automatically and revert manual drift.',
-          command: 'kubectl patch application guestbook -n argocd --type=merge -p \'{“spec”:{“syncPolicy”:{“automated”:{“prune”:true,”selfHeal”:true}}}}\'',
+          instruction:
+            'Patch the Application to enable automated sync — ArgoCD will now apply Git changes automatically and revert manual drift.',
+          command:
+            "kubectl patch application guestbook -n argocd --type=merge -p '{“spec”:{“syncPolicy”:{“automated”:{“prune”:true,”selfHeal”:true}}}}'",
           output: ['application.argoproj.io/guestbook patched'],
-          explanation: 'With automated + selfHeal: if someone runs kubectl edit directly on the cluster, ArgoCD detects the drift within 3 minutes and reverts it to match Git. With prune: true, resources deleted from Git are also deleted from the cluster. This enforces Git as the single source of truth.',
+          explanation:
+            'With automated + selfHeal: if someone runs kubectl edit directly on the cluster, ArgoCD detects the drift within 3 minutes and reverts it to match Git. With prune: true, resources deleted from Git are also deleted from the cluster. This enforces Git as the single source of truth.',
           clusterState: {
             pods: [
-              { id: 'gb-ui', name: 'guestbook-ui-xxx', namespace: 'guestbook' as unknown as 'default', node: 'node-1', status: 'Running', labels: { app: 'guestbook-ui' }, image: 'guestbook-ui:latest', restarts: 0 },
+              {
+                id: 'gb-ui',
+                name: 'guestbook-ui-xxx',
+                namespace: 'guestbook' as unknown as 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'guestbook-ui' },
+                image: 'guestbook-ui:latest',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'argocd', 'guestbook'],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'argocd', 'guestbook'],
             events: ['Auto-sync enabled — self-heal active'],
           },
           tip: 'To deploy a new version: update the image tag in Git and commit. ArgoCD detects the change and applies it automatically. No CI pipeline needs kubectl credentials.',
@@ -2543,7 +3561,8 @@ spec:
       quiz: [
         {
           id: 'p5-m6-q1',
-          question: 'What is the core difference between push-based CI/CD and GitOps pull-based deployment?',
+          question:
+            'What is the core difference between push-based CI/CD and GitOps pull-based deployment?',
           options: [
             'GitOps uses Helm; CI/CD uses raw YAML',
             'In GitOps, an in-cluster agent pulls from Git — cluster credentials never leave the cluster; in push-based CI/CD the pipeline pushes to the cluster using credentials stored in CI',
@@ -2551,7 +3570,8 @@ spec:
             'GitOps only works with ArgoCD; CI/CD uses any tool',
           ],
           answer: 1,
-          explanation: 'The key security and architectural difference: in push-based CI/CD, the pipeline needs cluster credentials (kubeconfig/token) stored in the CI system. In GitOps, the agent runs inside the cluster and pulls from Git — sensitive cluster credentials never leave the cluster boundary.',
+          explanation:
+            'The key security and architectural difference: in push-based CI/CD, the pipeline needs cluster credentials (kubeconfig/token) stored in the CI system. In GitOps, the agent runs inside the cluster and pulls from Git — sensitive cluster credentials never leave the cluster boundary.',
         },
         {
           id: 'p5-m6-q2',
@@ -2563,7 +3583,8 @@ spec:
             'ArgoCD fixes YAML syntax errors in Git automatically',
           ],
           answer: 1,
-          explanation: 'selfHeal means ArgoCD continuously monitors the live cluster state and compares it to Git. If someone makes a manual kubectl change that differs from Git, ArgoCD detects the drift (within ~3 minutes) and reverts the change to match the Git declaration.',
+          explanation:
+            'selfHeal means ArgoCD continuously monitors the live cluster state and compares it to Git. If someone makes a manual kubectl change that differs from Git, ArgoCD detects the drift (within ~3 minutes) and reverts the change to match the Git declaration.',
         },
         {
           id: 'p5-m6-q3',
@@ -2575,30 +3596,74 @@ spec:
             'In the Git repository as a state file',
           ],
           answer: 1,
-          explanation: 'ArgoCD stores Application state as Kubernetes Secret objects (type: helm.sh/release.v1 or similar) in the argocd namespace. This means ArgoCD state survives ArgoCD restarts and is backed by the same etcd that backs all cluster state.',
+          explanation:
+            'ArgoCD stores Application state as Kubernetes Secret objects (type: helm.sh/release.v1 or similar) in the argocd namespace. This means ArgoCD state survives ArgoCD restarts and is backed by the same etcd that backs all cluster state.',
         },
         {
           id: 'p5-m6-q4',
           question: 'What is the “App of Apps” pattern used for?',
           options: [
             'Running multiple containers in one Pod',
-            'Bootstrapping an entire cluster\'s applications with a single parent ArgoCD Application that manages many child Applications',
+            "Bootstrapping an entire cluster's applications with a single parent ArgoCD Application that manages many child Applications",
             'Deploying the same app to multiple clusters simultaneously',
             'Combining Helm charts with raw YAML manifests',
           ],
           answer: 1,
-          explanation: 'The App of Apps pattern has a root ArgoCD Application that points to a directory of other Application manifests in Git. This bootstraps an entire cluster: one ArgoCD sync deploys all your teams\' applications. It\'s the standard pattern for fleet management at scale.',
+          explanation:
+            "The App of Apps pattern has a root ArgoCD Application that points to a directory of other Application manifests in Git. This bootstraps an entire cluster: one ArgoCD sync deploys all your teams' applications. It's the standard pattern for fleet management at scale.",
         },
       ],
       coverage: {
-        concepts: ['GitOps: Git as single source of truth', 'declarative desired state vs imperative kubectl apply', 'ArgoCD Application CRD', 'sync policy: manual vs automated', 'self-healing: ArgoCD reverts out-of-band changes', 'App of Apps pattern for fleet management', 'Flux as alternative GitOps engine', 'drift detection and remediation'],
-        commands: ['kubectl get applications -n argocd', 'kubectl get app <name> -n argocd -o yaml', 'argocd app sync <name>', 'argocd app diff <name>', 'argocd app history <name>', 'argocd app rollback <name> <revision>', 'kubectl describe application <name> -n argocd'],
-        architecture: ['ArgoCD controller watches Git repo + cluster state', 'Application controller reconciles every 3 minutes by default', 'Repo server renders manifests (Helm/Kustomize/plain YAML)', 'ArgoCD stores no secrets — pulls from Git', 'multi-cluster: one ArgoCD instance manages N clusters'],
-        techniques: ['use argocd app diff before sync to preview changes', 'automated sync with selfHeal + prune for full GitOps', 'App of Apps for bootstrapping clusters', 'use syncPolicy.retry for transient failures', 'annotate resources with argocd.argoproj.io/sync-wave for ordering'],
-        procedures: ['install ArgoCD into cluster', 'create Application pointing to Git repo path', 'verify sync status and health', 'trigger manual sync', 'rollback to previous revision via history'],
+        concepts: [
+          'GitOps: Git as single source of truth',
+          'declarative desired state vs imperative kubectl apply',
+          'ArgoCD Application CRD',
+          'sync policy: manual vs automated',
+          'self-healing: ArgoCD reverts out-of-band changes',
+          'App of Apps pattern for fleet management',
+          'Flux as alternative GitOps engine',
+          'drift detection and remediation',
+        ],
+        commands: [
+          'kubectl get applications -n argocd',
+          'kubectl get app <name> -n argocd -o yaml',
+          'argocd app sync <name>',
+          'argocd app diff <name>',
+          'argocd app history <name>',
+          'argocd app rollback <name> <revision>',
+          'kubectl describe application <name> -n argocd',
+        ],
+        architecture: [
+          'ArgoCD controller watches Git repo + cluster state',
+          'Application controller reconciles every 3 minutes by default',
+          'Repo server renders manifests (Helm/Kustomize/plain YAML)',
+          'ArgoCD stores no secrets — pulls from Git',
+          'multi-cluster: one ArgoCD instance manages N clusters',
+        ],
+        techniques: [
+          'use argocd app diff before sync to preview changes',
+          'automated sync with selfHeal + prune for full GitOps',
+          'App of Apps for bootstrapping clusters',
+          'use syncPolicy.retry for transient failures',
+          'annotate resources with argocd.argoproj.io/sync-wave for ordering',
+        ],
+        procedures: [
+          'install ArgoCD into cluster',
+          'create Application pointing to Git repo path',
+          'verify sync status and health',
+          'trigger manual sync',
+          'rollback to previous revision via history',
+        ],
         toolsAndPlugins: ['ArgoCD', 'Flux v2', 'Helm', 'Kustomize', 'kubectl'],
-        cases: ['out-of-band kubectl edit gets reverted on next sync (self-healing)', 'merge to main triggers automated deploy with no manual kubectl', 'rollback = revert Git commit, ArgoCD syncs old state'],
-        scenarios: ['bootstrap new cluster from Git using App of Apps', 'audit what changed between two Git revisions before deploying'],
+        cases: [
+          'out-of-band kubectl edit gets reverted on next sync (self-healing)',
+          'merge to main triggers automated deploy with no manual kubectl',
+          'rollback = revert Git commit, ArgoCD syncs old state',
+        ],
+        scenarios: [
+          'bootstrap new cluster from Git using App of Apps',
+          'audit what changed between two Git revisions before deploying',
+        ],
       },
       exercises: [
         {
@@ -2632,9 +3697,16 @@ EOF`,
             'kubectl get application guestbook -n argocd',
             'kubectl get application guestbook -n argocd -o jsonpath="{.status.sync.status}"',
           ],
-          verify: ['ArgoCD server deployment becomes available', 'Application guestbook created in argocd namespace', 'sync status shows OutOfSync (not yet synced)'],
+          verify: [
+            'ArgoCD server deployment becomes available',
+            'Application guestbook created in argocd namespace',
+            'sync status shows OutOfSync (not yet synced)',
+          ],
           expectedOutcome: 'ArgoCD installed and Application CRD created pointing to Git source.',
-          cleanup: ['kubectl delete application guestbook -n argocd', 'kubectl delete namespace guestbook --ignore-not-found'],
+          cleanup: [
+            'kubectl delete application guestbook -n argocd',
+            'kubectl delete namespace guestbook --ignore-not-found',
+          ],
         },
         {
           id: 'p5-m6-e2',
@@ -2649,9 +3721,14 @@ EOF`,
             'kubectl delete deployment guestbook-ui -n guestbook',
             'sleep 10 && kubectl get deployment guestbook-ui -n guestbook',
           ],
-          verify: ['After enabling automated selfHeal, app transitions to Synced', 'After deleting deployment, ArgoCD recreates it within ~10s'],
+          verify: [
+            'After enabling automated selfHeal, app transitions to Synced',
+            'After deleting deployment, ArgoCD recreates it within ~10s',
+          ],
           expectedOutcome: 'Self-healing demonstrated: manual deletion reversed automatically.',
-          cleanup: ['kubectl patch application guestbook -n argocd --type merge -p \'{"spec":{"syncPolicy":{"automated":null}}}\''],
+          cleanup: [
+            'kubectl patch application guestbook -n argocd --type merge -p \'{"spec":{"syncPolicy":{"automated":null}}}\'',
+          ],
         },
         {
           id: 'p5-m6-e3',
@@ -2664,7 +3741,10 @@ EOF`,
             'kubectl get application guestbook -n argocd -o jsonpath="{.status.conditions}" | python3 -m json.tool',
             'kubectl get application guestbook -n argocd -o jsonpath="{.status.operationState.message}"',
           ],
-          verify: ['Can read sync error message from application conditions', 'Can identify whether failure is source (Git), render (Helm/Kustomize), or apply (missing CRD)'],
+          verify: [
+            'Can read sync error message from application conditions',
+            'Can identify whether failure is source (Git), render (Helm/Kustomize), or apply (missing CRD)',
+          ],
           expectedOutcome: 'GitOps sync failure diagnosis workflow confirmed.',
           cleanup: [],
         },
@@ -2677,7 +3757,11 @@ EOF`,
             'kubectl get applications -A',
             'kubectl get application guestbook -n argocd -o jsonpath="{.status.sync.status}" 2>/dev/null || echo "app not present"',
           ],
-          verify: ['Can explain: what self-healing means and how it works', 'Can explain: difference between Synced/OutOfSync/Degraded health states', 'Can describe App of Apps pattern use case'],
+          verify: [
+            'Can explain: what self-healing means and how it works',
+            'Can explain: difference between Synced/OutOfSync/Degraded health states',
+            'Can describe App of Apps pattern use case',
+          ],
           expectedOutcome: 'GitOps mental model solidified.',
           cleanup: [],
         },
@@ -2689,7 +3773,8 @@ EOF`,
       id: 'p5-m7',
       slug: 'service-mesh',
       title: 'Service Mesh with Istio',
-      description: 'Add mutual TLS, traffic management, and deep observability to service-to-service communication without changing application code.',
+      description:
+        'Add mutual TLS, traffic management, and deep observability to service-to-service communication without changing application code.',
       duration: '90 min',
       difficulty: 'advanced',
       theory: `> 🧠 **Brain Warm-Up**: If you want every service-to-service HTTP call inside your cluster to be encrypted and authenticated — but you don't want to add TLS code to 50 microservices — how would you enforce that transparently? Who would terminate the TLS, and where would the encryption keys live?
@@ -2803,7 +3888,8 @@ This observability is **zero-code** — no SDK changes required in any applicati
         {
           id: 'p5-m7-s1',
           title: 'Install Istio with istioctl',
-          instruction: 'Download istioctl and install Istio with the demo profile (includes all components for learning).',
+          instruction:
+            'Download istioctl and install Istio with the demo profile (includes all components for learning).',
           command: 'istioctl install --set profile=demo -y',
           output: [
             '✔ Istio core installed',
@@ -2813,33 +3899,61 @@ This observability is **zero-code** — no SDK changes required in any applicati
             '✔ Installation complete',
             'Thank you for installing Istio 1.22.',
           ],
-          explanation: 'The demo profile installs istiod (control plane), an ingress gateway, and an egress gateway. For production, use the default profile (no egress gateway, tuned resource limits). istioctl install validates the cluster compatibility before installing.',
+          explanation:
+            'The demo profile installs istiod (control plane), an ingress gateway, and an egress gateway. For production, use the default profile (no egress gateway, tuned resource limits). istioctl install validates the cluster compatibility before installing.',
           clusterState: {
             pods: [
-              { id: 'istiod', name: 'istiod-xxx', namespace: 'istio-system' as unknown as 'default', node: 'node-1', status: 'Running', labels: { app: 'istiod' }, image: 'istio/pilot:1.22', restarts: 0 },
-              { id: 'igw', name: 'istio-ingressgateway-xxx', namespace: 'istio-system' as unknown as 'default', node: 'node-2', status: 'Running', labels: { app: 'istio-ingressgateway' }, image: 'istio/proxyv2:1.22', restarts: 0 },
+              {
+                id: 'istiod',
+                name: 'istiod-xxx',
+                namespace: 'istio-system' as unknown as 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'istiod' },
+                image: 'istio/pilot:1.22',
+                restarts: 0,
+              },
+              {
+                id: 'igw',
+                name: 'istio-ingressgateway-xxx',
+                namespace: 'istio-system' as unknown as 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'istio-ingressgateway' },
+                image: 'istio/proxyv2:1.22',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'istio-system'], events: ['Istio 1.22 installed'],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'istio-system'],
+            events: ['Istio 1.22 installed'],
           },
         },
         {
           id: 'p5-m7-s2',
           title: 'Enable sidecar injection for a namespace',
-          instruction: 'Label the default namespace to trigger automatic Envoy sidecar injection for all new Pods.',
+          instruction:
+            'Label the default namespace to trigger automatic Envoy sidecar injection for all new Pods.',
           command: 'kubectl label namespace default istio-injection=enabled',
           output: ['namespace/default labeled'],
-          explanation: 'The label istio-injection=enabled tells the Istio MutatingAdmissionWebhook to intercept every new Pod creation in this namespace and inject the istio-proxy (Envoy) sidecar container automatically. Existing Pods need to be recreated to get injected.',
+          explanation:
+            'The label istio-injection=enabled tells the Istio MutatingAdmissionWebhook to intercept every new Pod creation in this namespace and inject the istio-proxy (Envoy) sidecar container automatically. Existing Pods need to be recreated to get injected.',
           clusterState: {
             pods: [],
-            services: [], deployments: [], namespaces: ['default', 'istio-system'], events: ['Namespace default: sidecar injection enabled'],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'istio-system'],
+            events: ['Namespace default: sidecar injection enabled'],
           },
           tip: 'To verify injection: deploy a Pod and run “kubectl describe pod <name>” — you should see two containers: your app and istio-proxy.',
         },
         {
           id: 'p5-m7-s3',
           title: 'Deploy the Bookinfo sample app',
-          instruction: 'Deploy Istio\'s sample app to see sidecar injection in action.',
-          command: 'kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.22/samples/bookinfo/platform/kube/bookinfo.yaml',
+          instruction: "Deploy Istio's sample app to see sidecar injection in action.",
+          command:
+            'kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.22/samples/bookinfo/platform/kube/bookinfo.yaml',
           output: [
             'service/details created',
             'serviceaccount/bookinfo-details created',
@@ -2853,22 +3967,71 @@ This observability is **zero-code** — no SDK changes required in any applicati
             'service/productpage created',
             'deployment.apps/productpage-v1 created',
           ],
-          explanation: 'Bookinfo is a polyglot microservices app (Python, Java, Ruby, Node.js) used to demonstrate Istio features. Each Pod gets TWO containers: the app + istio-proxy. Verify: kubectl get pods — READY should show 2/2 for each.',
+          explanation:
+            'Bookinfo is a polyglot microservices app (Python, Java, Ruby, Node.js) used to demonstrate Istio features. Each Pod gets TWO containers: the app + istio-proxy. Verify: kubectl get pods — READY should show 2/2 for each.',
           clusterState: {
             pods: [
-              { id: 'pp', name: 'productpage-v1-xxx', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'productpage', version: 'v1' }, image: 'istio/examples-bookinfo-productpage-v1:1.17', restarts: 0 },
-              { id: 'rv1', name: 'reviews-v1-xxx', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'reviews', version: 'v1' }, image: 'istio/examples-bookinfo-reviews-v1:1.17', restarts: 0 },
-              { id: 'rv2', name: 'reviews-v2-xxx', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'reviews', version: 'v2' }, image: 'istio/examples-bookinfo-reviews-v2:1.17', restarts: 0 },
+              {
+                id: 'pp',
+                name: 'productpage-v1-xxx',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'productpage', version: 'v1' },
+                image: 'istio/examples-bookinfo-productpage-v1:1.17',
+                restarts: 0,
+              },
+              {
+                id: 'rv1',
+                name: 'reviews-v1-xxx',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'reviews', version: 'v1' },
+                image: 'istio/examples-bookinfo-reviews-v1:1.17',
+                restarts: 0,
+              },
+              {
+                id: 'rv2',
+                name: 'reviews-v2-xxx',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'reviews', version: 'v2' },
+                image: 'istio/examples-bookinfo-reviews-v2:1.17',
+                restarts: 0,
+              },
             ],
-            services: [{ id: 'pp-svc', name: 'productpage', namespace: 'default', type: 'ClusterIP', selector: { app: 'productpage' }, port: 9080, clusterIP: '10.96.120.1' }],
-            deployments: [{ id: 'pp-dep', name: 'productpage-v1', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'bookinfo-productpage-v1' }],
-            namespaces: ['default', 'istio-system'], events: ['Bookinfo deployed — sidecars injected'],
+            services: [
+              {
+                id: 'pp-svc',
+                name: 'productpage',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'productpage' },
+                port: 9080,
+                clusterIP: '10.96.120.1',
+              },
+            ],
+            deployments: [
+              {
+                id: 'pp-dep',
+                name: 'productpage-v1',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'bookinfo-productpage-v1',
+              },
+            ],
+            namespaces: ['default', 'istio-system'],
+            events: ['Bookinfo deployed — sidecars injected'],
           },
         },
         {
           id: 'p5-m7-s4',
           title: 'Enable strict mTLS for the namespace',
-          instruction: 'Apply a PeerAuthentication policy to enforce mutual TLS for all services in the default namespace.',
+          instruction:
+            'Apply a PeerAuthentication policy to enforce mutual TLS for all services in the default namespace.',
           command: 'kubectl apply -f -',
           yamlContent: `apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
@@ -2879,19 +4042,33 @@ spec:
   mtls:
     mode: STRICT`,
           output: ['peerauthentication.security.istio.io/default created'],
-          explanation: 'With STRICT mTLS, any pod WITHOUT a sidecar (and therefore without a valid SPIFFE certificate) cannot communicate with sidecar-injected pods. This is zero-trust networking: every service-to-service call is encrypted and both sides are authenticated — with no code changes.',
+          explanation:
+            'With STRICT mTLS, any pod WITHOUT a sidecar (and therefore without a valid SPIFFE certificate) cannot communicate with sidecar-injected pods. This is zero-trust networking: every service-to-service call is encrypted and both sides are authenticated — with no code changes.',
           clusterState: {
             pods: [
-              { id: 'pp', name: 'productpage-v1-xxx', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'productpage', version: 'v1' }, image: 'istio/examples-bookinfo-productpage-v1:1.17', restarts: 0 },
+              {
+                id: 'pp',
+                name: 'productpage-v1-xxx',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'productpage', version: 'v1' },
+                image: 'istio/examples-bookinfo-productpage-v1:1.17',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'istio-system'], events: ['PeerAuthentication STRICT mTLS applied'],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'istio-system'],
+            events: ['PeerAuthentication STRICT mTLS applied'],
           },
           tip: 'Test mTLS: try to curl from a pod without a sidecar — it will be rejected. A pod with a sidecar (in an injection-enabled namespace) succeeds because its sidecar presents a valid certificate.',
         },
         {
           id: 'p5-m7-s5',
           title: 'Traffic shifting: canary deployment',
-          instruction: 'Apply VirtualService and DestinationRule to send 90% of reviews traffic to v1 and 10% to v2.',
+          instruction:
+            'Apply VirtualService and DestinationRule to send 90% of reviews traffic to v1 and 10% to v2.',
           command: 'kubectl apply -f -',
           yamlContent: `apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
@@ -2928,20 +4105,43 @@ spec:
             'destinationrule.networking.istio.io/reviews created',
             'virtualservice.networking.istio.io/reviews created',
           ],
-          explanation: 'This is a canary deployment: 90% of requests go to reviews-v1 (no star ratings), 10% go to reviews-v2 (black stars). Istio routes at L7 based on this config — no Kubernetes Service changes needed. To roll out fully: change both weights to 0/100, then delete the VirtualService.',
+          explanation:
+            'This is a canary deployment: 90% of requests go to reviews-v1 (no star ratings), 10% go to reviews-v2 (black stars). Istio routes at L7 based on this config — no Kubernetes Service changes needed. To roll out fully: change both weights to 0/100, then delete the VirtualService.',
           clusterState: {
             pods: [
-              { id: 'rv1', name: 'reviews-v1-xxx', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'reviews', version: 'v1' }, image: 'istio/examples-bookinfo-reviews-v1:1.17', restarts: 0 },
-              { id: 'rv2', name: 'reviews-v2-xxx', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'reviews', version: 'v2' }, image: 'istio/examples-bookinfo-reviews-v2:1.17', restarts: 0 },
+              {
+                id: 'rv1',
+                name: 'reviews-v1-xxx',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'reviews', version: 'v1' },
+                image: 'istio/examples-bookinfo-reviews-v1:1.17',
+                restarts: 0,
+              },
+              {
+                id: 'rv2',
+                name: 'reviews-v2-xxx',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'reviews', version: 'v2' },
+                image: 'istio/examples-bookinfo-reviews-v2:1.17',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'istio-system'], events: ['VirtualService: 90% v1, 10% v2'],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'istio-system'],
+            events: ['VirtualService: 90% v1, 10% v2'],
           },
         },
       ],
       quiz: [
         {
           id: 'p5-m7-q1',
-          question: 'How does Istio intercept all traffic in a Pod without modifying application code?',
+          question:
+            'How does Istio intercept all traffic in a Pod without modifying application code?',
           options: [
             'It modifies the Kubernetes kube-proxy to route traffic through Envoy',
             'It injects an Envoy sidecar container into the Pod and uses iptables rules to redirect all traffic through it',
@@ -2949,19 +4149,21 @@ spec:
             'It replaces the container runtime with one that includes Envoy',
           ],
           answer: 1,
-          explanation: 'Istio\'s MutatingAdmissionWebhook injects an istio-proxy (Envoy) sidecar container into every Pod. The istio-init init container sets iptables rules that redirect all inbound and outbound traffic through the sidecar. The application process is completely unaware — it still sends to localhost:port as before.',
+          explanation:
+            "Istio's MutatingAdmissionWebhook injects an istio-proxy (Envoy) sidecar container into every Pod. The istio-init init container sets iptables rules that redirect all inbound and outbound traffic through the sidecar. The application process is completely unaware — it still sends to localhost:port as before.",
         },
         {
           id: 'p5-m7-q2',
           question: 'What is mutual TLS (mTLS) in the context of Istio?',
           options: [
             'TLS encryption only from client to server (one-way)',
-            'Both client and server present X.509 certificates — each side verifies the other\'s identity before communicating',
+            "Both client and server present X.509 certificates — each side verifies the other's identity before communicating",
             'TLS termination at the ingress gateway only',
             'Encrypting etcd data at rest using TLS keys',
           ],
           answer: 1,
-          explanation: 'Mutual TLS means both sides authenticate each other. In Istio, each sidecar holds a SPIFFE X.509 certificate issued by istiod\'s CA, tied to the Pod\'s ServiceAccount. When two sidecars communicate, each verifies the other\'s certificate. This provides both encryption and workload identity verification.',
+          explanation:
+            "Mutual TLS means both sides authenticate each other. In Istio, each sidecar holds a SPIFFE X.509 certificate issued by istiod's CA, tied to the Pod's ServiceAccount. When two sidecars communicate, each verifies the other's certificate. This provides both encryption and workload identity verification.",
         },
         {
           id: 'p5-m7-q3',
@@ -2973,11 +4175,13 @@ spec:
             'DestinationRule subset labels',
           ],
           answer: 2,
-          explanation: 'VirtualService defines routing rules at L7 including weighted traffic splitting. You define route entries with weight fields (must sum to 100) pointing to DestinationRule subsets. DestinationRule defines the subsets by label selector (e.g., version: v1). Both resources together enable fine-grained canary rollouts.',
+          explanation:
+            'VirtualService defines routing rules at L7 including weighted traffic splitting. You define route entries with weight fields (must sum to 100) pointing to DestinationRule subsets. DestinationRule defines the subsets by label selector (e.g., version: v1). Both resources together enable fine-grained canary rollouts.',
         },
         {
           id: 'p5-m7-q4',
-          question: 'What observability data does Istio provide automatically without any application code changes?',
+          question:
+            'What observability data does Istio provide automatically without any application code changes?',
           options: [
             'Only CPU and memory metrics from Pods',
             'Request metrics (rate/latency/errors), distributed traces, and per-request access logs for all service-to-service communication',
@@ -2985,18 +4189,67 @@ spec:
             'Application business metrics and custom events',
           ],
           answer: 1,
-          explanation: 'Because all traffic passes through Envoy sidecars, Istio automatically exports: metrics (request rate, error rate, p99 latency per service pair) to Prometheus, distributed traces (using B3/W3C propagation headers) to Jaeger/Zipkin, and structured access logs for every request. Zero SDK changes required in any service.',
+          explanation:
+            'Because all traffic passes through Envoy sidecars, Istio automatically exports: metrics (request rate, error rate, p99 latency per service pair) to Prometheus, distributed traces (using B3/W3C propagation headers) to Jaeger/Zipkin, and structured access logs for every request. Zero SDK changes required in any service.',
         },
       ],
       coverage: {
-        concepts: ['service mesh: sidecar proxy pattern', 'mutual TLS (mTLS) for zero-trust service identity', 'VirtualService for traffic routing rules', 'DestinationRule for load balancing and connection pool', 'circuit breaking via outlier detection', 'traffic shifting for canary deployments', 'Envoy sidecar injection via namespace label', 'control plane (istiod) vs data plane (Envoy proxies)'],
-        commands: ['kubectl label namespace default istio-injection=enabled', 'kubectl get pods -o yaml | grep istio-proxy', 'istioctl analyze', 'istioctl proxy-status', 'kubectl get virtualservice,destinationrule,gateway -A', 'kubectl describe peerauthentication -A', 'istioctl proxy-config cluster <pod> -n <ns>'],
-        architecture: ['Envoy sidecar intercepts all inbound/outbound traffic transparently via iptables', 'istiod issues X.509 certs for mTLS identity (SPIFFE SVIDs)', 'VirtualService attaches to hosts, routes traffic based on HTTP headers/weights', 'DestinationRule defines subsets mapped to pod labels for canary routing'],
-        techniques: ['use istioctl analyze to find mesh config errors', 'traffic shift canary: 90/10 weight split in VirtualService', 'enforce STRICT mTLS via PeerAuthentication', 'use fault injection to test resilience without changing app code', 'header-based routing for A/B testing'],
-        procedures: ['install Istio with istioctl install', 'enable sidecar injection on namespace', 'apply VirtualService + DestinationRule for canary', 'verify mTLS with istioctl authn tls-check', 'check Envoy config with istioctl proxy-config'],
-        toolsAndPlugins: ['Istio', 'istioctl', 'Envoy', 'Kiali (mesh visualization)', 'Prometheus', 'Jaeger'],
-        cases: ['mTLS between services rejects traffic from pods without valid cert', 'circuit breaker opens after 3 consecutive 503s, preventing cascade failure', 'canary 10% weight routes subset of prod traffic to new version'],
-        scenarios: ['enforce zero-trust mTLS across entire namespace without app changes', 'canary deploy new service version with automatic rollback on error rate spike'],
+        concepts: [
+          'service mesh: sidecar proxy pattern',
+          'mutual TLS (mTLS) for zero-trust service identity',
+          'VirtualService for traffic routing rules',
+          'DestinationRule for load balancing and connection pool',
+          'circuit breaking via outlier detection',
+          'traffic shifting for canary deployments',
+          'Envoy sidecar injection via namespace label',
+          'control plane (istiod) vs data plane (Envoy proxies)',
+        ],
+        commands: [
+          'kubectl label namespace default istio-injection=enabled',
+          'kubectl get pods -o yaml | grep istio-proxy',
+          'istioctl analyze',
+          'istioctl proxy-status',
+          'kubectl get virtualservice,destinationrule,gateway -A',
+          'kubectl describe peerauthentication -A',
+          'istioctl proxy-config cluster <pod> -n <ns>',
+        ],
+        architecture: [
+          'Envoy sidecar intercepts all inbound/outbound traffic transparently via iptables',
+          'istiod issues X.509 certs for mTLS identity (SPIFFE SVIDs)',
+          'VirtualService attaches to hosts, routes traffic based on HTTP headers/weights',
+          'DestinationRule defines subsets mapped to pod labels for canary routing',
+        ],
+        techniques: [
+          'use istioctl analyze to find mesh config errors',
+          'traffic shift canary: 90/10 weight split in VirtualService',
+          'enforce STRICT mTLS via PeerAuthentication',
+          'use fault injection to test resilience without changing app code',
+          'header-based routing for A/B testing',
+        ],
+        procedures: [
+          'install Istio with istioctl install',
+          'enable sidecar injection on namespace',
+          'apply VirtualService + DestinationRule for canary',
+          'verify mTLS with istioctl authn tls-check',
+          'check Envoy config with istioctl proxy-config',
+        ],
+        toolsAndPlugins: [
+          'Istio',
+          'istioctl',
+          'Envoy',
+          'Kiali (mesh visualization)',
+          'Prometheus',
+          'Jaeger',
+        ],
+        cases: [
+          'mTLS between services rejects traffic from pods without valid cert',
+          'circuit breaker opens after 3 consecutive 503s, preventing cascade failure',
+          'canary 10% weight routes subset of prod traffic to new version',
+        ],
+        scenarios: [
+          'enforce zero-trust mTLS across entire namespace without app changes',
+          'canary deploy new service version with automatic rollback on error rate spike',
+        ],
       },
       exercises: [
         {
@@ -3013,9 +4266,15 @@ spec:
             'kubectl create deployment istio-test --image=nginx:1.27 --replicas=1',
             'kubectl get pods -l app=istio-test -o jsonpath="{.items[0].spec.containers[*].name}"',
           ],
-          verify: ['default namespace has label istio-injection=enabled', 'pod shows 2 containers: nginx and istio-proxy'],
+          verify: [
+            'default namespace has label istio-injection=enabled',
+            'pod shows 2 containers: nginx and istio-proxy',
+          ],
           expectedOutcome: 'Istio installed, sidecar injected automatically on new pod.',
-          cleanup: ['kubectl delete deployment istio-test', 'kubectl label namespace default istio-injection-'],
+          cleanup: [
+            'kubectl delete deployment istio-test',
+            'kubectl label namespace default istio-injection-',
+          ],
         },
         {
           id: 'p5-m7-e2',
@@ -3109,9 +4368,17 @@ EOF`,
             'kubectl get virtualservice myapp',
             'kubectl get destinationrule myapp',
           ],
-          verify: ['VirtualService created with 90/10 weight split', 'DestinationRule created with v1 and v2 subsets'],
+          verify: [
+            'VirtualService created with 90/10 weight split',
+            'DestinationRule created with v1 and v2 subsets',
+          ],
           expectedOutcome: 'Canary routing configured: 90% to v1, 10% to v2.',
-          cleanup: ['kubectl delete deployment myapp-v1 myapp-v2', 'kubectl delete service myapp', 'kubectl delete virtualservice myapp', 'kubectl delete destinationrule myapp'],
+          cleanup: [
+            'kubectl delete deployment myapp-v1 myapp-v2',
+            'kubectl delete service myapp',
+            'kubectl delete virtualservice myapp',
+            'kubectl delete destinationrule myapp',
+          ],
         },
         {
           id: 'p5-m7-e3',
@@ -3124,7 +4391,10 @@ EOF`,
             'kubectl get peerauthentication -A',
             'kubectl get destinationrule -A -o yaml | grep -A5 tls',
           ],
-          verify: ['istioctl analyze output shows any mesh config warnings', 'proxy-status shows all proxies in sync'],
+          verify: [
+            'istioctl analyze output shows any mesh config warnings',
+            'proxy-status shows all proxies in sync',
+          ],
           expectedOutcome: 'Mesh analysis commands confirmed for debugging mTLS issues.',
           cleanup: [],
         },
@@ -3137,7 +4407,11 @@ EOF`,
             'kubectl get virtualservice,destinationrule,gateway -A 2>/dev/null || echo "Istio not installed"',
             'kubectl get pods -A | grep istio-proxy | wc -l',
           ],
-          verify: ['Can explain: how Envoy intercepts traffic without app changes', 'Can explain: difference between VirtualService and DestinationRule', 'Can describe: what mTLS identity is based on in Istio (SPIFFE/X.509)'],
+          verify: [
+            'Can explain: how Envoy intercepts traffic without app changes',
+            'Can explain: difference between VirtualService and DestinationRule',
+            'Can describe: what mTLS identity is based on in Istio (SPIFFE/X.509)',
+          ],
           expectedOutcome: 'Service mesh mental model solidified.',
           cleanup: [],
         },

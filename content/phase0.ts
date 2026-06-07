@@ -1,7 +1,11 @@
 import type { Phase, ClusterState } from '@/lib/types'
 
 const emptyCluster: ClusterState = {
-  pods: [], services: [], deployments: [], namespaces: ['default'], events: [],
+  pods: [],
+  services: [],
+  deployments: [],
+  namespaces: ['default'],
+  events: [],
 }
 
 const phase0: Phase = {
@@ -9,7 +13,8 @@ const phase0: Phase = {
   slug: 'phase-0',
   title: 'Mental Model Foundation',
   shortTitle: 'Foundation',
-  description: 'Build the right mental model before touching a cluster. Understand WHY Kubernetes exists and HOW it is structured.',
+  description:
+    'Build the right mental model before touching a cluster. Understand WHY Kubernetes exists and HOW it is structured.',
   weeks: 'Week 1',
   hours: '~8 hours',
   color: 'text-violet-400',
@@ -19,7 +24,8 @@ const phase0: Phase = {
       id: 'p0-m0',
       slug: 'local-setup',
       title: 'Set Up Your Local Cluster',
-      description: 'Install kubectl and minikube, start a local cluster, and verify you can run commands before tackling anything else.',
+      description:
+        'Install kubectl and minikube, start a local cluster, and verify you can run commands before tackling anything else.',
       duration: '30 min',
       difficulty: 'beginner' as const,
       learningObjectives: [
@@ -100,8 +106,15 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
             'Client Version: v1.30.0',
             'Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3',
           ],
-          explanation: '--client skips the server connection check so it works before the cluster starts. You need v1.26+ for all course commands.',
-          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+          explanation:
+            '--client skips the server connection check so it works before the cluster starts. You need v1.26+ for all course commands.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
+          },
           tip: 'If not installed: brew install kubectl (macOS) or see kubernetes.io/docs/tasks/tools.',
         },
         {
@@ -109,17 +122,22 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
           title: 'Verify minikube',
           instruction: 'Confirm minikube is installed.',
           command: 'minikube version',
-          output: [
-            'minikube version: v1.33.0',
-            'commit: 86fc9d54fca63f295d8737c8eacdbb7987e89c67',
-          ],
-          explanation: 'minikube creates a local Kubernetes node. Any version 1.28+ works with this course.',
-          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default'], events: [] },
+          output: ['minikube version: v1.33.0', 'commit: 86fc9d54fca63f295d8737c8eacdbb7987e89c67'],
+          explanation:
+            'minikube creates a local Kubernetes node. Any version 1.28+ works with this course.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
+          },
         },
         {
           id: 'p0-m0-s3',
           title: 'Start the cluster',
-          instruction: 'Start a minikube cluster with 2 CPUs and 4 GB RAM. First run takes 2–3 minutes to download the node image.',
+          instruction:
+            'Start a minikube cluster with 2 CPUs and 4 GB RAM. First run takes 2–3 minutes to download the node image.',
           command: 'minikube start --cpus=2 --memory=4096',
           output: [
             '😄  minikube v1.33.0 on Linux',
@@ -131,13 +149,35 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
             '✅  kubectl is now configured to use "minikube" cluster',
             '🎉  Done! kubectl is now configured to use "minikube" cluster and "default" namespace',
           ],
-          explanation: 'minikube adds a "minikube" context to ~/.kube/config and sets it as the active context. All kubectl commands now target this cluster.',
+          explanation:
+            'minikube adds a "minikube" context to ~/.kube/config and sets it as the active context. All kubectl commands now target this cluster.',
           clusterState: {
             pods: [
-              { id: 'api', name: 'kube-apiserver-minikube', namespace: 'kube-system', node: 'node-1' as const, status: 'Running' as const, labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 0 },
-              { id: 'etcd', name: 'etcd-minikube', namespace: 'kube-system', node: 'node-1' as const, status: 'Running' as const, labels: { component: 'etcd' }, image: 'registry.k8s.io/etcd:3.5.12-0', restarts: 0 },
+              {
+                id: 'api',
+                name: 'kube-apiserver-minikube',
+                namespace: 'kube-system',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { component: 'kube-apiserver' },
+                image: 'registry.k8s.io/kube-apiserver:v1.30.0',
+                restarts: 0,
+              },
+              {
+                id: 'etcd',
+                name: 'etcd-minikube',
+                namespace: 'kube-system',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { component: 'etcd' },
+                image: 'registry.k8s.io/etcd:3.5.12-0',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: ['Cluster started', 'kubectl configured'],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: ['Cluster started', 'kubectl configured'],
           },
           tip: 'Add --driver=docker if minikube complains about hypervisors. On Windows, use --driver=hyperv.',
         },
@@ -152,12 +192,25 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
             '',
             'To further debug and diagnose cluster problems, use kubectl cluster-info dump.',
           ],
-          explanation: 'The control plane URL is the kube-apiserver address. All kubectl commands send HTTP requests here. CoreDNS handles DNS-based service discovery for pods.',
+          explanation:
+            'The control plane URL is the kube-apiserver address. All kubectl commands send HTTP requests here. CoreDNS handles DNS-based service discovery for pods.',
           clusterState: {
             pods: [
-              { id: 'api', name: 'kube-apiserver-minikube', namespace: 'kube-system', node: 'node-1' as const, status: 'Running' as const, labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 0 },
+              {
+                id: 'api',
+                name: 'kube-apiserver-minikube',
+                namespace: 'kube-system',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { component: 'kube-apiserver' },
+                image: 'registry.k8s.io/kube-apiserver:v1.30.0',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: [],
           },
         },
         {
@@ -169,25 +222,46 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
             'NAME       STATUS   ROLES           AGE    VERSION',
             'minikube   Ready    control-plane   2m3s   v1.30.0',
           ],
-          explanation: 'STATUS Ready means the node is healthy. ROLES control-plane means this node also runs API server, scheduler, etcd. In production you separate control-plane and worker nodes.',
-          clusterState: { pods: [], services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [] },
+          explanation:
+            'STATUS Ready means the node is healthy. ROLES control-plane means this node also runs API server, scheduler, etcd. In production you separate control-plane and worker nodes.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: [],
+          },
         },
         {
           id: 'p0-m0-s6',
           title: 'Enable metrics-server',
-          instruction: 'Enable the metrics-server addon. Required for kubectl top commands later in the course.',
+          instruction:
+            'Enable the metrics-server addon. Required for kubectl top commands later in the course.',
           command: 'minikube addons enable metrics-server',
           output: [
             '💡  metrics-server is an addon maintained by Kubernetes.',
-            "    ▪ Using image registry.k8s.io/metrics-server/metrics-server:v0.7.1",
+            '    ▪ Using image registry.k8s.io/metrics-server/metrics-server:v0.7.1',
             "🌟  The 'metrics-server' addon is enabled",
           ],
-          explanation: 'metrics-server scrapes CPU/memory from kubelets and exposes the Metrics API. Without it kubectl top pods and kubectl top nodes return errors.',
+          explanation:
+            'metrics-server scrapes CPU/memory from kubelets and exposes the Metrics API. Without it kubectl top pods and kubectl top nodes return errors.',
           clusterState: {
             pods: [
-              { id: 'ms', name: 'metrics-server', namespace: 'kube-system', node: 'node-1' as const, status: 'Running' as const, labels: { 'k8s-app': 'metrics-server' }, image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.1', restarts: 0 },
+              {
+                id: 'ms',
+                name: 'metrics-server',
+                namespace: 'kube-system',
+                node: 'node-1' as const,
+                status: 'Running' as const,
+                labels: { 'k8s-app': 'metrics-server' },
+                image: 'registry.k8s.io/metrics-server/metrics-server:v0.7.1',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: ['metrics-server enabled'],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: ['metrics-server enabled'],
           },
           tip: 'Also run: minikube addons enable ingress — you will need it in Phase 3.',
         },
@@ -203,11 +277,13 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
             'Copies /etc/kubernetes/admin.conf to ~/.kube/config',
           ],
           answer: 1,
-          explanation: 'minikube merges a new context into your existing kubeconfig and sets it as current. It does not overwrite existing contexts (e.g. a production cluster config you already have).',
+          explanation:
+            'minikube merges a new context into your existing kubeconfig and sets it as current. It does not overwrite existing contexts (e.g. a production cluster config you already have).',
         },
         {
           id: 'p0-m0-q2',
-          question: 'kubectl cluster-info returns "The connection to the server was refused". What should you check first?',
+          question:
+            'kubectl cluster-info returns "The connection to the server was refused". What should you check first?',
           options: [
             'Whether port 8443 is open in your firewall',
             'Whether minikube is running (minikube status)',
@@ -215,18 +291,21 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
             'Whether ~/.kube/config exists',
           ],
           answer: 1,
-          explanation: 'Connection refused means the API server process is not listening. Most common cause: minikube is stopped. Run minikube status, then minikube start if needed.',
+          explanation:
+            'Connection refused means the API server process is not listening. Most common cause: minikube is stopped. Run minikube status, then minikube start if needed.',
         },
         {
           id: 'p0-m0-q3',
           question: 'Which minikube addon must be enabled for kubectl top pods to work?',
           options: ['ingress', 'dashboard', 'metrics-server', 'storage-provisioner'],
           answer: 2,
-          explanation: 'metrics-server exposes the Kubernetes Metrics API. kubectl top reads from this API. Without it you get "Metrics API not available".',
+          explanation:
+            'metrics-server exposes the Kubernetes Metrics API. kubectl top reads from this API. Without it you get "Metrics API not available".',
         },
         {
           id: 'p0-m0-q4',
-          question: 'In a minikube cluster, the node has ROLES=control-plane. What does this mean for scheduling workloads?',
+          question:
+            'In a minikube cluster, the node has ROLES=control-plane. What does this mean for scheduling workloads?',
           options: [
             'You cannot schedule user pods on this node',
             'The node runs both control plane components and user pods',
@@ -234,7 +313,8 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
             'The node auto-taints itself to reject all pods',
           ],
           answer: 1,
-          explanation: 'minikube removes the default control-plane taint so user pods can be scheduled on the single node. In production, control-plane nodes are typically tainted to repel user workloads.',
+          explanation:
+            'minikube removes the default control-plane taint so user pods can be scheduled on the single node. In production, control-plane nodes are typically tainted to repel user workloads.',
         },
         {
           id: 'p0-m0-q5',
@@ -246,11 +326,13 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
             'They are identical tools with different names',
           ],
           answer: 1,
-          explanation: 'kind (Kubernetes IN Docker) runs each node as a Docker container, making multi-node simulation easy. minikube creates one all-in-one node and has better addon/dashboard support.',
+          explanation:
+            'kind (Kubernetes IN Docker) runs each node as a Docker container, making multi-node simulation easy. minikube creates one all-in-one node and has better addon/dashboard support.',
         },
         {
           id: 'p0-m0-q6',
-          question: 'You want to run labs from this course on your laptop. Which command starts a minikube cluster suitable for the course?',
+          question:
+            'You want to run labs from this course on your laptop. Which command starts a minikube cluster suitable for the course?',
           options: [
             'minikube start --nodes=3',
             'minikube start --cpus=2 --memory=4096',
@@ -258,7 +340,8 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
             'minikube start --kubernetes-version=v1.20.0',
           ],
           answer: 1,
-          explanation: '--cpus=2 --memory=4096 gives minikube 2 cores and 4 GB RAM — enough for all course labs. --nodes=3 wastes resources. --driver=none requires running as root. Pinning an old version is not recommended.',
+          explanation:
+            '--cpus=2 --memory=4096 gives minikube 2 cores and 4 GB RAM — enough for all course labs. --nodes=3 wastes resources. --driver=none requires running as root. Pinning an old version is not recommended.',
         },
       ],
       exercises: [
@@ -278,7 +361,7 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
           verify: [
             'kubectl get nodes shows STATUS=Ready',
             'kubectl cluster-info shows the control plane URL',
-            "minikube addons list shows metrics-server: enabled",
+            'minikube addons list shows metrics-server: enabled',
           ],
           expectedOutcome: 'A healthy single-node cluster ready for the rest of the course',
           cleanup: [],
@@ -341,9 +424,10 @@ Think of Kubernetes like a **shipping company**:
             'Kubernetes control plane is running at https://127.0.0.1:6443',
             'CoreDNS is running at https://127.0.0.1:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy',
             '',
-            'To further debug and diagnose cluster problems, use \'kubectl cluster-info dump\'.',
+            "To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.",
           ],
-          explanation: 'The control plane endpoint is the kube-apiserver — every kubectl command goes through it. CoreDNS provides in-cluster DNS for Service discovery.',
+          explanation:
+            'The control plane endpoint is the kube-apiserver — every kubectl command goes through it. CoreDNS provides in-cluster DNS for Service discovery.',
           clusterState: {
             ...emptyCluster,
             highlightedComponent: 'apiserver',
@@ -359,7 +443,8 @@ Think of Kubernetes like a **shipping company**:
             'NAME       STATUS   ROLES           AGE   VERSION',
             'minikube   Ready    control-plane   5d    v1.30.0',
           ],
-          explanation: 'A production cluster has one (or more) control plane nodes and multiple worker nodes. Your minikube cluster runs both roles on a single node — that\'s why ROLES shows "control-plane" here. The STATUS "Ready" means kubelet is healthy and the node can accept Pods.',
+          explanation:
+            'A production cluster has one (or more) control plane nodes and multiple worker nodes. Your minikube cluster runs both roles on a single node — that\'s why ROLES shows "control-plane" here. The STATUS "Ready" means kubelet is healthy and the node can accept Pods.',
           clusterState: {
             ...emptyCluster,
             highlightedComponent: 'kubelet',
@@ -380,14 +465,45 @@ Think of Kubernetes like a **shipping company**:
             'kube-scheduler-minikube            1/1     Running   0          5d',
             'storage-provisioner                1/1     Running   0          5d',
           ],
-          explanation: 'The kube-system namespace contains Kubernetes\' own components running as Pods! etcd, kube-apiserver, kube-scheduler, and kube-controller-manager all run here on the control plane node.',
+          explanation:
+            "The kube-system namespace contains Kubernetes' own components running as Pods! etcd, kube-apiserver, kube-scheduler, and kube-controller-manager all run here on the control plane node.",
           clusterState: {
             pods: [
-              { id: 'etcd', name: 'etcd-controlplane', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: {}, image: 'etcd', restarts: 0 },
-              { id: 'api', name: 'kube-apiserver', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: {}, image: 'kube-apiserver', restarts: 0 },
-              { id: 'dns', name: 'coredns', namespace: 'kube-system', node: 'node-2', status: 'Running', labels: {}, image: 'coredns', restarts: 0 },
+              {
+                id: 'etcd',
+                name: 'etcd-controlplane',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'etcd',
+                restarts: 0,
+              },
+              {
+                id: 'api',
+                name: 'kube-apiserver',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'kube-apiserver',
+                restarts: 0,
+              },
+              {
+                id: 'dns',
+                name: 'coredns',
+                namespace: 'kube-system',
+                node: 'node-2',
+                status: 'Running',
+                labels: {},
+                image: 'coredns',
+                restarts: 0,
+              },
             ],
-            services: [], deployments: [], namespaces: ['default', 'kube-system'], events: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: [],
           },
         },
       ],
@@ -397,26 +513,29 @@ Think of Kubernetes like a **shipping company**:
           question: 'What component do ALL kubectl commands communicate with first?',
           options: ['etcd', 'kube-apiserver', 'kube-scheduler', 'kubelet'],
           answer: 1,
-          explanation: 'kube-apiserver is the single entry point for all cluster communication. Every kubectl command, every controller, and every node agent talks to the API server.',
+          explanation:
+            'kube-apiserver is the single entry point for all cluster communication. Every kubectl command, every controller, and every node agent talks to the API server.',
         },
         {
           id: 'p0-m1-q2',
           question: 'What does "STATUS: Ready" mean on a node?',
           options: [
             'The node has no pods running on it',
-            'The node\'s kubelet is healthy and it can accept new Pods',
+            "The node's kubelet is healthy and it can accept new Pods",
             'The node is the control plane',
             'The node has enough memory for 100 pods',
           ],
           answer: 1,
-          explanation: '"Ready" means the kubelet is reporting healthy status to the control plane and the node can be scheduled with new Pods.',
+          explanation:
+            '"Ready" means the kubelet is reporting healthy status to the control plane and the node can be scheduled with new Pods.',
         },
         {
           id: 'p0-m1-q3',
-          question: 'Which namespace contains Kubernetes\' own system components?',
+          question: "Which namespace contains Kubernetes' own system components?",
           options: ['default', 'system', 'kube-system', 'kubernetes'],
           answer: 2,
-          explanation: 'kube-system is a reserved namespace where all Kubernetes infrastructure components run (apiserver, etcd, scheduler, controller-manager, coredns, kube-proxy).',
+          explanation:
+            'kube-system is a reserved namespace where all Kubernetes infrastructure components run (apiserver, etcd, scheduler, controller-manager, coredns, kube-proxy).',
         },
         {
           id: 'p0-m1-q4',
@@ -428,18 +547,54 @@ Think of Kubernetes like a **shipping company**:
             'It manages container lifecycles on nodes',
           ],
           answer: 2,
-          explanation: 'etcd is a distributed key-value store that holds ALL cluster state — every resource, every configuration, every status. If etcd is lost without a backup, the cluster state is unrecoverable.',
+          explanation:
+            'etcd is a distributed key-value store that holds ALL cluster state — every resource, every configuration, every status. If etcd is lost without a backup, the cluster state is unrecoverable.',
         },
       ],
       coverage: {
-        concepts: ['container orchestration', 'self-healing', 'horizontal scaling', 'rolling updates', 'service discovery', 'resource scheduling', 'desired state'],
-        commands: ['minikube start', 'minikube status', 'minikube stop', 'minikube delete', 'kubectl version', 'kubectl cluster-info', 'kubectl get nodes'],
-        architecture: ['control plane vs worker nodes', 'desired state vs actual state', 'declarative API model'],
-        techniques: ['declarative configuration', 'desired state reconciliation', 'event-driven controller loops'],
-        procedures: ['install minikube', 'start local cluster', 'verify cluster health', 'stop and delete cluster'],
+        concepts: [
+          'container orchestration',
+          'self-healing',
+          'horizontal scaling',
+          'rolling updates',
+          'service discovery',
+          'resource scheduling',
+          'desired state',
+        ],
+        commands: [
+          'minikube start',
+          'minikube status',
+          'minikube stop',
+          'minikube delete',
+          'kubectl version',
+          'kubectl cluster-info',
+          'kubectl get nodes',
+        ],
+        architecture: [
+          'control plane vs worker nodes',
+          'desired state vs actual state',
+          'declarative API model',
+        ],
+        techniques: [
+          'declarative configuration',
+          'desired state reconciliation',
+          'event-driven controller loops',
+        ],
+        procedures: [
+          'install minikube',
+          'start local cluster',
+          'verify cluster health',
+          'stop and delete cluster',
+        ],
         toolsAndPlugins: ['minikube', 'kubectl', 'Docker or containerd'],
-        cases: ['container crash with no orchestrator — manual restart required', 'manual scaling bottleneck under traffic spike'],
-        scenarios: ['app crashes at 3am — who notices and restarts it?', 'traffic spikes 10x — how do you scale in 30 seconds?'],
+        cases: [
+          'container crash with no orchestrator — manual restart required',
+          'manual scaling bottleneck under traffic spike',
+        ],
+        scenarios: [
+          'app crashes at 3am — who notices and restarts it?',
+          'traffic spikes 10x — how do you scale in 30 seconds?',
+        ],
       },
       exercises: [
         {
@@ -455,7 +610,10 @@ Think of Kubernetes like a **shipping company**:
             'kubectl cluster-info',
             'kubectl get nodes',
           ],
-          verify: ['kubectl get nodes shows 1 node with STATUS Ready', 'minikube status shows Running'],
+          verify: [
+            'kubectl get nodes shows 1 node with STATUS Ready',
+            'minikube status shows Running',
+          ],
           expectedOutcome: 'Single-node minikube cluster running. kubectl connected to it.',
           cleanup: [],
         },
@@ -464,13 +622,11 @@ Think of Kubernetes like a **shipping company**:
           title: 'Stop and restart the cluster from scratch',
           kind: 'challenge',
           goal: 'Practice the full cluster lifecycle without looking up commands.',
-          commands: [
-            'minikube stop',
-            'minikube status',
-            'minikube start',
-            'kubectl cluster-info',
+          commands: ['minikube stop', 'minikube status', 'minikube start', 'kubectl cluster-info'],
+          verify: [
+            'minikube status shows Running after start',
+            'kubectl get nodes returns Ready node',
           ],
-          verify: ['minikube status shows Running after start', 'kubectl get nodes returns Ready node'],
           expectedOutcome: 'Cluster stopped then restarted cleanly.',
           cleanup: [],
         },
@@ -479,11 +635,11 @@ Think of Kubernetes like a **shipping company**:
           title: 'Diagnose a bad minikube start flag',
           kind: 'debug',
           goal: 'Read and interpret minikube error output when passed an invalid version.',
-          commands: [
-            'minikube start --kubernetes-version=v0.0.0',
-            'minikube logs | tail -20',
+          commands: ['minikube start --kubernetes-version=v0.0.0', 'minikube logs | tail -20'],
+          verify: [
+            'Error message appears explaining the invalid or unavailable version',
+            'minikube status shows cluster not running',
           ],
-          verify: ['Error message appears explaining the invalid or unavailable version', 'minikube status shows cluster not running'],
           expectedOutcome: 'Understand how to read minikube error output and find logs.',
           cleanup: ['minikube delete'],
         },
@@ -492,11 +648,7 @@ Think of Kubernetes like a **shipping company**:
           title: '1-day spaced review — cluster state commands',
           kind: 'spaced-review',
           goal: 'Retrieve cluster status commands from memory without looking them up.',
-          commands: [
-            'kubectl cluster-info',
-            'kubectl get nodes -o wide',
-            'minikube status',
-          ],
+          commands: ['kubectl cluster-info', 'kubectl get nodes -o wide', 'minikube status'],
           verify: ['All three commands return without error', 'Node shows Ready status'],
           expectedOutcome: 'Commands recalled and executed without consulting notes.',
           cleanup: [],
@@ -586,7 +738,8 @@ Status updated back to etcd via API Server
             '  PIDPressure      False   ...                 KubeletHasSufficientPID',
             '  Ready            True    ...                 KubeletReady',
           ],
-          explanation: 'The kubelet on each node reports Conditions to the control plane. "Ready: True" means the node is healthy. "MemoryPressure: True" would trigger pod evictions.',
+          explanation:
+            'The kubelet on each node reports Conditions to the control plane. "Ready: True" means the node is healthy. "MemoryPressure: True" would trigger pod evictions.',
           clusterState: { ...emptyCluster, highlightedComponent: 'kubelet' },
         },
         {
@@ -595,10 +748,25 @@ Status updated back to etcd via API Server
           instruction: 'Create a Pod and see which node the scheduler chooses.',
           command: 'kubectl run test-pod --image=nginx:1.27 --restart=Never',
           output: ['pod/test-pod created'],
-          explanation: 'The scheduler reads the Pod\'s resource requests and node constraints, then picks the best node. This happens in milliseconds.',
+          explanation:
+            "The scheduler reads the Pod's resource requests and node constraints, then picks the best node. This happens in milliseconds.",
           clusterState: {
-            pods: [{ id: 'test', name: 'test-pod', namespace: 'default', node: 'node-2', status: 'Pending', labels: { run: 'test-pod' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [], deployments: [], namespaces: ['default'], events: ['Scheduled test-pod → node-2'],
+            pods: [
+              {
+                id: 'test',
+                name: 'test-pod',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Pending',
+                labels: { run: 'test-pod' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['Scheduled test-pod → node-2'],
             highlightedComponent: 'scheduler',
           },
         },
@@ -611,10 +779,25 @@ Status updated back to etcd via API Server
             'NAME       READY   STATUS    RESTARTS   AGE   IP           NODE     NOMINATED NODE   READINESS GATES',
             'test-pod   1/1     Running   0          8s    10.244.2.5   node-2   <none>           <none>',
           ],
-          explanation: 'The NODE column shows where the scheduler placed the Pod. The IP is assigned by the CNI plugin from the Pod network CIDR.',
+          explanation:
+            'The NODE column shows where the scheduler placed the Pod. The IP is assigned by the CNI plugin from the Pod network CIDR.',
           clusterState: {
-            pods: [{ id: 'test', name: 'test-pod', namespace: 'default', node: 'node-2', status: 'Running', labels: { run: 'test-pod' }, image: 'nginx:1.27', restarts: 0 }],
-            services: [], deployments: [], namespaces: ['default'], events: [],
+            pods: [
+              {
+                id: 'test',
+                name: 'test-pod',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { run: 'test-pod' },
+                image: 'nginx:1.27',
+                restarts: 0,
+              },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: [],
           },
         },
         {
@@ -623,7 +806,8 @@ Status updated back to etcd via API Server
           instruction: 'Delete the test Pod to restore the empty cluster state.',
           command: 'kubectl delete pod test-pod',
           output: ['pod "test-pod" deleted'],
-          explanation: 'When you delete a Pod, the API server removes it from etcd, and kubelet stops and removes the container. No replacement is created for bare Pods.',
+          explanation:
+            'When you delete a Pod, the API server removes it from etcd, and kubelet stops and removes the container. No replacement is created for bare Pods.',
           clusterState: { ...emptyCluster },
         },
       ],
@@ -638,7 +822,8 @@ Status updated back to etcd via API Server
             'Routes network traffic between services',
           ],
           answer: 1,
-          explanation: 'kube-scheduler watches for newly created Pods with no assigned node, then selects the best node based on resource availability, affinity rules, taints, and other constraints.',
+          explanation:
+            'kube-scheduler watches for newly created Pods with no assigned node, then selects the best node based on resource availability, affinity rules, taints, and other constraints.',
         },
         {
           id: 'p0-m2-q2',
@@ -650,7 +835,8 @@ Status updated back to etcd via API Server
             'etcd backs up data on a schedule',
           ],
           answer: 1,
-          explanation: 'Controllers watch for desired state (in etcd) vs actual state (in the cluster) and take action to make them match. This is the core Kubernetes design pattern.',
+          explanation:
+            'Controllers watch for desired state (in etcd) vs actual state (in the cluster) and take action to make them match. This is the core Kubernetes design pattern.',
         },
         {
           id: 'p0-m2-q3',
@@ -662,25 +848,65 @@ Status updated back to etcd via API Server
             'kubelet reschedules it on the same node',
           ],
           answer: 1,
-          explanation: 'Bare Pods have no controller watching over them. When deleted, they are gone. This is why you should always use Deployments for workloads you want to keep running.',
+          explanation:
+            'Bare Pods have no controller watching over them. When deleted, they are gone. This is why you should always use Deployments for workloads you want to keep running.',
         },
         {
           id: 'p0-m2-q4',
           question: 'Which component on each worker node actually starts and stops containers?',
           options: ['kube-proxy', 'kube-scheduler', 'kubelet', 'kube-apiserver'],
           answer: 2,
-          explanation: 'kubelet is the node agent. It watches the API server for Pods assigned to its node, then instructs the container runtime (containerd) to start or stop containers.',
+          explanation:
+            'kubelet is the node agent. It watches the API server for Pods assigned to its node, then instructs the container runtime (containerd) to start or stop containers.',
         },
       ],
       coverage: {
-        concepts: ['kube-apiserver', 'etcd', 'kube-scheduler', 'kube-controller-manager', 'cloud-controller-manager', 'kubelet', 'kube-proxy', 'container runtime', 'watch-reconcile loop'],
-        commands: ['kubectl get nodes', 'kubectl describe node minikube', 'kubectl get pods -n kube-system', 'kubectl get pods -n kube-system -o wide', 'kubectl explain node'],
-        architecture: ['control plane components and roles', 'worker node components and roles', 'API watch-reconcile loop', 'etcd as source of truth', 'how kubectl apply flows through the system'],
-        techniques: ['level-triggered reconciliation', 'desired vs observed state', 'leader election for HA control planes'],
-        procedures: ['list all system pods', 'describe a node to check conditions', 'identify control plane vs data plane pods'],
+        concepts: [
+          'kube-apiserver',
+          'etcd',
+          'kube-scheduler',
+          'kube-controller-manager',
+          'cloud-controller-manager',
+          'kubelet',
+          'kube-proxy',
+          'container runtime',
+          'watch-reconcile loop',
+        ],
+        commands: [
+          'kubectl get nodes',
+          'kubectl describe node minikube',
+          'kubectl get pods -n kube-system',
+          'kubectl get pods -n kube-system -o wide',
+          'kubectl explain node',
+        ],
+        architecture: [
+          'control plane components and roles',
+          'worker node components and roles',
+          'API watch-reconcile loop',
+          'etcd as source of truth',
+          'how kubectl apply flows through the system',
+        ],
+        techniques: [
+          'level-triggered reconciliation',
+          'desired vs observed state',
+          'leader election for HA control planes',
+        ],
+        procedures: [
+          'list all system pods',
+          'describe a node to check conditions',
+          'identify control plane vs data plane pods',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube', 'containerd', 'etcdctl'],
-        cases: ['scheduler down → pods stay Pending', 'etcd unavailable → API reads fail', 'kubelet stopped → node goes NotReady', 'kube-proxy crash → service routing breaks'],
-        scenarios: ['trace kubectl apply from CLI to container start step by step', 'what happens when a node loses network connectivity?'],
+        cases: [
+          'scheduler down → pods stay Pending',
+          'etcd unavailable → API reads fail',
+          'kubelet stopped → node goes NotReady',
+          'kube-proxy crash → service routing breaks',
+        ],
+        scenarios: [
+          'trace kubectl apply from CLI to container start step by step',
+          'what happens when a node loses network connectivity?',
+        ],
       },
       exercises: [
         {
@@ -693,8 +919,12 @@ Status updated back to etcd via API Server
             'kubectl get pods -n kube-system -o wide',
             'kubectl describe pod -n kube-system -l component=kube-apiserver',
           ],
-          verify: ['kube-apiserver, etcd, kube-scheduler, kube-controller-manager pods are listed', 'coredns and kube-proxy pods also present'],
-          expectedOutcome: 'All system component pods listed and matched to their architectural role.',
+          verify: [
+            'kube-apiserver, etcd, kube-scheduler, kube-controller-manager pods are listed',
+            'coredns and kube-proxy pods also present',
+          ],
+          expectedOutcome:
+            'All system component pods listed and matched to their architectural role.',
           cleanup: [],
         },
         {
@@ -708,7 +938,10 @@ Status updated back to etcd via API Server
             'kubectl describe pod -n kube-system kube-scheduler-minikube',
             'kubectl describe pod -n kube-system kube-controller-manager-minikube',
           ],
-          verify: ['Each describe shows Status: Running', 'Container image, restart count, and resource limits are visible'],
+          verify: [
+            'Each describe shows Status: Running',
+            'Container image, restart count, and resource limits are visible',
+          ],
           expectedOutcome: 'Able to correlate each pod to its architectural role without notes.',
           cleanup: [],
         },
@@ -723,7 +956,10 @@ Status updated back to etcd via API Server
             'kubectl get events -n kube-system --sort-by=.lastTimestamp',
             'minikube logs | tail -30',
           ],
-          verify: ['kubectl describe node shows Conditions section with Ready=True', 'Events section has no critical errors'],
+          verify: [
+            'kubectl describe node shows Conditions section with Ready=True',
+            'Events section has no critical errors',
+          ],
           expectedOutcome: 'Know which fields in kubectl describe node indicate health problems.',
           cleanup: [],
         },
@@ -737,8 +973,12 @@ Status updated back to etcd via API Server
             'kubectl get nodes',
             'kubectl cluster-info',
           ],
-          verify: ['Can name: apiserver, etcd, scheduler, controller-manager, kubelet, kube-proxy, container runtime', 'All system pods show Running'],
-          expectedOutcome: 'Component names and roles recalled accurately without looking at notes.',
+          verify: [
+            'Can name: apiserver, etcd, scheduler, controller-manager, kubelet, kube-proxy, container runtime',
+            'All system pods show Running',
+          ],
+          expectedOutcome:
+            'Component names and roles recalled accurately without looking at notes.',
           cleanup: [],
         },
       ],
@@ -747,7 +987,8 @@ Status updated back to etcd via API Server
       id: 'p0-m3',
       slug: 'kubectl-kubeconfig',
       title: 'kubectl & kubeconfig',
-      description: 'Master the CLI and configuration file that connect you to any Kubernetes cluster.',
+      description:
+        'Master the CLI and configuration file that connect you to any Kubernetes cluster.',
       duration: '45 min',
       difficulty: 'beginner',
       theory: `> 🧠 **Brain Warm-Up**: If you manage 5 clusters (dev, staging, prod-us, prod-eu, local-minikube), how does a single kubectl binary know which cluster to talk to? Where are credentials stored, and how do you switch between them without breaking a live deployment?
@@ -860,7 +1101,8 @@ kubens production # switch namespace
             '    client-certificate-data: DATA+OMITTED',
             '    client-key-data: DATA+OMITTED',
           ],
-          explanation: 'kubectl config view masks certificate data as DATA+OMITTED. The current-context field determines which cluster kubectl targets. The server URL is the kube-apiserver endpoint — the single entry point for all commands.',
+          explanation:
+            'kubectl config view masks certificate data as DATA+OMITTED. The current-context field determines which cluster kubectl targets. The server URL is the kube-apiserver endpoint — the single entry point for all commands.',
           clusterState: { ...emptyCluster, highlightedComponent: 'apiserver' },
           tip: 'Use --raw to see actual base64-encoded certificate values (handle with care).',
         },
@@ -875,7 +1117,8 @@ kubens production # switch namespace
             '          prod           prod-cluster   prod-admin         production',
             '          staging        staging-k8s    staging-admin      staging',
           ],
-          explanation: 'The asterisk (*) marks the active context. Each context is a named cluster+user+namespace triplet. Switching contexts is safe — it only changes where future commands point, nothing else.',
+          explanation:
+            'The asterisk (*) marks the active context. Each context is a named cluster+user+namespace triplet. Switching contexts is safe — it only changes where future commands point, nothing else.',
           clusterState: { ...emptyCluster },
           tip: '"kubectl config current-context" prints just the active context name — useful in shell prompts and scripts.',
         },
@@ -885,16 +1128,19 @@ kubens production # switch namespace
           instruction: 'Switch the active context to point kubectl at a different cluster.',
           command: 'kubectl config use-context staging',
           output: ['Switched to context "staging".'],
-          explanation: 'Switching context writes the new current-context value into ~/.kube/config. All subsequent kubectl commands target the staging cluster. Switch back any time with "kubectl config use-context local".',
+          explanation:
+            'Switching context writes the new current-context value into ~/.kube/config. All subsequent kubectl commands target the staging cluster. Switch back any time with "kubectl config use-context local".',
           clusterState: { ...emptyCluster },
         },
         {
           id: 'p0-m3-s4',
           title: 'Set the default namespace for the current context',
-          instruction: 'Stop typing -n on every command by persisting a namespace to the current context.',
+          instruction:
+            'Stop typing -n on every command by persisting a namespace to the current context.',
           command: 'kubectl config set-context --current --namespace=staging',
           output: ['Context "local" modified.'],
-          explanation: 'This writes the namespace into the active context entry in kubeconfig. All subsequent commands in this context default to the staging namespace without -n. Context changes are local to your machine and don\'t affect the cluster.',
+          explanation:
+            "This writes the namespace into the active context entry in kubeconfig. All subsequent commands in this context default to the staging namespace without -n. Context changes are local to your machine and don't affect the cluster.",
           clusterState: { ...emptyCluster, namespaces: ['default', 'kube-system', 'staging'] },
           tip: 'Reset to default: "kubectl config set-context --current --namespace=default"',
         },
@@ -904,9 +1150,10 @@ kubens production # switch namespace
           instruction: 'Use jsonpath to extract just the API server URL from the kubeconfig.',
           command: "kubectl config view -o jsonpath='{.clusters[0].cluster.server}'",
           output: ['https://127.0.0.1:6443'],
-          explanation: 'jsonpath is a query language for JSON/YAML structures. The -o jsonpath flag lets you extract any field from kubectl output — essential for scripting, CI pipelines, and automating cluster operations.',
+          explanation:
+            'jsonpath is a query language for JSON/YAML structures. The -o jsonpath flag lets you extract any field from kubectl output — essential for scripting, CI pipelines, and automating cluster operations.',
           clusterState: { ...emptyCluster },
-          tip: 'Combine with other commands: kubectl get pod nginx -o jsonpath=\'{.status.podIP}\' prints just the Pod IP.',
+          tip: "Combine with other commands: kubectl get pod nginx -o jsonpath='{.status.podIP}' prints just the Pod IP.",
         },
       ],
       quiz: [
@@ -920,7 +1167,8 @@ kubens production # switch namespace
             'namespaces, roles, bindings',
           ],
           answer: 1,
-          explanation: 'A kubeconfig has three sections: clusters (API server URLs + CA certs), users (authentication credentials — client certs, tokens, or auth providers), and contexts (named combinations of cluster + user + optional namespace). The current-context field points to the active one.',
+          explanation:
+            'A kubeconfig has three sections: clusters (API server URLs + CA certs), users (authentication credentials — client certs, tokens, or auth providers), and contexts (named combinations of cluster + user + optional namespace). The current-context field points to the active one.',
         },
         {
           id: 'p0-m3-q2',
@@ -932,11 +1180,13 @@ kubens production # switch namespace
             'A kubectl command alias',
           ],
           answer: 1,
-          explanation: 'A context is a named binding of: cluster (which API server to talk to) + user (which credentials to use) + optional namespace (default namespace for commands). Switching context instantly changes where kubectl points — it is safe and local to your machine.',
+          explanation:
+            'A context is a named binding of: cluster (which API server to talk to) + user (which credentials to use) + optional namespace (default namespace for commands). Switching context instantly changes where kubectl points — it is safe and local to your machine.',
         },
         {
           id: 'p0-m3-q3',
-          question: 'How do you make all kubectl commands in the current context default to namespace "production" without typing -n?',
+          question:
+            'How do you make all kubectl commands in the current context default to namespace "production" without typing -n?',
           options: [
             'kubectl set-namespace production',
             'export KUBECTL_NAMESPACE=production',
@@ -944,11 +1194,13 @@ kubens production # switch namespace
             'kubectl namespace use production',
           ],
           answer: 2,
-          explanation: '"kubectl config set-context --current --namespace=production" modifies the namespace field of the active context in kubeconfig. After this, all commands in that context use production as the default namespace.',
+          explanation:
+            '"kubectl config set-context --current --namespace=production" modifies the namespace field of the active context in kubeconfig. After this, all commands in that context use production as the default namespace.',
         },
         {
           id: 'p0-m3-q4',
-          question: 'You receive a new kubeconfig file for a production cluster. How do you add it to your existing ~/.kube/config without losing existing contexts?',
+          question:
+            'You receive a new kubeconfig file for a production cluster. How do you add it to your existing ~/.kube/config without losing existing contexts?',
           options: [
             'Replace ~/.kube/config entirely with the new file',
             'Use KUBECONFIG=~/.kube/config:new-cluster.yaml kubectl config view --merge --flatten to merge them',
@@ -956,18 +1208,58 @@ kubens production # switch namespace
             'Copy the file to ~/.kube/contexts/',
           ],
           answer: 1,
-          explanation: 'The KUBECONFIG env var accepts colon-separated paths. Using --merge and --flatten with kubectl config view merges all contexts and outputs the combined result. This is the safe way to add new cluster configs without losing existing ones.',
+          explanation:
+            'The KUBECONFIG env var accepts colon-separated paths. Using --merge and --flatten with kubectl config view merges all contexts and outputs the combined result. This is the safe way to add new cluster configs without losing existing ones.',
         },
       ],
       coverage: {
-        concepts: ['kubeconfig file', 'clusters section', 'users section', 'contexts section', 'current-context', 'KUBECONFIG env var', 'namespace in context'],
-        commands: ['kubectl config view', 'kubectl config get-contexts', 'kubectl config current-context', 'kubectl config use-context', 'kubectl config set-context --current --namespace', 'kubectl config view --minify', 'kubectl explain', 'kubectl api-resources', 'kubectl auth can-i'],
-        architecture: ['kubeconfig three-section structure: clusters/users/contexts', 'kubectl auth flow: kubeconfig → apiserver → RBAC', 'context = cluster + user + namespace triple'],
-        techniques: ['context switching', 'merging kubeconfigs with KUBECONFIG env var', 'namespace scoping per context', 'config view --minify for active context only'],
-        procedures: ['view current context', 'switch context', 'set default namespace in context', 'merge two kubeconfig files safely'],
+        concepts: [
+          'kubeconfig file',
+          'clusters section',
+          'users section',
+          'contexts section',
+          'current-context',
+          'KUBECONFIG env var',
+          'namespace in context',
+        ],
+        commands: [
+          'kubectl config view',
+          'kubectl config get-contexts',
+          'kubectl config current-context',
+          'kubectl config use-context',
+          'kubectl config set-context --current --namespace',
+          'kubectl config view --minify',
+          'kubectl explain',
+          'kubectl api-resources',
+          'kubectl auth can-i',
+        ],
+        architecture: [
+          'kubeconfig three-section structure: clusters/users/contexts',
+          'kubectl auth flow: kubeconfig → apiserver → RBAC',
+          'context = cluster + user + namespace triple',
+        ],
+        techniques: [
+          'context switching',
+          'merging kubeconfigs with KUBECONFIG env var',
+          'namespace scoping per context',
+          'config view --minify for active context only',
+        ],
+        procedures: [
+          'view current context',
+          'switch context',
+          'set default namespace in context',
+          'merge two kubeconfig files safely',
+        ],
         toolsAndPlugins: ['kubectl', 'minikube', 'kubectx (optional)', 'kubens (optional)'],
-        cases: ['apply to wrong cluster due to stale context', 'expired certificate in kubeconfig causes auth failure', 'missing kubeconfig file causes connection refused'],
-        scenarios: ['managing dev/staging/prod contexts without crossing wires', 'onboarding: add new cluster kubeconfig without losing existing contexts'],
+        cases: [
+          'apply to wrong cluster due to stale context',
+          'expired certificate in kubeconfig causes auth failure',
+          'missing kubeconfig file causes connection refused',
+        ],
+        scenarios: [
+          'managing dev/staging/prod contexts without crossing wires',
+          'onboarding: add new cluster kubeconfig without losing existing contexts',
+        ],
       },
       exercises: [
         {
@@ -985,12 +1277,28 @@ kubens production # switch namespace
             'kubectl config current-context',
             'kubectl config get-contexts',
           ],
-          verify: ['kubectl version shows both Client and Server versions', 'kubectl get nodes shows at least one node in Ready state', 'kubectl get deployments shows kubernetes-bootcamp with READY 1/1', 'current-context shows minikube'],
-          expectedOutcome: 'Cluster access confirmed, first deployment running, kubeconfig structure understood.',
+          verify: [
+            'kubectl version shows both Client and Server versions',
+            'kubectl get nodes shows at least one node in Ready state',
+            'kubectl get deployments shows kubernetes-bootcamp with READY 1/1',
+            'current-context shows minikube',
+          ],
+          expectedOutcome:
+            'Cluster access confirmed, first deployment running, kubeconfig structure understood.',
           cleanup: ['kubectl delete deployment kubernetes-bootcamp --ignore-not-found'],
           sourceRefs: [
-            { title: 'Kubernetes Basics: Deploy an App', url: 'https://kubernetes.io/docs/tutorials/kubernetes-basics/deploy-app/deploy-intro/', checkedAt: '2026-06', scope: 'tutorial' },
-            { title: 'kubectl reference', url: 'https://kubernetes.io/docs/reference/kubectl/', checkedAt: '2026-06', scope: 'commands' },
+            {
+              title: 'Kubernetes Basics: Deploy an App',
+              url: 'https://kubernetes.io/docs/tutorials/kubernetes-basics/deploy-app/deploy-intro/',
+              checkedAt: '2026-06',
+              scope: 'tutorial',
+            },
+            {
+              title: 'kubectl reference',
+              url: 'https://kubernetes.io/docs/reference/kubectl/',
+              checkedAt: '2026-06',
+              scope: 'commands',
+            },
           ],
         },
         {
@@ -1006,11 +1314,22 @@ kubens production # switch namespace
             'kubectl get pods',
             'kubectl config use-context minikube',
           ],
-          verify: ['review-ctx appears in kubectl config get-contexts', 'kubectl get pods while in review-ctx queries review-ns by default'],
+          verify: [
+            'review-ctx appears in kubectl config get-contexts',
+            'kubectl get pods while in review-ctx queries review-ns by default',
+          ],
           expectedOutcome: 'Custom context created; namespace scoping confirmed.',
-          cleanup: ['kubectl config delete-context review-ctx', 'kubectl delete namespace review-ns'],
+          cleanup: [
+            'kubectl config delete-context review-ctx',
+            'kubectl delete namespace review-ns',
+          ],
           sourceRefs: [
-            { title: 'kubectl config set-context reference', url: 'https://kubernetes.io/docs/reference/kubectl/', checkedAt: '2026-06', scope: 'commands' },
+            {
+              title: 'kubectl config set-context reference',
+              url: 'https://kubernetes.io/docs/reference/kubectl/',
+              checkedAt: '2026-06',
+              scope: 'commands',
+            },
           ],
         },
         {
@@ -1024,11 +1343,20 @@ kubens production # switch namespace
             'kubectl get nodes',
             'kubectl config use-context minikube',
           ],
-          verify: ['kubectl get nodes with broken-ctx shows a connection or cluster-not-found error', 'Switching back to minikube context restores access immediately'],
-          expectedOutcome: 'Understand how missing cluster entries produce errors and how to recover.',
+          verify: [
+            'kubectl get nodes with broken-ctx shows a connection or cluster-not-found error',
+            'Switching back to minikube context restores access immediately',
+          ],
+          expectedOutcome:
+            'Understand how missing cluster entries produce errors and how to recover.',
           cleanup: ['kubectl config delete-context broken-ctx'],
           sourceRefs: [
-            { title: 'kubectl reference', url: 'https://kubernetes.io/docs/reference/kubectl/', checkedAt: '2026-06', scope: 'commands' },
+            {
+              title: 'kubectl reference',
+              url: 'https://kubernetes.io/docs/reference/kubectl/',
+              checkedAt: '2026-06',
+              scope: 'commands',
+            },
           ],
         },
         {
@@ -1046,7 +1374,12 @@ kubens production # switch namespace
           expectedOutcome: 'Context commands recalled and executed without consulting notes.',
           cleanup: [],
           sourceRefs: [
-            { title: 'kubectl reference', url: 'https://kubernetes.io/docs/reference/kubectl/', checkedAt: '2026-06', scope: 'commands' },
+            {
+              title: 'kubectl reference',
+              url: 'https://kubernetes.io/docs/reference/kubectl/',
+              checkedAt: '2026-06',
+              scope: 'commands',
+            },
           ],
         },
       ],

@@ -1,11 +1,7 @@
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
-  content: [
-    './app/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './content/**/*.{ts,tsx}',
-  ],
+  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './content/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -15,7 +11,13 @@ const config: Config = {
         },
       },
       fontFamily: {
-        mono: ['var(--font-jetbrains)', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'monospace'],
+        mono: [
+          'var(--font-jetbrains)',
+          'JetBrains Mono',
+          'Fira Code',
+          'Cascadia Code',
+          'monospace',
+        ],
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-in-out',

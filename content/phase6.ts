@@ -1,7 +1,11 @@
 import type { Phase, ClusterState } from '@/lib/types'
 
 const emptyCluster: ClusterState = {
-  pods: [], services: [], deployments: [], namespaces: ['default'], events: [],
+  pods: [],
+  services: [],
+  deployments: [],
+  namespaces: ['default'],
+  events: [],
 }
 
 const phase6: Phase = {
@@ -9,7 +13,8 @@ const phase6: Phase = {
   slug: 'phase-6',
   title: 'Certification Prep (KCNA, CKA, CKAD)',
   shortTitle: 'P6 · Cert Prep',
-  description: 'Prepare for KCNA, CKA, and CKAD certifications with domain-focused practice, speed drills, and exam-level troubleshooting scenarios.',
+  description:
+    'Prepare for KCNA, CKA, and CKAD certifications with domain-focused practice, speed drills, and exam-level troubleshooting scenarios.',
   weeks: 'Weeks 11+',
   hours: '~40 hours',
   color: 'text-lime-400',
@@ -20,7 +25,8 @@ const phase6: Phase = {
       id: 'p6-m1',
       slug: 'kcna',
       title: 'KCNA: Kubernetes & Cloud Native Associate',
-      description: 'Understand cloud-native architecture, CNCF projects, observability, and container orchestration basics for the entry-level certification.',
+      description:
+        'Understand cloud-native architecture, CNCF projects, observability, and container orchestration basics for the entry-level certification.',
       duration: '10 hours',
       difficulty: 'intermediate',
       theory: `> 🧠 **Brain Warm-Up**: How does the CNCF categorize project maturity, and why does Kubernetes use a gRPC-based Container Runtime Interface (CRI) instead of talking directly to Docker daemon? Think about it before reading below.
@@ -132,7 +138,8 @@ The **OTel Collector** pipeline consists of:
         {
           id: 'p6-m1-s1',
           title: 'Review Kubernetes Architecture Components',
-          instruction: 'View all running pods in the kube-system namespace to identify core control plane components.',
+          instruction:
+            'View all running pods in the kube-system namespace to identify core control plane components.',
           command: 'kubectl get pods -n kube-system',
           output: [
             'NAMESPACE     NAME                               READY   STATUS    RESTARTS   AGE',
@@ -143,12 +150,40 @@ The **OTel Collector** pipeline consists of:
             'kube-system   kube-proxy-abcde                   1/1     Running   0          42d',
             'kube-system   kube-scheduler-node-1              1/1     Running   0          42d',
           ],
-          explanation: 'In a standard self-hosted cluster (e.g. provisioned by kubeadm), the control plane components run as static pods in the `kube-system` namespace. kube-apiserver coordinates all operations; etcd stores cluster state; kube-scheduler schedules pods; kube-controller-manager runs control loops.',
+          explanation:
+            'In a standard self-hosted cluster (e.g. provisioned by kubeadm), the control plane components run as static pods in the `kube-system` namespace. kube-apiserver coordinates all operations; etcd stores cluster state; kube-scheduler schedules pods; kube-controller-manager runs control loops.',
           clusterState: {
             pods: [
-              { id: 'etcd', name: 'etcd-node-1', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'etcd' }, image: 'registry.k8s.io/etcd:3.5.10', restarts: 0 },
-              { id: 'apiserver', name: 'kube-apiserver-node-1', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-apiserver' }, image: 'registry.k8s.io/kube-apiserver:v1.30.0', restarts: 0 },
-              { id: 'scheduler', name: 'kube-scheduler-node-1', namespace: 'kube-system', node: 'node-1', status: 'Running', labels: { component: 'kube-scheduler' }, image: 'registry.k8s.io/kube-scheduler:v1.30.0', restarts: 0 },
+              {
+                id: 'etcd',
+                name: 'etcd-node-1',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'etcd' },
+                image: 'registry.k8s.io/etcd:3.5.10',
+                restarts: 0,
+              },
+              {
+                id: 'apiserver',
+                name: 'kube-apiserver-node-1',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'kube-apiserver' },
+                image: 'registry.k8s.io/kube-apiserver:v1.30.0',
+                restarts: 0,
+              },
+              {
+                id: 'scheduler',
+                name: 'kube-scheduler-node-1',
+                namespace: 'kube-system',
+                node: 'node-1',
+                status: 'Running',
+                labels: { component: 'kube-scheduler' },
+                image: 'registry.k8s.io/kube-scheduler:v1.30.0',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -160,14 +195,16 @@ The **OTel Collector** pipeline consists of:
         {
           id: 'p6-m1-s2',
           title: 'Verify Cluster Node Health and OS/Runtime Info',
-          instruction: 'Describe the nodes to inspect their OS version and container runtime engine (CRI).',
+          instruction:
+            'Describe the nodes to inspect their OS version and container runtime engine (CRI).',
           command: 'kubectl get nodes -o wide',
           output: [
             'NAME     STATUS   ROLES    AGE   VERSION   INTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME',
             'node-1   Ready    control  42d   v1.30.0   10.244.0.1    Ubuntu 22.04.3 LTS   5.15.0-101-generic  containerd://1.7.13',
             'node-2   Ready    worker   42d   v1.30.0   10.244.0.2    Ubuntu 22.04.3 LTS   5.15.0-101-generic  containerd://1.7.13',
           ],
-          explanation: 'KCNA targets understanding of the Container Runtime Interface (CRI). Modern Kubernetes clusters use `containerd` or `CRI-O` rather than standard Docker directly, because Docker lacks native CRI compliance.',
+          explanation:
+            'KCNA targets understanding of the Container Runtime Interface (CRI). Modern Kubernetes clusters use `containerd` or `CRI-O` rather than standard Docker directly, because Docker lacks native CRI compliance.',
           clusterState: {
             ...emptyCluster,
             namespaces: ['default'],
@@ -193,7 +230,8 @@ The **OTel Collector** pipeline consists of:
             'storage.k8s.io/v1',
             'v1',
           ],
-          explanation: 'Kubernetes resources are structured into distinct API groups. The core/legacy group is represented by simple `v1`. Apps (like Deployments) reside in `apps/v1`, networking components in `networking.k8s.io/v1`, and RBAC settings in `rbac.authorization.k8s.io/v1`. This modular API allows Kubernetes to expand without mutating its core primitives.',
+          explanation:
+            'Kubernetes resources are structured into distinct API groups. The core/legacy group is represented by simple `v1`. Apps (like Deployments) reside in `apps/v1`, networking components in `networking.k8s.io/v1`, and RBAC settings in `rbac.authorization.k8s.io/v1`. This modular API allows Kubernetes to expand without mutating its core primitives.',
           clusterState: {
             ...emptyCluster,
             namespaces: ['default'],
@@ -211,7 +249,8 @@ The **OTel Collector** pipeline consists of:
             'node-1   180m         9%     1524Mi          38%',
             'node-2   350m         17%    2410Mi          60%',
           ],
-          explanation: 'For monitoring and autoscaling (e.g. HPA) to work, a metrics provider like the CNCF `metrics-server` must be installed. This server fetches metrics from kubelet Resource Metrics API (via cAdvisor) and exposes them on the API server.',
+          explanation:
+            'For monitoring and autoscaling (e.g. HPA) to work, a metrics provider like the CNCF `metrics-server` must be installed. This server fetches metrics from kubelet Resource Metrics API (via cAdvisor) and exposes them on the API server.',
           clusterState: {
             pods: [],
             services: [],
@@ -230,10 +269,20 @@ The **OTel Collector** pipeline consists of:
             'ingress-nginx   ingress-sys 1           2026-03-22 14:10:02.123456 -0500 EST   deployed    ingress-nginx-4.9.1 1.11.3     ',
             'prometheus      monitoring  2           2026-03-23 09:30:15.654321 -0500 EST   deployed    kube-prometheus-2.5 11.4.0     ',
           ],
-          explanation: 'Helm is the graduated package manager for Kubernetes. Helm wraps collections of YAML files into versioned archives called Charts, saving release state inside Secrets in the target namespace.',
+          explanation:
+            'Helm is the graduated package manager for Kubernetes. Helm wraps collections of YAML files into versioned archives called Charts, saving release state inside Secrets in the target namespace.',
           clusterState: {
             pods: [
-              { id: 'ingress-nginx', name: 'ingress-nginx-controller-abcde', namespace: 'ingress-sys', node: 'node-1', status: 'Running', labels: { app: 'ingress-nginx' }, image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3', restarts: 0 },
+              {
+                id: 'ingress-nginx',
+                name: 'ingress-nginx-controller-abcde',
+                namespace: 'ingress-sys',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'ingress-nginx' },
+                image: 'registry.k8s.io/ingress-nginx/controller:v1.11.3',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -253,7 +302,8 @@ The **OTel Collector** pipeline consists of:
             'CRI is cloud-native, whereas containerd is a virtual machine interface',
           ],
           answer: 1,
-          explanation: 'CRI is the standardized plugin interface that allows the kubelet to support different container runtimes without recompiling. containerd is a high-level container runtime that implements the CRI interface.',
+          explanation:
+            'CRI is the standardized plugin interface that allows the kubelet to support different container runtimes without recompiling. containerd is a high-level container runtime that implements the CRI interface.',
         },
         {
           id: 'p6-m1-q2',
@@ -265,11 +315,13 @@ The **OTel Collector** pipeline consists of:
             'Prometheus is Graduated; Helm is still Sandbox',
           ],
           answer: 2,
-          explanation: 'Both Prometheus and Helm are Graduated CNCF projects, signifying they have achieved mature governance, wide adoption, and strong security practices.',
+          explanation:
+            'Both Prometheus and Helm are Graduated CNCF projects, signifying they have achieved mature governance, wide adoption, and strong security practices.',
         },
         {
           id: 'p6-m1-q3',
-          question: 'In GitOps workflows, what is the single source of truth for the desired cluster state?',
+          question:
+            'In GitOps workflows, what is the single source of truth for the desired cluster state?',
           options: [
             'The active memory of the control plane API server',
             'A Git repository containing declarative manifests',
@@ -277,11 +329,13 @@ The **OTel Collector** pipeline consists of:
             'A localized Docker registry',
           ],
           answer: 1,
-          explanation: 'In GitOps, the desired state of infrastructure/applications is declared in a Git repository. A reconciliation agent (like ArgoCD or Flux) reads from Git and applies changes to match the cluster actual state.',
+          explanation:
+            'In GitOps, the desired state of infrastructure/applications is declared in a Git repository. A reconciliation agent (like ArgoCD or Flux) reads from Git and applies changes to match the cluster actual state.',
         },
         {
           id: 'p6-m1-q4',
-          question: 'Which component is responsible for gathering metrics from container runtimes on a node and feeding them to metrics-server?',
+          question:
+            'Which component is responsible for gathering metrics from container runtimes on a node and feeding them to metrics-server?',
           options: [
             'kube-proxy',
             'kube-scheduler',
@@ -289,11 +343,13 @@ The **OTel Collector** pipeline consists of:
             'Prometheus Agent',
           ],
           answer: 2,
-          explanation: 'cAdvisor (Container Advisor) is built directly into the kubelet binary. It analyzes and exposes resource usage and performance data from running containers, which metrics-server then queries.',
+          explanation:
+            'cAdvisor (Container Advisor) is built directly into the kubelet binary. It analyzes and exposes resource usage and performance data from running containers, which metrics-server then queries.',
         },
         {
           id: 'p6-m1-q5',
-          question: 'Which control plane component updates endpoints or routes when a Pod is added to or removed from a Service?',
+          question:
+            'Which control plane component updates endpoints or routes when a Pod is added to or removed from a Service?',
           options: [
             'kube-scheduler',
             'etcd',
@@ -301,18 +357,51 @@ The **OTel Collector** pipeline consists of:
             'kubelet',
           ],
           answer: 2,
-          explanation: 'The kube-controller-manager runs the controller loops, including the EndpointSlice controller, which monitors changes to Pods and Services and updates the corresponding EndpointSlice resources.',
+          explanation:
+            'The kube-controller-manager runs the controller loops, including the EndpointSlice controller, which monitors changes to Pods and Services and updates the corresponding EndpointSlice resources.',
         },
       ],
       coverage: {
-        concepts: ['KCNA: vendor-neutral Kubernetes fundamentals certification', 'container fundamentals: images, namespaces, cgroups', 'Kubernetes architecture: control plane vs worker node components', 'Cloud Native landscape: CNCF projects and categories', 'service mesh, observability, GitOps as ecosystem pillars', 'Kubernetes API: declarative model, resources, objects', 'container orchestration problem: why Kubernetes exists'],
-        commands: ['kubectl get nodes', 'kubectl cluster-info', 'kubectl api-resources', 'kubectl explain pod.spec', 'kubectl get componentstatuses'],
-        architecture: ['control plane: API server, etcd, scheduler, controller-manager', 'worker node: kubelet, kube-proxy, container runtime', 'etcd as consistent distributed key-value store for all cluster state', 'CNCF ecosystem layers: runtime, orchestration, provisioning, observability'],
-        techniques: ['use kubectl explain to explore API without docs', 'memorize control plane component responsibilities for KCNA MCQs', 'map CNCF projects to landscape categories'],
-        procedures: ['review KCNA exam domains: Kubernetes Fundamentals (46%), Container Orchestration (22%), Cloud Native Architecture (16%), Cloud Native Observability (8%), Cloud Native Application Delivery (8%)', 'practice with kubectl explain and api-resources for API fluency'],
+        concepts: [
+          'KCNA: vendor-neutral Kubernetes fundamentals certification',
+          'container fundamentals: images, namespaces, cgroups',
+          'Kubernetes architecture: control plane vs worker node components',
+          'Cloud Native landscape: CNCF projects and categories',
+          'service mesh, observability, GitOps as ecosystem pillars',
+          'Kubernetes API: declarative model, resources, objects',
+          'container orchestration problem: why Kubernetes exists',
+        ],
+        commands: [
+          'kubectl get nodes',
+          'kubectl cluster-info',
+          'kubectl api-resources',
+          'kubectl explain pod.spec',
+          'kubectl get componentstatuses',
+        ],
+        architecture: [
+          'control plane: API server, etcd, scheduler, controller-manager',
+          'worker node: kubelet, kube-proxy, container runtime',
+          'etcd as consistent distributed key-value store for all cluster state',
+          'CNCF ecosystem layers: runtime, orchestration, provisioning, observability',
+        ],
+        techniques: [
+          'use kubectl explain to explore API without docs',
+          'memorize control plane component responsibilities for KCNA MCQs',
+          'map CNCF projects to landscape categories',
+        ],
+        procedures: [
+          'review KCNA exam domains: Kubernetes Fundamentals (46%), Container Orchestration (22%), Cloud Native Architecture (16%), Cloud Native Observability (8%), Cloud Native Application Delivery (8%)',
+          'practice with kubectl explain and api-resources for API fluency',
+        ],
         toolsAndPlugins: ['kubectl', 'CNCF landscape', 'containerd', 'etcd'],
-        cases: ['KCNA multiple choice: identify which component handles scheduling decisions', 'KCNA: identify correct CNCF project category for a given tool'],
-        scenarios: ['KCNA exam prep: quick recall of all control plane component roles', 'identify which Kubernetes object type solves a given problem'],
+        cases: [
+          'KCNA multiple choice: identify which component handles scheduling decisions',
+          'KCNA: identify correct CNCF project category for a given tool',
+        ],
+        scenarios: [
+          'KCNA exam prep: quick recall of all control plane component roles',
+          'identify which Kubernetes object type solves a given problem',
+        ],
       },
       exercises: [
         {
@@ -327,7 +416,11 @@ The **OTel Collector** pipeline consists of:
             'kubectl describe node $(kubectl get nodes -o jsonpath="{.items[0].metadata.name}") | grep -A5 "Conditions:"',
             'kubectl api-resources | grep -E "NAME|^pods|^deploy|^service|^node"',
           ],
-          verify: ['kube-system shows apiserver, etcd, scheduler, controller-manager pods', 'Node conditions show Ready=True', 'api-resources lists core resources'],
+          verify: [
+            'kube-system shows apiserver, etcd, scheduler, controller-manager pods',
+            'Node conditions show Ready=True',
+            'api-resources lists core resources',
+          ],
           expectedOutcome: 'All control plane components identified and mapped to their roles.',
           cleanup: [],
         },
@@ -343,7 +436,10 @@ The **OTel Collector** pipeline consists of:
             'kubectl explain networkpolicy.spec',
             'kubectl api-resources --namespaced=false | head -20',
           ],
-          verify: ['Can use kubectl explain without docs', 'Non-namespaced resources identified (Node, ClusterRole, PV, etc.)'],
+          verify: [
+            'Can use kubectl explain without docs',
+            'Non-namespaced resources identified (Node, ClusterRole, PV, etc.)',
+          ],
           expectedOutcome: 'kubectl explain workflow confirmed for KCNA API fluency.',
           cleanup: [],
         },
@@ -366,11 +462,12 @@ The **OTel Collector** pipeline consists of:
           title: '7-day spaced review — KCNA domain coverage',
           kind: 'spaced-review',
           goal: 'Recall KCNA exam domains and component roles from memory without reference.',
-          commands: [
-            'kubectl get pods -n kube-system -o wide',
-            'kubectl get nodes',
+          commands: ['kubectl get pods -n kube-system -o wide', 'kubectl get nodes'],
+          verify: [
+            'Can list 5 KCNA exam domains with approximate weights',
+            'Can name all 4 control plane components and their roles',
+            'Can explain difference between kube-proxy and kubelet',
           ],
-          verify: ['Can list 5 KCNA exam domains with approximate weights', 'Can name all 4 control plane components and their roles', 'Can explain difference between kube-proxy and kubelet'],
           expectedOutcome: 'KCNA architecture knowledge solidified.',
           cleanup: [],
         },
@@ -381,7 +478,8 @@ The **OTel Collector** pipeline consists of:
       id: 'p6-m2',
       slug: 'cka',
       title: 'CKA: Certified Kubernetes Administrator',
-      description: 'Master cluster installation, troubleshooting nodes, etcd maintenance, imperative operations, storage, and complex networking scenarios under time pressure.',
+      description:
+        'Master cluster installation, troubleshooting nodes, etcd maintenance, imperative operations, storage, and complex networking scenarios under time pressure.',
       duration: '15 hours',
       difficulty: 'advanced',
       theory: `> 🧠 **Brain Warm-Up**: What low-level system checks does the Kubelet perform when determining if a node is 'Ready', and why must swap space be disabled under cgroups v1/v2 scheduling? Think about it before reading below.
@@ -499,24 +597,66 @@ set number
         {
           id: 'p6-m2-s1',
           title: 'Imperative Speed Drill: Workloads & Services',
-          instruction: 'Imperatively create a deployment named "web-app" using nginx:alpine with 3 replicas. Expose it via a Service "web-service" on port 80/TCP.',
-          command: 'kubectl create deployment web-app --image=nginx:alpine --replicas=3 --dry-run=client -o yaml > d.yaml && kubectl apply -f d.yaml && kubectl expose deployment web-app --port=80 --target-port=80 --name=web-service',
-          output: [
-            'deployment.apps/web-app created',
-            'service/web-service exposed',
-          ],
-          explanation: 'Running both commands imperatively generates the resource manifests and applies them in seconds. The service selector auto-pairs with the deployment labels (`app=web-app`).',
+          instruction:
+            'Imperatively create a deployment named "web-app" using nginx:alpine with 3 replicas. Expose it via a Service "web-service" on port 80/TCP.',
+          command:
+            'kubectl create deployment web-app --image=nginx:alpine --replicas=3 --dry-run=client -o yaml > d.yaml && kubectl apply -f d.yaml && kubectl expose deployment web-app --port=80 --target-port=80 --name=web-service',
+          output: ['deployment.apps/web-app created', 'service/web-service exposed'],
+          explanation:
+            'Running both commands imperatively generates the resource manifests and applies them in seconds. The service selector auto-pairs with the deployment labels (`app=web-app`).',
           clusterState: {
             pods: [
-              { id: 'web-1', name: 'web-app-8fcd69978-a1b2c', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'web-app' }, image: 'nginx:alpine', restarts: 0 },
-              { id: 'web-2', name: 'web-app-8fcd69978-d3e4f', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'web-app' }, image: 'nginx:alpine', restarts: 0 },
-              { id: 'web-3', name: 'web-app-8fcd69978-g5h6i', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'web-app' }, image: 'nginx:alpine', restarts: 0 },
+              {
+                id: 'web-1',
+                name: 'web-app-8fcd69978-a1b2c',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web-app' },
+                image: 'nginx:alpine',
+                restarts: 0,
+              },
+              {
+                id: 'web-2',
+                name: 'web-app-8fcd69978-d3e4f',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'web-app' },
+                image: 'nginx:alpine',
+                restarts: 0,
+              },
+              {
+                id: 'web-3',
+                name: 'web-app-8fcd69978-g5h6i',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'web-app' },
+                image: 'nginx:alpine',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'web-service', name: 'web-service', namespace: 'default', type: 'ClusterIP', selector: { app: 'web-app' }, port: 80, clusterIP: '10.96.14.22' },
+              {
+                id: 'web-service',
+                name: 'web-service',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web-app' },
+                port: 80,
+                clusterIP: '10.96.14.22',
+              },
             ],
             deployments: [
-              { id: 'web-app-deploy', name: 'web-app', namespace: 'default', replicas: 3, availableReplicas: 3, image: 'nginx:alpine' },
+              {
+                id: 'web-app-deploy',
+                name: 'web-app',
+                namespace: 'default',
+                replicas: 3,
+                availableReplicas: 3,
+                image: 'nginx:alpine',
+              },
             ],
             namespaces: ['default'],
             events: ['web-app deployment scaled to 3 replicas', 'web-service exposed'],
@@ -526,7 +666,8 @@ set number
         {
           id: 'p6-m2-s2',
           title: 'Troubleshoot a Dead Node (kubelet crash)',
-          instruction: 'Diagnose why worker node-2 is in NotReady state. Check its service log and systemd controller.',
+          instruction:
+            'Diagnose why worker node-2 is in NotReady state. Check its service log and systemd controller.',
           command: 'systemctl status kubelet',
           output: [
             '● kubelet.service - Kubernetes Kubelet Server',
@@ -535,18 +676,25 @@ set number
             '     Docs: https://github.com/kubernetes/kubernetes',
             ' Process: 12456 ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS (code=exited, status=255/EXCEPTION)',
           ],
-          explanation: 'If a node shows `NotReady` status, SSH into the node and inspect systemd logs. Standard cause is the kubelet process crashing or halted. Check output of `journalctl -u kubelet -n 50`. Typical issues include swap enabled on the node, bad path config, or wrong api-server address.',
+          explanation:
+            'If a node shows `NotReady` status, SSH into the node and inspect systemd logs. Standard cause is the kubelet process crashing or halted. Check output of `journalctl -u kubelet -n 50`. Typical issues include swap enabled on the node, bad path config, or wrong api-server address.',
           clusterState: {
             pods: [
-              { id: 'web-2', name: 'web-app-8fcd69978-d3e4f', namespace: 'default', node: 'node-2', status: 'Pending', labels: { app: 'web-app' }, image: 'nginx:alpine', restarts: 0 },
+              {
+                id: 'web-2',
+                name: 'web-app-8fcd69978-d3e4f',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Pending',
+                labels: { app: 'web-app' },
+                image: 'nginx:alpine',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: [
-              'Node node-2 transitioned to NotReady',
-              'kubelet daemon stopped on node-2',
-            ],
+            events: ['Node node-2 transitioned to NotReady', 'kubelet daemon stopped on node-2'],
             highlightedComponent: 'kubelet',
           },
           tip: 'Always disable swap via `swapoff -a` or check `/var/lib/kubelet/config.yaml` to ensure the API server URL points to the correct IP.',
@@ -554,14 +702,17 @@ set number
         {
           id: 'p6-m2-s3',
           title: 'RBAC Authorization under Time Pressure',
-          instruction: 'Create a ServiceAccount named "app-developer" in namespace "development". Bind it to a Role that allows creating, listing, and updating Pods and Deployments.',
-          command: 'kubectl create sa app-developer -n development && kubectl create role app-role --verb=create,get,list,update --resource=pods,deployments -n development && kubectl create rolebinding app-rb --role=app-role --serviceaccount=development:app-developer -n development',
+          instruction:
+            'Create a ServiceAccount named "app-developer" in namespace "development". Bind it to a Role that allows creating, listing, and updating Pods and Deployments.',
+          command:
+            'kubectl create sa app-developer -n development && kubectl create role app-role --verb=create,get,list,update --resource=pods,deployments -n development && kubectl create rolebinding app-rb --role=app-role --serviceaccount=development:app-developer -n development',
           output: [
             'serviceaccount/app-developer created',
             'role.rbac.authorization.k8s.io/app-role created',
             'rolebinding.rbac.authorization.k8s.io/app-rb created',
           ],
-          explanation: 'RBAC roles authorize operations in Kubernetes. Creating the SA, Role, and RoleBinding in one command line sequence prevents typos and saves significant CKA exam time.',
+          explanation:
+            'RBAC roles authorize operations in Kubernetes. Creating the SA, Role, and RoleBinding in one command line sequence prevents typos and saves significant CKA exam time.',
           clusterState: {
             ...emptyCluster,
             namespaces: ['default', 'development'],
@@ -573,11 +724,11 @@ set number
           id: 'p6-m2-s4',
           title: 'Backup & Restore etcd State',
           instruction: 'Take a snapshot backup of etcd state using the etcdctl utility.',
-          command: 'ETCDCTL_API=3 etcdctl --endpoints=https://127.0.0.1:2379 --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key snapshot save /srv/data/etcd-snapshot.db',
-          output: [
-            'Snapshot saved at /srv/data/etcd-snapshot.db',
-          ],
-          explanation: 'etcd is the single state database. Backing it up requires specifying the correct CA certificate, client certificate, and client private key to authenticate. The files are usually found in `/etc/kubernetes/pki/etcd/` on control plane nodes.',
+          command:
+            'ETCDCTL_API=3 etcdctl --endpoints=https://127.0.0.1:2379 --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key snapshot save /srv/data/etcd-snapshot.db',
+          output: ['Snapshot saved at /srv/data/etcd-snapshot.db'],
+          explanation:
+            'etcd is the single state database. Backing it up requires specifying the correct CA certificate, client certificate, and client private key to authenticate. The files are usually found in `/etc/kubernetes/pki/etcd/` on control plane nodes.',
           clusterState: {
             ...emptyCluster,
             namespaces: ['default'],
@@ -588,16 +739,35 @@ set number
         {
           id: 'p6-m2-s5',
           title: 'Secure Namespace Traffic (NetworkPolicy)',
-          instruction: 'Implement a NetworkPolicy to allow ingress to database pods only from backend app pods.',
-          command: 'kubectl apply -f- -<<EOF\napiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: allow-db-backend\n  namespace: default\nspec:\n  podSelector:\n    matchLabels:\n      app: database\n  policyTypes:\n  - Ingress\n  ingress:\n  - from:\n    - podSelector:\n        matchLabels:\n          role: backend\n    ports:\n    - protocol: TCP\n      port: 5432\nEOF',
-          output: [
-            'networkpolicy.networking.k8s.io/allow-db-backend created',
-          ],
-          explanation: 'By default, all pods in a cluster can talk to all other pods. Applying this policy isolates the `app: database` pod. Any pod lacking the label `role: backend` will be blocked from sending traffic to port 5432.',
+          instruction:
+            'Implement a NetworkPolicy to allow ingress to database pods only from backend app pods.',
+          command:
+            'kubectl apply -f- -<<EOF\napiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: allow-db-backend\n  namespace: default\nspec:\n  podSelector:\n    matchLabels:\n      app: database\n  policyTypes:\n  - Ingress\n  ingress:\n  - from:\n    - podSelector:\n        matchLabels:\n          role: backend\n    ports:\n    - protocol: TCP\n      port: 5432\nEOF',
+          output: ['networkpolicy.networking.k8s.io/allow-db-backend created'],
+          explanation:
+            'By default, all pods in a cluster can talk to all other pods. Applying this policy isolates the `app: database` pod. Any pod lacking the label `role: backend` will be blocked from sending traffic to port 5432.',
           clusterState: {
             pods: [
-              { id: 'db-pod', name: 'db-postgres-8fcd69', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'database' }, image: 'postgres:16-alpine', restarts: 0 },
-              { id: 'backend-pod', name: 'backend-api-8fcd69', namespace: 'default', node: 'node-2', status: 'Running', labels: { role: 'backend' }, image: 'myrepo/api:v1', restarts: 0 },
+              {
+                id: 'db-pod',
+                name: 'db-postgres-8fcd69',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'database' },
+                image: 'postgres:16-alpine',
+                restarts: 0,
+              },
+              {
+                id: 'backend-pod',
+                name: 'backend-api-8fcd69',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { role: 'backend' },
+                image: 'myrepo/api:v1',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -609,7 +779,8 @@ set number
         {
           id: 'p6-m2-s6',
           title: 'Durable Storage (SC, PVC, Pod mount)',
-          instruction: 'Create a PersistentVolumeClaim requesting 2Gi of storage using the storage class "fast-storage". Mount it to a pod at "/data".',
+          instruction:
+            'Create a PersistentVolumeClaim requesting 2Gi of storage using the storage class "fast-storage". Mount it to a pod at "/data".',
           command: 'kubectl apply -f pvc.yaml && kubectl apply -f pod-storage.yaml',
           yamlContent: `apiVersion: v1
 kind: PersistentVolumeClaim
@@ -639,14 +810,21 @@ spec:
       volumeMounts:
         - name: data-vol
           mountPath: /data`,
-          output: [
-            'persistentvolumeclaim/fast-pvc created',
-            'pod/data-writer created',
-          ],
-          explanation: 'The volume mount associates the volume defined at pod-level with a mount path inside the container. The PVC requests storage from the matching StorageClass, which automatically provisions a PV.',
+          output: ['persistentvolumeclaim/fast-pvc created', 'pod/data-writer created'],
+          explanation:
+            'The volume mount associates the volume defined at pod-level with a mount path inside the container. The PVC requests storage from the matching StorageClass, which automatically provisions a PV.',
           clusterState: {
             pods: [
-              { id: 'data-writer', name: 'data-writer', namespace: 'default', node: 'node-2', status: 'Running', labels: {}, image: 'alpine', restarts: 0 },
+              {
+                id: 'data-writer',
+                name: 'data-writer',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: {},
+                image: 'alpine',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -658,7 +836,8 @@ spec:
       quiz: [
         {
           id: 'p6-m2-q1',
-          question: 'A worker node displays a NotReady status. Running systemctl status kubelet shows the service failed to start due to active swap space. What is the immediate solution?',
+          question:
+            'A worker node displays a NotReady status. Running systemctl status kubelet shows the service failed to start due to active swap space. What is the immediate solution?',
           options: [
             'Upgrade the node kernel',
             'Execute swapoff -a on the host node, and restart the kubelet service',
@@ -666,11 +845,13 @@ spec:
             'Run kubeadm join again',
           ],
           answer: 1,
-          explanation: 'By default, the kubelet fails to start if swap memory is enabled on the host. Executing swapoff -a disables swap immediately, letting kubelet run.',
+          explanation:
+            'By default, the kubelet fails to start if swap memory is enabled on the host. Executing swapoff -a disables swap immediately, letting kubelet run.',
         },
         {
           id: 'p6-m2-q2',
-          question: 'When configuring an etcd restore operation, which directory containing static pod manifests should be temporarily moved to pause the control plane?',
+          question:
+            'When configuring an etcd restore operation, which directory containing static pod manifests should be temporarily moved to pause the control plane?',
           options: [
             '/var/lib/kubelet',
             '/etc/kubernetes/manifests',
@@ -678,11 +859,13 @@ spec:
             '/srv/kubernetes',
           ],
           answer: 1,
-          explanation: 'Static pods (apiserver, scheduler, controller-manager) are monitored by the local kubelet from `/etc/kubernetes/manifests`. Moving these files temporarily terminates the control plane so the etcd database snapshot can be cleanly swapped without live API traffic write conflicts.',
+          explanation:
+            'Static pods (apiserver, scheduler, controller-manager) are monitored by the local kubelet from `/etc/kubernetes/manifests`. Moving these files temporarily terminates the control plane so the etcd database snapshot can be cleanly swapped without live API traffic write conflicts.',
         },
         {
           id: 'p6-m2-q3',
-          question: 'Which resource is used to authorize operations across ALL namespaces in a cluster?',
+          question:
+            'Which resource is used to authorize operations across ALL namespaces in a cluster?',
           options: [
             'Role',
             'ClusterRole combined with a ClusterRoleBinding',
@@ -690,11 +873,13 @@ spec:
             'ServiceAccount',
           ],
           answer: 1,
-          explanation: 'A ClusterRole defines permissions globally. Binding it with a ClusterRoleBinding applies those permissions to the targeted subject across the entire cluster, rather than restricting them to a single namespace.',
+          explanation:
+            'A ClusterRole defines permissions globally. Binding it with a ClusterRoleBinding applies those permissions to the targeted subject across the entire cluster, rather than restricting them to a single namespace.',
         },
         {
           id: 'p6-m2-q4',
-          question: 'A team needs to guarantee that a database pod is scheduled ONLY on nodes that contain high-speed NVMe storage. Nodes have the label storage=nvme. Which mechanism guarantees this scheduling?',
+          question:
+            'A team needs to guarantee that a database pod is scheduled ONLY on nodes that contain high-speed NVMe storage. Nodes have the label storage=nvme. Which mechanism guarantees this scheduling?',
           options: [
             'A Toleration',
             'nodeSelector with storage: nvme',
@@ -702,11 +887,13 @@ spec:
             'Namespace isolation',
           ],
           answer: 1,
-          explanation: 'A nodeSelector is the simplest and most explicit way to bind a pod to nodes that match specific labels. Setting storage: nvme in the podSpec nodeSelector restricts scheduling to matching nodes.',
+          explanation:
+            'A nodeSelector is the simplest and most explicit way to bind a pod to nodes that match specific labels. Setting storage: nvme in the podSpec nodeSelector restricts scheduling to matching nodes.',
         },
         {
           id: 'p6-m2-q5',
-          question: 'You want to verify what API actions your current user is authorized to perform in the default namespace. What is the fastest command to audit your permissions?',
+          question:
+            'You want to verify what API actions your current user is authorized to perform in the default namespace. What is the fastest command to audit your permissions?',
           options: [
             'kubectl describe rolebinding',
             'kubectl auth can-i --list',
@@ -714,18 +901,70 @@ spec:
             'kubectl api-resources',
           ],
           answer: 1,
-          explanation: '`kubectl auth can-i --list` is the standard administrative tool to run a self-query of allowed API verbs, resource types, and namespaces.',
+          explanation:
+            '`kubectl auth can-i --list` is the standard administrative tool to run a self-query of allowed API verbs, resource types, and namespaces.',
         },
       ],
       coverage: {
-        concepts: ['CKA: hands-on administrator exam, 2 hours, 15-20 tasks', 'cluster installation with kubeadm', 'etcd backup and restore', 'node troubleshooting: kubelet, container runtime, certificates', 'RBAC: ClusterRole, ClusterRoleBinding, impersonation', 'persistent storage: PV/PVC/StorageClass', 'network troubleshooting: CNI, DNS (CoreDNS), Services', 'upgrade cluster one minor version at a time with kubeadm'],
-        commands: ['kubeadm init', 'kubeadm join', 'kubeadm upgrade apply', 'ETCDCTL_API=3 etcdctl snapshot save', 'ETCDCTL_API=3 etcdctl snapshot restore', 'kubectl drain <node> --ignore-daemonsets', 'kubectl uncordon <node>', 'kubectl certificate approve', 'openssl x509 -in /etc/kubernetes/pki/apiserver.crt -noout -dates', 'journalctl -u kubelet -f'],
-        architecture: ['kubeadm sets up PKI, static pods, kubelet config, bootstrap tokens', 'etcd stores all cluster state — backup = snapshot of etcd data dir', 'CoreDNS runs as Deployment in kube-system, resolves cluster DNS', 'CNI plugin (Calico/Flannel) installs as DaemonSet, provides pod networking'],
-        techniques: ['use kubectl drain before node maintenance', 'always verify etcd backup with etcdctl snapshot status', 'check kubelet status with systemctl/journalctl on node', 'use --as flag to test RBAC permissions as a SA', 'check cert expiry with openssl before troubleshooting auth failures'],
-        procedures: ['kubeadm cluster init + worker join', 'etcd backup: set ETCDCTL_API=3, provide --cacert --cert --key --endpoints', 'etcd restore: restore to new dir, update etcd static pod manifest dataDir', 'cluster upgrade: apt update kubeadm, kubeadm upgrade apply, drain node, apt update kubelet kubectl, uncordon'],
-        toolsAndPlugins: ['kubectl', 'kubeadm', 'etcdctl', 'openssl', 'systemctl', 'journalctl', 'crictl'],
-        cases: ['node NotReady: check kubelet service status and cert expiry', 'pod stuck Pending: check events for PVC, resource, taint issues', 'DNS not resolving: check CoreDNS pods and ConfigMap in kube-system'],
-        scenarios: ['CKA exam task: backup etcd to /tmp/etcd-backup.db and verify', 'CKA exam task: create SA with role allowing pod list/get in a namespace'],
+        concepts: [
+          'CKA: hands-on administrator exam, 2 hours, 15-20 tasks',
+          'cluster installation with kubeadm',
+          'etcd backup and restore',
+          'node troubleshooting: kubelet, container runtime, certificates',
+          'RBAC: ClusterRole, ClusterRoleBinding, impersonation',
+          'persistent storage: PV/PVC/StorageClass',
+          'network troubleshooting: CNI, DNS (CoreDNS), Services',
+          'upgrade cluster one minor version at a time with kubeadm',
+        ],
+        commands: [
+          'kubeadm init',
+          'kubeadm join',
+          'kubeadm upgrade apply',
+          'ETCDCTL_API=3 etcdctl snapshot save',
+          'ETCDCTL_API=3 etcdctl snapshot restore',
+          'kubectl drain <node> --ignore-daemonsets',
+          'kubectl uncordon <node>',
+          'kubectl certificate approve',
+          'openssl x509 -in /etc/kubernetes/pki/apiserver.crt -noout -dates',
+          'journalctl -u kubelet -f',
+        ],
+        architecture: [
+          'kubeadm sets up PKI, static pods, kubelet config, bootstrap tokens',
+          'etcd stores all cluster state — backup = snapshot of etcd data dir',
+          'CoreDNS runs as Deployment in kube-system, resolves cluster DNS',
+          'CNI plugin (Calico/Flannel) installs as DaemonSet, provides pod networking',
+        ],
+        techniques: [
+          'use kubectl drain before node maintenance',
+          'always verify etcd backup with etcdctl snapshot status',
+          'check kubelet status with systemctl/journalctl on node',
+          'use --as flag to test RBAC permissions as a SA',
+          'check cert expiry with openssl before troubleshooting auth failures',
+        ],
+        procedures: [
+          'kubeadm cluster init + worker join',
+          'etcd backup: set ETCDCTL_API=3, provide --cacert --cert --key --endpoints',
+          'etcd restore: restore to new dir, update etcd static pod manifest dataDir',
+          'cluster upgrade: apt update kubeadm, kubeadm upgrade apply, drain node, apt update kubelet kubectl, uncordon',
+        ],
+        toolsAndPlugins: [
+          'kubectl',
+          'kubeadm',
+          'etcdctl',
+          'openssl',
+          'systemctl',
+          'journalctl',
+          'crictl',
+        ],
+        cases: [
+          'node NotReady: check kubelet service status and cert expiry',
+          'pod stuck Pending: check events for PVC, resource, taint issues',
+          'DNS not resolving: check CoreDNS pods and ConfigMap in kube-system',
+        ],
+        scenarios: [
+          'CKA exam task: backup etcd to /tmp/etcd-backup.db and verify',
+          'CKA exam task: create SA with role allowing pod list/get in a namespace',
+        ],
       },
       exercises: [
         {
@@ -743,7 +982,11 @@ spec:
             'ls -lh /tmp/etcd-backup.db 2>/dev/null || echo "backup file not created"',
             'ETCDCTL_API=3 etcdctl snapshot status /tmp/etcd-backup.db 2>/dev/null || echo "verify manually on control plane"',
           ],
-          verify: ['etcd pod found in kube-system', 'snapshot save command documented with correct flags', 'snapshot status shows revision and hash'],
+          verify: [
+            'etcd pod found in kube-system',
+            'snapshot save command documented with correct flags',
+            'snapshot status shows revision and hash',
+          ],
           expectedOutcome: 'etcd backup procedure confirmed and memorized.',
           cleanup: ['rm -f /tmp/etcd-backup.db'],
         },
@@ -762,9 +1005,15 @@ spec:
             'kubectl uncordon $NODE 2>/dev/null || echo "uncordon: check node name"',
             'kubectl get node $NODE',
           ],
-          verify: ['cordon sets node to SchedulingDisabled', 'drain evicts non-daemonset pods', 'uncordon restores Ready,SchedulingEnabled'],
+          verify: [
+            'cordon sets node to SchedulingDisabled',
+            'drain evicts non-daemonset pods',
+            'uncordon restores Ready,SchedulingEnabled',
+          ],
           expectedOutcome: 'Node drain/uncordon maintenance workflow confirmed.',
-          cleanup: ['kubectl uncordon $(kubectl get nodes --no-headers | grep SchedulingDisabled | awk "{print \\$1}") 2>/dev/null || true'],
+          cleanup: [
+            'kubectl uncordon $(kubectl get nodes --no-headers | grep SchedulingDisabled | awk "{print \\$1}") 2>/dev/null || true',
+          ],
         },
         {
           id: 'p6-m2-e3',
@@ -777,7 +1026,10 @@ spec:
             'kubectl get events -A --field-selector reason=NodeNotReady 2>/dev/null || echo "no NodeNotReady events"',
             'kubectl get pods -n kube-system | grep -v Running',
           ],
-          verify: ['Node conditions inspected', 'Investigation sequence: describe → events → kubelet logs (systemctl/journalctl on node) → cert expiry (openssl)'],
+          verify: [
+            'Node conditions inspected',
+            'Investigation sequence: describe → events → kubelet logs (systemctl/journalctl on node) → cert expiry (openssl)',
+          ],
           expectedOutcome: 'NotReady node debug procedure memorized for CKA exam.',
           cleanup: [],
         },
@@ -786,11 +1038,12 @@ spec:
           title: '7-day spaced review — CKA core procedures',
           kind: 'spaced-review',
           goal: 'Recall etcd backup flags and upgrade procedure steps from memory.',
-          commands: [
-            'kubectl get nodes',
-            'kubectl get pods -n kube-system | grep -v Running',
+          commands: ['kubectl get nodes', 'kubectl get pods -n kube-system | grep -v Running'],
+          verify: [
+            'Can recite etcdctl snapshot save flags: --cacert --cert --key --endpoints',
+            'Can describe 4-step cluster upgrade process',
+            'Can list 3 most common CKA troubleshooting areas',
           ],
-          verify: ['Can recite etcdctl snapshot save flags: --cacert --cert --key --endpoints', 'Can describe 4-step cluster upgrade process', 'Can list 3 most common CKA troubleshooting areas'],
           expectedOutcome: 'CKA administrator procedures internalized.',
           cleanup: [],
         },
@@ -801,7 +1054,8 @@ spec:
       id: 'p6-m3',
       slug: 'ckad',
       title: 'CKAD: Certified Kubernetes Application Developer',
-      description: 'Design and build multi-container pods, deploy update strategies (canaries/blue-green), configure config injection, configure probes, and establish job structures.',
+      description:
+        'Design and build multi-container pods, deploy update strategies (canaries/blue-green), configure config injection, configure probes, and establish job structures.',
       duration: '15 hours',
       difficulty: 'advanced',
       theory: `> 🧠 **Brain Warm-Up**: How do multi-container pod patterns (Sidecar vs. Adapter vs. Ambassador) share namespace resources at the Linux kernel level, and how does the Kubelet ensure Init Containers complete before starting regular app containers? Think about it before reading below.
@@ -908,7 +1162,8 @@ Probes are run periodically by the Kubelet's probe manager.
         {
           id: 'p6-m3-s1',
           title: 'Design a Multi-Container Pod (Sidecar Pattern)',
-          instruction: 'Create a pod named "app-log-sidecar" where the main container outputs logs to a shared volume, and a sidecar container tails the log file.',
+          instruction:
+            'Create a pod named "app-log-sidecar" where the main container outputs logs to a shared volume, and a sidecar container tails the log file.',
           command: 'kubectl apply -f sidecar-pod.yaml',
           yamlContent: `apiVersion: v1
 kind: Pod
@@ -931,13 +1186,21 @@ spec:
     volumeMounts:
     - name: shared-logs
       mountPath: /var/log`,
-          output: [
-            'pod/app-log-sidecar created',
-          ],
-          explanation: 'The containers share an `emptyDir` volume. The sidecar container consumes files generated by the primary container, implementing the logging sidecar pattern.',
+          output: ['pod/app-log-sidecar created'],
+          explanation:
+            'The containers share an `emptyDir` volume. The sidecar container consumes files generated by the primary container, implementing the logging sidecar pattern.',
           clusterState: {
             pods: [
-              { id: 'sidecar-pod', name: 'app-log-sidecar', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'alpine / busybox', restarts: 0 },
+              {
+                id: 'sidecar-pod',
+                name: 'app-log-sidecar',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'alpine / busybox',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -948,7 +1211,8 @@ spec:
         {
           id: 'p6-m3-s2',
           title: 'Add an Init Container for DB Verification',
-          instruction: 'Create a pod with an initContainer that waits for the service "db-service" to become active before starting the main container.',
+          instruction:
+            'Create a pod with an initContainer that waits for the service "db-service" to become active before starting the main container.',
           command: 'kubectl apply -f init-pod.yaml',
           yamlContent: `apiVersion: v1
 kind: Pod
@@ -962,25 +1226,38 @@ spec:
   containers:
   - name: app
     image: nginx:alpine`,
-          output: [
-            'pod/web-app-init created',
-          ],
-          explanation: 'Init containers run to completion sequentially before application containers start. If the init container fails, the kubelet restarts the pod until the init container succeeds.',
+          output: ['pod/web-app-init created'],
+          explanation:
+            'Init containers run to completion sequentially before application containers start. If the init container fails, the kubelet restarts the pod until the init container succeeds.',
           clusterState: {
             pods: [
-              { id: 'web-app-init', name: 'web-app-init', namespace: 'default', node: 'node-1', status: 'Pending', labels: {}, image: 'busybox', restarts: 0 },
+              {
+                id: 'web-app-init',
+                name: 'web-app-init',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Pending',
+                labels: {},
+                image: 'busybox',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
             namespaces: ['default'],
-            events: ['Pod web-app-init initialized check-db container', 'Waiting for db-service to become available'],
+            events: [
+              'Pod web-app-init initialized check-db container',
+              'Waiting for db-service to become available',
+            ],
           },
         },
         {
           id: 'p6-m3-s3',
           title: 'Configure Canary Deployments via Service Labels',
-          instruction: 'Roll out a canary version of an application and route a fraction of traffic to it by sharing a service label.',
-          command: 'kubectl apply -f prod-v1.yaml && kubectl apply -f canary-v2.yaml && kubectl apply -f service-prod.yaml',
+          instruction:
+            'Roll out a canary version of an application and route a fraction of traffic to it by sharing a service label.',
+          command:
+            'kubectl apply -f prod-v1.yaml && kubectl apply -f canary-v2.yaml && kubectl apply -f service-prod.yaml',
           yamlContent: `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1034,20 +1311,79 @@ spec:
             'deployment.apps/app-canary-v2 created',
             'service/app-svc created',
           ],
-          explanation: 'Because both deployments contain the label `app: my-app`, the Service target routes traffic to all 10 replica pods. 9/10 (90%) hits v1, and 1/10 (10%) hits v2, functioning as a basic traffic canary.',
+          explanation:
+            'Because both deployments contain the label `app: my-app`, the Service target routes traffic to all 10 replica pods. 9/10 (90%) hits v1, and 1/10 (10%) hits v2, functioning as a basic traffic canary.',
           clusterState: {
             pods: [
-              { id: 'v1-1', name: 'app-prod-v1-8fcd69-1', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'my-app', version: 'v1' }, image: 'nginx:1.24', restarts: 0 },
-              { id: 'v1-2', name: 'app-prod-v1-8fcd69-2', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'my-app', version: 'v1' }, image: 'nginx:1.24', restarts: 0 },
-              { id: 'v1-3', name: 'app-prod-v1-8fcd69-3', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'my-app', version: 'v1' }, image: 'nginx:1.24', restarts: 0 },
-              { id: 'v2-1', name: 'app-canary-v2-78dcd-1', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'my-app', version: 'v2' }, image: 'nginx:1.25', restarts: 0 },
+              {
+                id: 'v1-1',
+                name: 'app-prod-v1-8fcd69-1',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'my-app', version: 'v1' },
+                image: 'nginx:1.24',
+                restarts: 0,
+              },
+              {
+                id: 'v1-2',
+                name: 'app-prod-v1-8fcd69-2',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'my-app', version: 'v1' },
+                image: 'nginx:1.24',
+                restarts: 0,
+              },
+              {
+                id: 'v1-3',
+                name: 'app-prod-v1-8fcd69-3',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'my-app', version: 'v1' },
+                image: 'nginx:1.24',
+                restarts: 0,
+              },
+              {
+                id: 'v2-1',
+                name: 'app-canary-v2-78dcd-1',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'my-app', version: 'v2' },
+                image: 'nginx:1.25',
+                restarts: 0,
+              },
             ],
             services: [
-              { id: 'app-svc', name: 'app-svc', namespace: 'default', type: 'ClusterIP', selector: { app: 'my-app' }, port: 80, clusterIP: '10.96.18.99' },
+              {
+                id: 'app-svc',
+                name: 'app-svc',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'my-app' },
+                port: 80,
+                clusterIP: '10.96.18.99',
+              },
             ],
             deployments: [
-              { id: 'prod-deploy', name: 'app-prod-v1', namespace: 'default', replicas: 9, availableReplicas: 9, image: 'nginx:1.24' },
-              { id: 'canary-deploy', name: 'app-canary-v2', namespace: 'default', replicas: 1, availableReplicas: 1, image: 'nginx:1.25' },
+              {
+                id: 'prod-deploy',
+                name: 'app-prod-v1',
+                namespace: 'default',
+                replicas: 9,
+                availableReplicas: 9,
+                image: 'nginx:1.24',
+              },
+              {
+                id: 'canary-deploy',
+                name: 'app-canary-v2',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:1.25',
+              },
             ],
             namespaces: ['default'],
             events: ['Canary configuration active: 10% traffic directed to v2 version'],
@@ -1056,7 +1392,8 @@ spec:
         {
           id: 'p6-m3-s4',
           title: 'ConfigMap Injection via Volumes & Secrets via Env',
-          instruction: 'Create a pod that loads configuration settings from a ConfigMap as files, and database passwords from a Secret as environment variables.',
+          instruction:
+            'Create a pod that loads configuration settings from a ConfigMap as files, and database passwords from a Secret as environment variables.',
           command: 'kubectl apply -f inject-pod.yaml',
           yamlContent: `apiVersion: v1
 kind: Pod
@@ -1080,13 +1417,21 @@ spec:
         secretKeyRef:
           name: app-secret
           key: password`,
-          output: [
-            'pod/configure-app created',
-          ],
-          explanation: 'ConfigMaps loaded as volume mounts present key-value pairs as individual files inside the target directory. Secrets injected via `secretKeyRef` expose values as secure environment variables.',
+          output: ['pod/configure-app created'],
+          explanation:
+            'ConfigMaps loaded as volume mounts present key-value pairs as individual files inside the target directory. Secrets injected via `secretKeyRef` expose values as secure environment variables.',
           clusterState: {
             pods: [
-              { id: 'configure-app', name: 'configure-app', namespace: 'default', node: 'node-1', status: 'Running', labels: {}, image: 'alpine', restarts: 0 },
+              {
+                id: 'configure-app',
+                name: 'configure-app',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: {},
+                image: 'alpine',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [],
@@ -1097,7 +1442,8 @@ spec:
         {
           id: 'p6-m3-s5',
           title: 'Implement Health Probes and Resource Constraints',
-          instruction: 'Define a deployment with memory/CPU limits and both readiness and liveness HTTP health probes.',
+          instruction:
+            'Define a deployment with memory/CPU limits and both readiness and liveness HTTP health probes.',
           command: 'kubectl apply -f probe-deploy.yaml',
           yamlContent: `apiVersion: apps/v1
 kind: Deployment
@@ -1135,18 +1481,42 @@ spec:
             port: 8080
           initialDelaySeconds: 3
           periodSeconds: 5`,
-          output: [
-            'deployment.apps/healthy-app created',
-          ],
-          explanation: 'Probes allow the kubelet to manage container health. Liveness determines when to restart the container; readiness determines when to accept traffic. Resource limits prevent CPU and memory exhaustion.',
+          output: ['deployment.apps/healthy-app created'],
+          explanation:
+            'Probes allow the kubelet to manage container health. Liveness determines when to restart the container; readiness determines when to accept traffic. Resource limits prevent CPU and memory exhaustion.',
           clusterState: {
             pods: [
-              { id: 'healthy-1', name: 'healthy-app-78fcd-a1b2', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'probe-app' }, image: 'myrepo/web-health:v1', restarts: 0 },
-              { id: 'healthy-2', name: 'healthy-app-78fcd-c3d4', namespace: 'default', node: 'node-2', status: 'Running', labels: { app: 'probe-app' }, image: 'myrepo/web-health:v1', restarts: 0 },
+              {
+                id: 'healthy-1',
+                name: 'healthy-app-78fcd-a1b2',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'probe-app' },
+                image: 'myrepo/web-health:v1',
+                restarts: 0,
+              },
+              {
+                id: 'healthy-2',
+                name: 'healthy-app-78fcd-c3d4',
+                namespace: 'default',
+                node: 'node-2',
+                status: 'Running',
+                labels: { app: 'probe-app' },
+                image: 'myrepo/web-health:v1',
+                restarts: 0,
+              },
             ],
             services: [],
             deployments: [
-              { id: 'probe-deploy', name: 'healthy-app', namespace: 'default', replicas: 2, availableReplicas: 2, image: 'myrepo/web-health:v1' },
+              {
+                id: 'probe-deploy',
+                name: 'healthy-app',
+                namespace: 'default',
+                replicas: 2,
+                availableReplicas: 2,
+                image: 'myrepo/web-health:v1',
+              },
             ],
             namespaces: ['default'],
             events: ['Probes and resources active. 2 replicas reporting ready status'],
@@ -1155,7 +1525,8 @@ spec:
         {
           id: 'p6-m3-s6',
           title: 'Automate Tasks using CronJobs',
-          instruction: 'Create a CronJob that executes a cleanup script every 10 minutes, retaining only the last 3 successful pod executions.',
+          instruction:
+            'Create a CronJob that executes a cleanup script every 10 minutes, retaining only the last 3 successful pod executions.',
           command: 'kubectl apply -f cleanup-cron.yaml',
           yamlContent: `apiVersion: batch/v1
 kind: CronJob
@@ -1174,10 +1545,9 @@ spec:
             image: alpine
             command: ["sh", "-c", "echo 'starting cleanup' && rm -rf /tmp/logs/* && echo 'done'"]
           restartPolicy: OnFailure`,
-          output: [
-            'cronjob.batch/log-cleaner created',
-          ],
-          explanation: 'CronJobs run tasks on a time-based schedule using the crontab format. They schedule Batch Jobs, which create worker pods to execute tasks. History limits ensure old completed pods do not clutter the cluster list.',
+          output: ['cronjob.batch/log-cleaner created'],
+          explanation:
+            'CronJobs run tasks on a time-based schedule using the crontab format. They schedule Batch Jobs, which create worker pods to execute tasks. History limits ensure old completed pods do not clutter the cluster list.',
           clusterState: {
             ...emptyCluster,
             namespaces: ['default'],
@@ -1188,7 +1558,8 @@ spec:
       quiz: [
         {
           id: 'p6-m3-q1',
-          question: 'You have configured a sidecar logging container that reads from a shared emptyDir volume. What happens to the shared volume if the primary application container crashes and restarts?',
+          question:
+            'You have configured a sidecar logging container that reads from a shared emptyDir volume. What happens to the shared volume if the primary application container crashes and restarts?',
           options: [
             'The volume is deleted and recreated blank',
             'The volume remains intact and its data is preserved because the Pod lifecycle is still active',
@@ -1196,23 +1567,22 @@ spec:
             'Kubernetes moves the volume to a hostPath location',
           ],
           answer: 1,
-          explanation: 'An emptyDir volume exists as long as the Pod exists on that node. Individual container crashes and restarts do not affect the Pod status or delete its volumes.',
+          explanation:
+            'An emptyDir volume exists as long as the Pod exists on that node. Individual container crashes and restarts do not affect the Pod status or delete its volumes.',
         },
         {
           id: 'p6-m3-q2',
-          question: 'Which probe determines whether a Pod is allowed to join the service endpoint pool to receive live client traffic?',
-          options: [
-            'Liveness probe',
-            'Readiness probe',
-            'Startup probe',
-            'Security probe',
-          ],
+          question:
+            'Which probe determines whether a Pod is allowed to join the service endpoint pool to receive live client traffic?',
+          options: ['Liveness probe', 'Readiness probe', 'Startup probe', 'Security probe'],
           answer: 1,
-          explanation: 'The readiness probe tracks when a container is fully initialized. If a container fails its readiness probe, the endpoints controller removes it from all matching Service backend pools.',
+          explanation:
+            'The readiness probe tracks when a container is fully initialized. If a container fails its readiness probe, the endpoints controller removes it from all matching Service backend pools.',
         },
         {
           id: 'p6-m3-q3',
-          question: 'What happens to a container when it exceeds its memory limit (limits.memory) configured in its podSpec?',
+          question:
+            'What happens to a container when it exceeds its memory limit (limits.memory) configured in its podSpec?',
           options: [
             'It is throttled and execution runs slower',
             'It is terminated immediately by the kernel with an Out-of-Memory (OOMKilled) exception',
@@ -1220,42 +1590,81 @@ spec:
             'The pod enters Pending status',
           ],
           answer: 1,
-          explanation: 'Memory is an incompressible resource. If a container exceeds its memory limit, the Linux kernel terminates the container immediately to protect system stability, displaying OOMKilled.',
+          explanation:
+            'Memory is an incompressible resource. If a container exceeds its memory limit, the Linux kernel terminates the container immediately to protect system stability, displaying OOMKilled.',
         },
         {
           id: 'p6-m3-q4',
-          question: 'You want to run a one-off database migration job and ensure that it runs exactly 1 time to completion. Which restartPolicy is valid inside a Job manifest?',
-          options: [
-            'Always',
-            'OnFailure or Never',
-            'RestartOnInit',
-            'UnlessStopped',
-          ],
+          question:
+            'You want to run a one-off database migration job and ensure that it runs exactly 1 time to completion. Which restartPolicy is valid inside a Job manifest?',
+          options: ['Always', 'OnFailure or Never', 'RestartOnInit', 'UnlessStopped'],
           answer: 1,
-          explanation: 'A Job represents transient work that must run to completion rather than running forever. Thus, `Always` is not a valid restartPolicy in a Job. You must use `OnFailure` or `Never`.',
+          explanation:
+            'A Job represents transient work that must run to completion rather than running forever. Thus, `Always` is not a valid restartPolicy in a Job. You must use `OnFailure` or `Never`.',
         },
         {
           id: 'p6-m3-q5',
-          question: 'Which multi-container pattern is characterized by a secondary container that standardizes or transforms raw logs/metrics before outputting them to external collectors?',
-          options: [
-            'Sidecar pattern',
-            'Adapter pattern',
-            'Ambassador pattern',
-            'Proxy pattern',
-          ],
+          question:
+            'Which multi-container pattern is characterized by a secondary container that standardizes or transforms raw logs/metrics before outputting them to external collectors?',
+          options: ['Sidecar pattern', 'Adapter pattern', 'Ambassador pattern', 'Proxy pattern'],
           answer: 1,
-          explanation: 'The Adapter pattern standardizes outputs from heterogeneous application containers (e.g., transforming a custom log format to standard JSON before a collector reads it).',
+          explanation:
+            'The Adapter pattern standardizes outputs from heterogeneous application containers (e.g., transforming a custom log format to standard JSON before a collector reads it).',
         },
       ],
       coverage: {
-        concepts: ['CKAD: developer-focused exam, 2 hours, 15-20 tasks', 'multi-container pod patterns: sidecar, adapter, ambassador', 'init containers for pre-flight setup', 'blue-green and canary deployment strategies', 'ConfigMap and Secret as env vars and volume mounts', 'liveness, readiness, and startup probes', 'Jobs and CronJobs for batch workloads', 'resource requests/limits and HPA'],
-        commands: ['kubectl run', 'kubectl create deployment --dry-run=client -o yaml', 'kubectl set image deployment/<name>', 'kubectl rollout status deployment/<name>', 'kubectl rollout undo deployment/<name>', 'kubectl create configmap --from-literal', 'kubectl create secret generic --from-literal', 'kubectl autoscale deployment', 'kubectl create job', 'kubectl create cronjob'],
-        architecture: ['sidecar: helper in same pod shares network + volumes', 'adapter: normalizes app output for external consumers', 'ambassador: proxies external connections (e.g., DB proxy)', 'blue-green: two full deployments, flip Service selector', 'canary: same Deployment + label-based partial traffic split'],
-        techniques: ['use --dry-run=client -o yaml to generate manifests fast in exam', 'use kubectl set image for imperative rollouts', 'use kubectl rollout undo for instant rollback', 'pipe kubectl create to file, edit, then apply for complex objects', 'alias k=kubectl and set completion in exam terminal'],
-        procedures: ['CKAD exam setup: alias k=kubectl; source <(kubectl completion bash); complete -F __start_kubectl k', 'canary deploy: create v2 deployment with 1 replica alongside v1 3 replicas (25% canary)', 'blue-green: create green deployment, verify, patch service selector to green', 'inject config: create ConfigMap, reference in env.valueFrom.configMapKeyRef'],
+        concepts: [
+          'CKAD: developer-focused exam, 2 hours, 15-20 tasks',
+          'multi-container pod patterns: sidecar, adapter, ambassador',
+          'init containers for pre-flight setup',
+          'blue-green and canary deployment strategies',
+          'ConfigMap and Secret as env vars and volume mounts',
+          'liveness, readiness, and startup probes',
+          'Jobs and CronJobs for batch workloads',
+          'resource requests/limits and HPA',
+        ],
+        commands: [
+          'kubectl run',
+          'kubectl create deployment --dry-run=client -o yaml',
+          'kubectl set image deployment/<name>',
+          'kubectl rollout status deployment/<name>',
+          'kubectl rollout undo deployment/<name>',
+          'kubectl create configmap --from-literal',
+          'kubectl create secret generic --from-literal',
+          'kubectl autoscale deployment',
+          'kubectl create job',
+          'kubectl create cronjob',
+        ],
+        architecture: [
+          'sidecar: helper in same pod shares network + volumes',
+          'adapter: normalizes app output for external consumers',
+          'ambassador: proxies external connections (e.g., DB proxy)',
+          'blue-green: two full deployments, flip Service selector',
+          'canary: same Deployment + label-based partial traffic split',
+        ],
+        techniques: [
+          'use --dry-run=client -o yaml to generate manifests fast in exam',
+          'use kubectl set image for imperative rollouts',
+          'use kubectl rollout undo for instant rollback',
+          'pipe kubectl create to file, edit, then apply for complex objects',
+          'alias k=kubectl and set completion in exam terminal',
+        ],
+        procedures: [
+          'CKAD exam setup: alias k=kubectl; source <(kubectl completion bash); complete -F __start_kubectl k',
+          'canary deploy: create v2 deployment with 1 replica alongside v1 3 replicas (25% canary)',
+          'blue-green: create green deployment, verify, patch service selector to green',
+          'inject config: create ConfigMap, reference in env.valueFrom.configMapKeyRef',
+        ],
         toolsAndPlugins: ['kubectl', 'vim', 'bash completion', 'kubectl explain'],
-        cases: ['CKAD task: add sidecar to existing pod that logs to shared emptyDir volume', 'CKAD task: create CronJob that runs every 5 minutes and cleans up temp files', 'CKAD task: expose deployment with ClusterIP service on port 8080'],
-        scenarios: ['CKAD exam: 45-second manifest generation with dry-run pipeline', 'CKAD exam: rolling update then rollback in under 2 minutes'],
+        cases: [
+          'CKAD task: add sidecar to existing pod that logs to shared emptyDir volume',
+          'CKAD task: create CronJob that runs every 5 minutes and cleans up temp files',
+          'CKAD task: expose deployment with ClusterIP service on port 8080',
+        ],
+        scenarios: [
+          'CKAD exam: 45-second manifest generation with dry-run pipeline',
+          'CKAD exam: rolling update then rollback in under 2 minutes',
+        ],
       },
       exercises: [
         {
@@ -1270,7 +1679,11 @@ spec:
             'kubectl create job one-off --image=busybox -- /bin/sh -c "echo hello" --dry-run=client -o yaml',
             'kubectl create cronjob heartbeat --image=busybox --schedule="*/5 * * * *" -- /bin/sh -c "date" --dry-run=client -o yaml',
           ],
-          verify: ['Each command produces valid YAML without creating resources', 'Job spec shows correct command array', 'CronJob spec shows schedule field'],
+          verify: [
+            'Each command produces valid YAML without creating resources',
+            'Job spec shows correct command array',
+            'CronJob spec shows schedule field',
+          ],
           expectedOutcome: 'Imperative generation pipeline memorized for exam speed.',
           cleanup: [],
         },
@@ -1289,7 +1702,11 @@ spec:
             'kubectl patch service myapp-svc -p \'{"spec":{"selector":{"app":"green"}}}\'',
             'kubectl get endpoints myapp-svc',
           ],
-          verify: ['Service initially points to blue pods', 'After patch, endpoints change to green pod IPs', 'Blue deployment still running (instant rollback available)'],
+          verify: [
+            'Service initially points to blue pods',
+            'After patch, endpoints change to green pod IPs',
+            'Blue deployment still running (instant rollback available)',
+          ],
           expectedOutcome: 'Blue-green switch with zero-downtime confirmed.',
           cleanup: ['kubectl delete deployment blue green', 'kubectl delete service myapp-svc'],
         },
@@ -1333,7 +1750,10 @@ EOF`,
             'kubectl get pods -l app=broken-app-typo',
             'kubectl describe service broken-svc | grep -A5 Selector',
           ],
-          verify: ['Service shows no endpoints (label mismatch identified)', 'Pod label is broken-app-typo but service selects broken-app'],
+          verify: [
+            'Service shows no endpoints (label mismatch identified)',
+            'Pod label is broken-app-typo but service selects broken-app',
+          ],
           expectedOutcome: 'Label mismatch diagnosis technique confirmed.',
           cleanup: ['kubectl delete deployment broken-app', 'kubectl delete service broken-svc'],
         },
@@ -1345,7 +1765,11 @@ EOF`,
           commands: [
             'kubectl create deployment recall-test --image=nginx:1.27 --dry-run=client -o yaml | head -20',
           ],
-          verify: ['Can recite --dry-run=client -o yaml pipeline from memory', 'Can describe 3 multi-container patterns (sidecar/adapter/ambassador)', 'Can explain difference between blue-green and canary strategies'],
+          verify: [
+            'Can recite --dry-run=client -o yaml pipeline from memory',
+            'Can describe 3 multi-container patterns (sidecar/adapter/ambassador)',
+            'Can explain difference between blue-green and canary strategies',
+          ],
           expectedOutcome: 'CKAD developer techniques and exam approach internalized.',
           cleanup: [],
         },
