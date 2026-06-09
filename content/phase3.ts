@@ -3700,6 +3700,528 @@ spec:
         },
       ],
     },
+    // ─── Module 7: Gateway API ────────────────────────────────────────────────
+    {
+      id: 'p3-m7',
+      slug: 'gateway-api',
+      title: 'Gateway API — Next-Generation Ingress',
+      description:
+        'Replace classic Ingress with the role-oriented Gateway API: GatewayClass, Gateway, and HTTPRoute.',
+      duration: '60 min',
+      difficulty: 'intermediate' as const,
+      learningObjectives: [
+        'Explain why Gateway API was created and what limitations of classic Ingress it solves',
+        'Describe the GatewayClass → Gateway → HTTPRoute resource hierarchy',
+        'Apply Gateway API CRDs and create working HTTPRoute traffic routing',
+        'Distinguish which role (infra admin vs app developer) owns each resource',
+      ],
+      keyConcepts: [
+        'GatewayClass: cluster-scoped, names the controller implementation',
+        'Gateway: namespace-scoped, defines listeners (protocol + port)',
+        'HTTPRoute: namespace-scoped, defines routing rules to backend Services',
+        'parentRef: links HTTPRoute to a specific Gateway',
+        'Gateway API vs Ingress: role separation, traffic splitting, header routing',
+      ],
+      practicePrompts: [
+        'Without notes: draw the GatewayClass → Gateway → HTTPRoute hierarchy and explain who creates each.',
+        'What field in HTTPRoute links it to a Gateway?',
+        'Which Gateway API resource is cluster-scoped vs namespace-scoped?',
+      ],
+      masteryChecks: [
+        'Can explain the three Gateway API resources and their ownership model',
+        'Can write a GatewayClass, Gateway, and HTTPRoute manifest from memory',
+        'Can distinguish parentRef from backendRef fields in an HTTPRoute',
+        'Can identify why classic Ingress cannot do traffic splitting natively',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: Classic Kubernetes Ingress routes HTTP traffic, but it has no standard way to split traffic 90/10 between two backends, or route based on HTTP headers. Why do you think that is — and what would you need to add to the API to support it? Think before reading.
+
+## Why Gateway API Exists
+
+Classic Ingress was designed for a simple use case: route HTTP hostnames to Services. As teams tried to do more — canary deployments, header-based routing, gRPC, TCP — they discovered that Ingress annotations were the only escape hatch. Every controller (nginx, traefik, haproxy) invented its own annotation namespace, making configs non-portable.
+
+**Gateway API** (GA since Kubernetes 1.28) solves this with a structured, role-oriented API that is expressive enough to cover these use cases without annotations.
+
+## Resource Hierarchy
+
+\`\`\`
+Cluster-scoped:
+  GatewayClass  ←── names the controller (e.g. nginx, istio, cilium)
+
+Namespace-scoped:
+  Gateway       ←── defines listeners: protocol (HTTP/HTTPS/TCP) + port
+    └── HTTPRoute ←── defines routing rules → backend Services
+\`\`\`
+
+### Role Separation
+
+| Resource | Owner | Scope |
+|---|---|---|
+| GatewayClass | Infrastructure admin | Cluster |
+| Gateway | Infrastructure admin | Namespace |
+| HTTPRoute | Application developer | Namespace |
+
+This separation means app developers can attach routes to a shared Gateway without needing cluster-admin privileges — a major improvement over Ingress.
+
+## Ingress vs Gateway API Comparison
+
+| Feature | Ingress | Gateway API |
+|---|---|---|
+| Traffic splitting | Annotation-only (non-standard) | \`weight\` field in HTTPRoute |
+| Header routing | Annotation-only | \`matches.headers\` in HTTPRoute |
+| TCP/gRPC | Not standard | TCPRoute / GRPCRoute |
+| Role separation | None | GatewayClass / Gateway / Route |
+| Multi-controller | One controller per Ingress | Multiple Gateways per class |
+
+## HTTPRoute Key Fields
+
+\`\`\`yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: my-route
+spec:
+  parentRefs:          # which Gateway(s) to attach to
+    - name: my-gateway
+      namespace: default
+  hostnames:           # replaces Ingress host
+    - "app.example.com"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      backendRefs:     # where to send traffic
+        - name: api-service
+          port: 8080
+          weight: 90
+        - name: api-service-v2
+          port: 8080
+          weight: 10
+\`\`\`
+
+The \`weight\` field enables canary deployments natively — no annotations needed.`,
+      labSteps: [
+        {
+          id: 'p3-m7-s1',
+          title: 'Install Gateway API CRDs',
+          instruction:
+            'Gateway API ships as CRDs separate from Kubernetes core. Install the standard channel (GA resources only).',
+          command:
+            'kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml',
+          output: [
+            'customresourcedefinition.apiextensions.k8s.io/gatewayclasses.gateway.networking.k8s.io created',
+            'customresourcedefinition.apiextensions.k8s.io/gateways.gateway.networking.k8s.io created',
+            'customresourcedefinition.apiextensions.k8s.io/httproutes.gateway.networking.k8s.io created',
+          ],
+          explanation:
+            'The standard channel installs three CRDs: GatewayClass, Gateway, HTTPRoute. The experimental channel adds TCPRoute, GRPCRoute, and others. Always use the release tag — never HEAD — for reproducibility.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: ['Gateway API CRDs installed (standard channel v1.2.0)'],
+          },
+          tip: 'Check the latest release at https://github.com/kubernetes-sigs/gateway-api/releases before using the URL above — the minor version may have advanced.',
+        },
+        {
+          id: 'p3-m7-s2',
+          title: 'Verify CRDs are registered',
+          instruction: 'Confirm all three Gateway API CRDs are available in the cluster.',
+          command:
+            'kubectl get crd | grep gateway.networking.k8s.io',
+          output: [
+            'gatewayclasses.gateway.networking.k8s.io   2024-01-15T10:00:00Z',
+            'gateways.gateway.networking.k8s.io         2024-01-15T10:00:00Z',
+            'httproutes.gateway.networking.k8s.io       2024-01-15T10:00:00Z',
+          ],
+          explanation:
+            'Three CRDs registered. GatewayClass is cluster-scoped; Gateway and HTTPRoute are namespace-scoped. Until a controller implementing GatewayClass is installed, creating Gateway objects will leave them in an Accepted=False state.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: ['Verified: gatewayclasses, gateways, httproutes CRDs present'],
+          },
+        },
+        {
+          id: 'p3-m7-s3',
+          title: 'Apply GatewayClass and Gateway manifests',
+          instruction:
+            'Create a GatewayClass (names the controller) and a Gateway (defines the listener on port 80). For minikube, we use the envoy-gateway implementation.',
+          command: 'kubectl apply -f gateway-class.yaml -f gateway.yaml',
+          output: [
+            'gatewayclass.gateway.networking.k8s.io/envoy created',
+            'gateway.gateway.networking.k8s.io/my-gateway created',
+          ],
+          explanation:
+            'GatewayClass is cluster-scoped and references the controller (controllerName field). Gateway is namespace-scoped and references the GatewayClass by name. The controller watches for Gateways referencing its class and provisions the actual load balancer or proxy.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['GatewayClass: envoy created', 'Gateway: my-gateway created in default'],
+          },
+          yamlContent: `# gateway-class.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: envoy
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+# gateway.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: my-gateway
+  namespace: default
+spec:
+  gatewayClassName: envoy
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80`,
+        },
+        {
+          id: 'p3-m7-s4',
+          title: 'Deploy a backend service',
+          instruction: 'Create a simple nginx deployment and Service to use as the HTTPRoute backend.',
+          command:
+            'kubectl create deployment web --image=nginx:stable-alpine && kubectl expose deployment web --port=80',
+          output: [
+            'deployment.apps/web created',
+            'service/web created',
+          ],
+          explanation:
+            'HTTPRoute backendRefs point to a Service name and port. The Service must exist in the same namespace as the HTTPRoute (or the Gateway must grant cross-namespace access via ReferenceGrant).',
+          clusterState: {
+            pods: [
+              {
+                id: 'web-abc12',
+                name: 'web-abc12',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:stable-alpine',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'web-svc',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: '10.96.0.100',
+              },
+            ],
+            deployments: [
+              {
+                id: 'web-deploy',
+                name: 'web',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:stable-alpine',
+              },
+            ],
+            namespaces: ['default'],
+            events: ['Deployment web created', 'Service web exposed on port 80'],
+          },
+        },
+        {
+          id: 'p3-m7-s5',
+          title: 'Create an HTTPRoute',
+          instruction:
+            'Apply an HTTPRoute that attaches to the Gateway and routes all traffic to the web Service.',
+          command: 'kubectl apply -f httproute.yaml',
+          output: ['httproute.gateway.networking.k8s.io/web-route created'],
+          explanation:
+            'parentRefs links this HTTPRoute to the Gateway named my-gateway in the same namespace. backendRefs sends matched traffic to the web Service on port 80. The hostnames field replaces the host field from classic Ingress rules.',
+          clusterState: {
+            pods: [
+              {
+                id: 'web-abc12',
+                name: 'web-abc12',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:stable-alpine',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'web-svc',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: '10.96.0.100',
+              },
+            ],
+            deployments: [
+              {
+                id: 'web-deploy',
+                name: 'web',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:stable-alpine',
+              },
+            ],
+            namespaces: ['default'],
+            events: ['HTTPRoute web-route created — attached to my-gateway'],
+          },
+          yamlContent: `apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: web-route
+  namespace: default
+spec:
+  parentRefs:
+    - name: my-gateway
+      namespace: default
+  hostnames:
+    - "web.example.com"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: web
+          port: 80`,
+        },
+        {
+          id: 'p3-m7-s6',
+          title: 'Inspect HTTPRoute status',
+          instruction: 'Check the HTTPRoute status to confirm it was accepted by the Gateway.',
+          command: 'kubectl describe httproute web-route',
+          output: [
+            'Name:         web-route',
+            'Namespace:    default',
+            'Status:',
+            '  Parents:',
+            '    Conditions:',
+            '      Type:   Accepted',
+            '      Status: True',
+            '      Type:   ResolvedRefs',
+            '      Status: True',
+          ],
+          explanation:
+            'Two status conditions confirm success: Accepted=True means the Gateway accepted the attachment; ResolvedRefs=True means all backendRefs (Services) were found and resolved. If either is False, describe will show the reason — most commonly a wrong parentRef name or missing Service.',
+          clusterState: {
+            pods: [
+              {
+                id: 'web-abc12',
+                name: 'web-abc12',
+                namespace: 'default',
+                node: 'node-1',
+                status: 'Running',
+                labels: { app: 'web' },
+                image: 'nginx:stable-alpine',
+                restarts: 0,
+              },
+            ],
+            services: [
+              {
+                id: 'web-svc',
+                name: 'web',
+                namespace: 'default',
+                type: 'ClusterIP',
+                selector: { app: 'web' },
+                port: 80,
+                clusterIP: '10.96.0.100',
+              },
+            ],
+            deployments: [
+              {
+                id: 'web-deploy',
+                name: 'web',
+                namespace: 'default',
+                replicas: 1,
+                availableReplicas: 1,
+                image: 'nginx:stable-alpine',
+              },
+            ],
+            namespaces: ['default'],
+            events: ['HTTPRoute web-route: Accepted=True, ResolvedRefs=True'],
+          },
+          tip: 'Accepted=False with reason "NoMatchingParent" means the parentRef name or namespace is wrong. ResolvedRefs=False means the backend Service does not exist.',
+        },
+      ],
+      quiz: [
+        {
+          id: 'p3-m7-q1',
+          question: 'Which Gateway API resource is cluster-scoped (not namespace-scoped)?',
+          options: ['HTTPRoute', 'Gateway', 'GatewayClass', 'TCPRoute'],
+          answer: 2,
+          explanation:
+            'GatewayClass is cluster-scoped because it names the controller implementation for the entire cluster. Gateway and HTTPRoute (and all Route types) are namespace-scoped.',
+        },
+        {
+          id: 'p3-m7-q2',
+          question: 'Which field in an HTTPRoute links it to a specific Gateway?',
+          options: ['gatewayRef', 'parentRefs', 'backendRefs', 'hostnames'],
+          answer: 1,
+          explanation:
+            'parentRefs specifies which Gateway(s) the HTTPRoute attaches to. backendRefs specifies the backend Services to send traffic to. hostnames filters by Host header.',
+        },
+        {
+          id: 'p3-m7-q3',
+          question: 'What does the HTTPRoute status condition "ResolvedRefs=False" indicate?',
+          options: [
+            'The Gateway controller is not running',
+            'The HTTPRoute has an invalid hostnames field',
+            'One or more backendRefs (Services) could not be found',
+            'The GatewayClass does not exist',
+          ],
+          answer: 2,
+          explanation:
+            'ResolvedRefs=False means the controller tried to resolve the backendRefs Services and failed — usually because the Service does not exist or is in a different namespace without a ReferenceGrant.',
+        },
+        {
+          id: 'p3-m7-q4',
+          question:
+            'A team wants to split traffic 90% to v1 and 10% to v2 of their app. Which resource controls this in Gateway API?',
+          options: [
+            'Gateway listeners field',
+            'GatewayClass parameters',
+            'HTTPRoute backendRefs weight field',
+            'A separate TrafficSplit CRD',
+          ],
+          answer: 2,
+          explanation:
+            'HTTPRoute backendRefs supports a weight field on each backend. Weights are relative integers — e.g., weight: 90 and weight: 10 split traffic 90/10. This is a native capability requiring no annotations, unlike classic Ingress.',
+        },
+      ],
+      coverage: {
+        concepts: [
+          'GatewayClass: cluster-scoped, names the controller',
+          'Gateway: namespace-scoped, defines listeners',
+          'HTTPRoute: namespace-scoped, routing rules to Services',
+          'parentRefs: attaches route to a Gateway',
+          'backendRefs weight: native traffic splitting',
+          'Role separation: infra admin vs app developer',
+        ],
+        commands: [
+          'kubectl apply -f standard-install.yaml (CRD install)',
+          'kubectl get crd | grep gateway.networking.k8s.io',
+          'kubectl apply -f gatewayclass.yaml',
+          'kubectl apply -f gateway.yaml',
+          'kubectl apply -f httproute.yaml',
+          'kubectl describe httproute',
+          'kubectl get gateway',
+        ],
+        architecture: [
+          'CRDs separate from Kubernetes core — must install explicitly',
+          'Controller watches GatewayClass controllerName to claim resources',
+          'Accepted condition: Gateway accepted the HTTPRoute attachment',
+          'ResolvedRefs condition: all backendRefs Services resolved',
+          'Standard vs experimental channel: different CRD sets',
+        ],
+        techniques: [
+          'Pin CRD install URL to a release tag, not HEAD',
+          'Check HTTPRoute status conditions before debugging traffic',
+          'Use weight field for canary traffic splitting',
+          'Use matches.headers for header-based routing',
+        ],
+        procedures: [
+          'Install standard-channel CRDs',
+          'Create GatewayClass → Gateway → HTTPRoute in order',
+          'Verify with kubectl describe httproute status conditions',
+          'Expose backend Service before creating HTTPRoute',
+        ],
+        toolsAndPlugins: ['kubectl', 'gateway-api CRDs'],
+        cases: [
+          'Accepted=False / NoMatchingParent — wrong parentRef name or namespace',
+          'ResolvedRefs=False — backend Service missing or wrong namespace',
+          'Gateway stuck in Unknown — controller not installed or not watching this GatewayClass',
+        ],
+        scenarios: [
+          'Replace classic Ingress with HTTPRoute for a web service',
+          'Canary deploy: 90/10 traffic split with backendRefs weight',
+          'Path-based routing: /api → api-service, / → web-service',
+        ],
+      },
+      exercises: [
+        {
+          id: 'p3-m7-e1',
+          title: 'Install Gateway API and create end-to-end routing',
+          kind: 'guided' as const,
+          goal: 'Install CRDs, create GatewayClass + Gateway + HTTPRoute, verify Accepted=True status.',
+          commands: [
+            'kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml',
+            'kubectl apply -f gatewayclass.yaml -f gateway.yaml -f httproute.yaml',
+            'kubectl describe httproute web-route',
+          ],
+          verify: [
+            'kubectl get crd | grep gateway.networking.k8s.io shows 3 CRDs',
+            'kubectl describe httproute shows Accepted=True',
+          ],
+          expectedOutcome: 'HTTPRoute attached to Gateway with Accepted=True and ResolvedRefs=True.',
+          cleanup: [
+            'kubectl delete httproute web-route',
+            'kubectl delete gateway my-gateway',
+            'kubectl delete gatewayclass envoy',
+            'kubectl delete deployment web',
+            'kubectl delete service web',
+          ],
+        },
+        {
+          id: 'p3-m7-e2',
+          title: 'Write HTTPRoute with path-based routing from memory',
+          kind: 'challenge' as const,
+          goal: 'Write an HTTPRoute manifest from memory that routes /api to api-svc:8080 and / to web-svc:80.',
+          commands: ['kubectl apply -f my-route.yaml', 'kubectl describe httproute my-route'],
+          verify: [
+            'HTTPRoute has two rules: one matching /api, one matching /',
+            'Each rule has correct backendRefs name and port',
+          ],
+          expectedOutcome: 'HTTPRoute with two path-based routing rules applied without errors.',
+          cleanup: ['kubectl delete httproute my-route'],
+        },
+        {
+          id: 'p3-m7-e3',
+          title: 'Debug: HTTPRoute not routing — wrong parentRef',
+          kind: 'debug' as const,
+          goal: 'An HTTPRoute has Accepted=False. Find and fix the parentRef error.',
+          commands: [
+            'kubectl describe httproute broken-route',
+            'kubectl get gateway -A',
+            'kubectl edit httproute broken-route',
+          ],
+          verify: [
+            'kubectl describe httproute broken-route shows Accepted=True after fix',
+          ],
+          expectedOutcome: 'Fixed parentRef namespace or name so HTTPRoute attaches to the correct Gateway.',
+          cleanup: ['kubectl delete httproute broken-route'],
+        },
+        {
+          id: 'p3-m7-e4',
+          title: '7-day spaced review — Gateway API hierarchy',
+          kind: 'spaced-review' as const,
+          goal: 'Recall the GatewayClass → Gateway → HTTPRoute hierarchy, ownership model, and key fields from memory.',
+          commands: ['kubectl explain httproute.spec.parentRefs', 'kubectl explain httproute.spec.rules.backendRefs'],
+          verify: [
+            'Can state which resources are cluster-scoped vs namespace-scoped',
+            'Can state what parentRefs and backendRefs do without notes',
+            'Can explain Accepted vs ResolvedRefs status conditions',
+          ],
+          expectedOutcome: 'Gateway API hierarchy and ownership model recalled without notes.',
+          cleanup: [],
+        },
+      ],
+    },
   ],
 }
 

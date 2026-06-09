@@ -2194,6 +2194,446 @@ If certificates expire:
         },
       ],
     },
+    // ─── Module 5: HA Control Plane ──────────────────────────────────────────
+    {
+      id: 'p7-m5',
+      slug: 'ha-control-plane',
+      title: 'HA Control Plane — High Availability with kubeadm',
+      description:
+        'Design and configure a highly available Kubernetes control plane using stacked or external etcd topology.',
+      duration: '60 min',
+      difficulty: 'advanced' as const,
+      learningObjectives: [
+        'Explain why a single control plane node is a single point of failure',
+        'Describe stacked-etcd vs external-etcd HA topology trade-offs',
+        'State the kubeadm flags required for HA init and join',
+        'Identify the Lease objects used for leader election in kube-system',
+      ],
+      keyConcepts: [
+        'etcd quorum: requires odd number of members (3, 5, 7); tolerates (n-1)/2 failures',
+        'Stacked etcd: etcd runs on each control plane node — simpler, fewer machines',
+        'External etcd: dedicated etcd cluster separate from control plane — better isolation',
+        '--control-plane-endpoint: shared load balancer VIP/DNS for all apiservers',
+        '--upload-certs: encrypts and uploads control plane certs to kubeadm-certs Secret (TTL 2h)',
+        'Lease objects in kube-system: record leader for kube-controller-manager and kube-scheduler',
+        'Leader election: --leader-elect=true flag on controller-manager and scheduler',
+      ],
+      practicePrompts: [
+        'Without notes: how many control plane nodes for fault tolerance of 1 node failure? Why odd numbers?',
+        'What is the difference between stacked-etcd and external-etcd topology?',
+        'What does kubeadm --upload-certs do, and why does it have a 2-hour TTL?',
+      ],
+      masteryChecks: [
+        'Can state the minimum node count for each quorum fault tolerance level (1, 2 failures)',
+        'Can explain stacked vs external etcd trade-offs in one sentence each',
+        'Can write the kubeadm init HA command with correct flags from memory',
+        'Can find and interpret the Lease holderIdentity for kube-controller-manager',
+        'Can describe what happens when the load balancer in front of apiservers goes down',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: Your production cluster has one control plane node. The VM running kube-apiserver crashes. What happens to all your running workloads? What can you still do with kubectl? Think before reading.
+
+## Why HA Control Plane Matters
+
+With a single control plane node:
+- kube-apiserver unavailable → kubectl stops working; no new pods can be scheduled
+- kube-controller-manager stops → Deployments stop self-healing
+- kube-scheduler stops → no new pods get assigned to nodes
+- etcd crashes → cluster state is lost (or recoverable only from backup)
+
+**Running workloads continue** — kubelet on worker nodes keeps pods alive. But you cannot change anything until the control plane recovers.
+
+## etcd Quorum
+
+etcd uses the Raft consensus algorithm. To commit a write, a **majority (quorum)** of members must acknowledge it:
+
+| Members | Quorum | Can tolerate |
+|---|---|---|
+| 1 | 1 | 0 failures |
+| 3 | 2 | 1 failure |
+| 5 | 3 | 2 failures |
+| 7 | 4 | 3 failures |
+
+Always use **odd numbers** — even numbers provide no additional fault tolerance but add more nodes to maintain quorum.
+
+## HA Topologies
+
+### Stacked etcd (recommended for most clusters)
+
+\`\`\`
+  LB (HAProxy / cloud LB)
+  ├── control-plane-1  [apiserver + etcd]
+  ├── control-plane-2  [apiserver + etcd]
+  └── control-plane-3  [apiserver + etcd]
+\`\`\`
+
+- etcd runs on the same nodes as the control plane
+- Minimum: **3 control plane nodes** (etcd quorum of 3)
+- Simpler: fewer machines, one kind of node to manage
+- Risk: losing a control plane node also loses an etcd member
+
+### External etcd
+
+\`\`\`
+  LB
+  ├── control-plane-1  [apiserver only]
+  ├── control-plane-2  [apiserver only]
+  └── control-plane-3  [apiserver only]
+
+  etcd-1  etcd-2  etcd-3  (separate nodes)
+\`\`\`
+
+- etcd cluster is completely separate from control plane nodes
+- More expensive (6+ machines), but control plane and etcd fail independently
+- Required when you need etcd to survive total control plane loss
+
+## kubeadm HA Setup
+
+### First control plane node
+
+\`\`\`bash
+kubeadm init \\
+  --control-plane-endpoint "lb.example.com:6443" \\  # VIP or DNS of the load balancer
+  --upload-certs \\                                    # encrypt and store certs in Secret
+  --pod-network-cidr "10.244.0.0/16"
+\`\`\`
+
+Output includes two join commands:
+1. For additional **control plane** nodes: \`kubeadm join lb.example.com:6443 --control-plane --certificate-key <key>\`
+2. For **worker** nodes: \`kubeadm join lb.example.com:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash>\`
+
+### --upload-certs TTL
+
+The \`--certificate-key\` is valid for **2 hours**. After that, run \`kubeadm init phase upload-certs --upload-certs\` on the first control plane to generate a new key.
+
+## Leader Election
+
+Only one kube-controller-manager and one kube-scheduler are active at a time, even in an HA setup. Leader election uses **Lease objects** in kube-system:
+
+\`\`\`bash
+kubectl get lease -n kube-system
+# NAME                      HOLDER                            AGE
+# kube-controller-manager   control-plane-1_abc-uuid          10d
+# kube-scheduler            control-plane-2_def-uuid          10d
+\`\`\`
+
+The holder changes automatically within seconds if the current leader's pod crashes.`,
+      labSteps: [
+        {
+          id: 'p7-m5-s1',
+          title: 'Inspect leader election Lease objects',
+          instruction:
+            'View the Lease objects in kube-system that track which node holds the controller-manager and scheduler leader role.',
+          command: 'kubectl get lease -n kube-system',
+          output: [
+            'NAME                      HOLDER                                          AGE',
+            'kube-controller-manager   minikube_abc12345-1234-1234-1234-abcdef123456   10d',
+            'kube-scheduler            minikube_def67890-5678-5678-5678-fedcba654321   10d',
+          ],
+          explanation:
+            'Each Lease records the current leader via its holderIdentity (node name + UUID). In a single-node minikube, minikube holds both leases. In a real HA cluster with 3 control planes, any one of the three nodes holds each lease at a time — and they renew it every few seconds.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: ['Lease objects inspected in kube-system'],
+            highlightedComponent: 'controller',
+          },
+          tip: 'kubectl describe lease kube-controller-manager -n kube-system shows renewTime (how recently the leader renewed) and leaseDurationSeconds (how long before a new election triggers).',
+        },
+        {
+          id: 'p7-m5-s2',
+          title: 'Describe the controller-manager Lease',
+          instruction:
+            'Get details of the kube-controller-manager Lease to see the lease duration and renew time.',
+          command: 'kubectl describe lease kube-controller-manager -n kube-system',
+          output: [
+            'Name:         kube-controller-manager',
+            'Namespace:    kube-system',
+            'Spec:',
+            '  Holder Identity:    minikube_abc12345-...',
+            '  Lease Duration Seconds:  15',
+            '  Renew Time:         2024-01-15T10:05:30.000000Z',
+            '  Acquire Time:       2024-01-05T08:00:00.000000Z',
+          ],
+          explanation:
+            'leaseDurationSeconds: 15 means a follower waits 15 seconds before declaring the leader dead and starting a new election. The leader renews the Lease every ~10 seconds (renewTime updates). If renewTime is stale by more than leaseDurationSeconds, a new leader is elected.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: ['kube-controller-manager Lease: leaseDuration=15s, renewTime observed'],
+            highlightedComponent: 'controller',
+          },
+        },
+        {
+          id: 'p7-m5-s3',
+          title: 'Inspect kubeadm HA flags',
+          instruction:
+            'Review the kubeadm init flags relevant to HA. We use --help to explore without making changes.',
+          command: 'kubeadm init --help 2>&1 | grep -E "control-plane-endpoint|upload-certs|certificate-key"',
+          output: [
+            '      --control-plane-endpoint string   Specify a stable IP address or DNS name for the control plane.',
+            '      --upload-certs                    Upload control-plane certs to the kubeadm-certs Secret.',
+          ],
+          explanation:
+            '--control-plane-endpoint must be a load balancer VIP or DNS name that fronts ALL apiserver nodes. All clients (kubectl, kubelets) connect to this endpoint — it stays constant as control plane nodes come and go. --upload-certs stores the encrypted certs in a Secret so joining control plane nodes can retrieve them automatically.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: ['kubeadm HA flags reviewed (--control-plane-endpoint, --upload-certs)'],
+            highlightedComponent: 'apiserver',
+          },
+        },
+        {
+          id: 'p7-m5-s4',
+          title: 'Inspect etcd cluster membership',
+          instruction:
+            'Use etcdctl inside the etcd pod to list cluster members. In minikube this shows a single member; in HA it would show 3.',
+          command:
+            'kubectl exec -n kube-system etcd-minikube -- etcdctl --endpoints=https://127.0.0.1:2379 --cacert=/var/lib/minikube/certs/etcd/ca.crt --cert=/var/lib/minikube/certs/etcd/peer.crt --key=/var/lib/minikube/certs/etcd/peer.key member list',
+          output: [
+            'abc123, started, minikube, https://192.168.49.2:2380, https://192.168.49.2:2379, false',
+          ],
+          explanation:
+            'member list shows: member ID, status, name, peer URL (for etcd-to-etcd replication), client URL (for apiserver), and learner status. In a 3-node HA cluster you would see 3 lines. The peer URL is used for Raft consensus traffic between etcd members.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['kube-system'],
+            events: ['etcd member list: 1 member (minikube, single-node)'],
+            highlightedComponent: 'etcd',
+          },
+          tip: 'In minikube the cert paths use /var/lib/minikube/certs. In a kubeadm cluster the path is /etc/kubernetes/pki/etcd.',
+        },
+        {
+          id: 'p7-m5-s5',
+          title: 'Write a stacked-etcd kubeadm HA config',
+          instruction:
+            'Generate the kubeadm ClusterConfiguration for a 3-node stacked HA setup using the declarative YAML approach.',
+          command: 'cat ha-kubeadm-config.yaml',
+          output: [
+            'apiVersion: kubeadm.k8s.io/v1beta3',
+            'kind: ClusterConfiguration',
+            'kubernetesVersion: v1.32.0',
+            'controlPlaneEndpoint: "lb.example.com:6443"',
+            'networking:',
+            '  podSubnet: "10.244.0.0/16"',
+          ],
+          explanation:
+            'controlPlaneEndpoint is the only mandatory addition for HA. It must resolve to a load balancer that distributes TCP traffic to all control plane nodes on port 6443. Without it, all clients hard-code a single node IP — defeating the purpose of HA.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['HA kubeadm ClusterConfiguration reviewed'],
+            highlightedComponent: 'apiserver',
+          },
+          yamlContent: `apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+kubernetesVersion: v1.32.0
+controlPlaneEndpoint: "lb.example.com:6443"
+networking:
+  podSubnet: "10.244.0.0/16"
+---
+# Init command for first control plane:
+# kubeadm init --config ha-kubeadm-config.yaml --upload-certs
+#
+# Join command for additional control planes (run on each):
+# kubeadm join lb.example.com:6443 \\
+#   --control-plane \\
+#   --certificate-key <key-from-init-output> \\
+#   --token <token> \\
+#   --discovery-token-ca-cert-hash sha256:<hash>`,
+        },
+        {
+          id: 'p7-m5-s6',
+          title: 'Verify kube-controller-manager leader-elect flag',
+          instruction:
+            'Confirm the controller-manager static pod is started with --leader-elect=true.',
+          command:
+            'kubectl get pod kube-controller-manager-minikube -n kube-system -o yaml | grep leader-elect',
+          output: [
+            '    - --leader-elect=true',
+          ],
+          explanation:
+            '--leader-elect=true enables the Lease-based leader election. Without it, all replicas of kube-controller-manager would act simultaneously, causing conflicting reconciliation loops. kube-scheduler has the same flag for the same reason.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['kube-system'],
+            events: ['kube-controller-manager: --leader-elect=true confirmed'],
+            highlightedComponent: 'controller',
+          },
+        },
+      ],
+      quiz: [
+        {
+          id: 'p7-m5-q1',
+          question: 'How many control plane nodes are required for an etcd cluster that can tolerate 1 node failure?',
+          options: ['2', '3', '4', '5'],
+          answer: 1,
+          explanation:
+            '3 members provide a quorum of 2, tolerating 1 failure. 2 members would have quorum of 2 — losing 1 loses quorum. Even numbers never provide additional fault tolerance over the next lower odd number.',
+        },
+        {
+          id: 'p7-m5-q2',
+          question: 'What does the kubeadm --control-plane-endpoint flag specify?',
+          options: [
+            'The IP of the first control plane node',
+            'A shared load balancer VIP or DNS name fronting all apiserver nodes',
+            'The etcd endpoint used by the apiserver',
+            'The endpoint where kubelets register themselves',
+          ],
+          answer: 1,
+          explanation:
+            '--control-plane-endpoint is a stable address (load balancer VIP or DNS) that all clients use to reach the apiserver. It stays constant even as individual control plane nodes are added or replaced.',
+        },
+        {
+          id: 'p7-m5-q3',
+          question: 'What is the TTL of the certificate key produced by kubeadm --upload-certs?',
+          options: ['30 minutes', '1 hour', '2 hours', '24 hours'],
+          answer: 2,
+          explanation:
+            'The certificate key expires after 2 hours. If you need to join more control plane nodes after that, run "kubeadm init phase upload-certs --upload-certs" on the first control plane to generate a fresh key.',
+        },
+        {
+          id: 'p7-m5-q4',
+          question: 'In an HA cluster, how many kube-scheduler instances are actively scheduling pods at one time?',
+          options: [
+            'All instances schedule in parallel',
+            'One — determined by leader election via a Lease object',
+            'One per worker node',
+            'Determined by the number of namespaces',
+          ],
+          answer: 1,
+          explanation:
+            'kube-scheduler uses --leader-elect=true. Only the leader (holder of the kube-scheduler Lease in kube-system) actively schedules. Others run in standby and take over within seconds if the leader\'s Lease expires.',
+        },
+      ],
+      coverage: {
+        concepts: [
+          'etcd quorum: majority must acknowledge writes',
+          'Stacked etcd: etcd co-located on control plane nodes',
+          'External etcd: dedicated etcd cluster',
+          '--control-plane-endpoint: stable LB address for HA',
+          '--upload-certs: encrypted cert distribution to joining nodes',
+          'Lease objects: leader election for controller-manager and scheduler',
+          'leader-elect=true: prevents split-brain in HA',
+        ],
+        commands: [
+          'kubectl get lease -n kube-system',
+          'kubectl describe lease kube-controller-manager -n kube-system',
+          'kubeadm init --control-plane-endpoint --upload-certs',
+          'kubeadm join --control-plane --certificate-key',
+          'etcdctl member list',
+          'kubectl get pod -n kube-system -o yaml | grep leader-elect',
+        ],
+        architecture: [
+          'Raft consensus: majority quorum for writes',
+          'Odd member counts: maximum fault tolerance per machine count',
+          'Load balancer in front of all apiservers: clients use single endpoint',
+          'Lease renewal: leader updates Lease every ~10s; election triggers after leaseDurationSeconds stale',
+        ],
+        techniques: [
+          'Always use odd etcd member counts',
+          'Use stacked etcd for simplicity; external etcd for strict isolation',
+          'Generate new certificate key after 2h TTL with kubeadm init phase upload-certs',
+          'Verify HA join with kubectl get nodes and kubectl get lease',
+        ],
+        procedures: [
+          'kubeadm init with --control-plane-endpoint and --upload-certs',
+          'kubeadm join --control-plane for additional control plane nodes',
+          'Install CNI after first control plane is ready',
+          'kubeadm join (no --control-plane) for worker nodes',
+        ],
+        toolsAndPlugins: ['kubeadm', 'kubectl', 'etcdctl'],
+        cases: [
+          'Certificate key expired (>2h) — run kubeadm init phase upload-certs',
+          'Third control plane Pending — certificate-key already expired',
+          'etcd loses quorum (2 of 3 nodes down) — cluster read-only until quorum restored',
+          'Load balancer down — all kubectl commands fail even if apiservers are running',
+        ],
+        scenarios: [
+          'Inspect leader election on a running cluster',
+          'Plan stacked-etcd 3-node HA kubeadm setup from scratch',
+          'Recover from expired --upload-certs key when adding a third control plane',
+        ],
+      },
+      exercises: [
+        {
+          id: 'p7-m5-e1',
+          title: 'Inspect leader election in kube-system',
+          kind: 'guided' as const,
+          goal: 'Find and interpret the Lease objects for kube-controller-manager and kube-scheduler.',
+          commands: [
+            'kubectl get lease -n kube-system',
+            'kubectl describe lease kube-controller-manager -n kube-system',
+            'kubectl describe lease kube-scheduler -n kube-system',
+          ],
+          verify: [
+            'kubectl get lease shows kube-controller-manager and kube-scheduler Leases',
+            'describe shows holderIdentity and leaseDurationSeconds',
+          ],
+          expectedOutcome:
+            'Both Lease objects found; leaseDurationSeconds and renewTime understood.',
+          cleanup: [],
+        },
+        {
+          id: 'p7-m5-e2',
+          title: 'Write stacked-etcd kubeadm HA config from memory',
+          kind: 'challenge' as const,
+          goal: 'Write a kubeadm ClusterConfiguration YAML for a 3-node stacked HA cluster with the correct controlPlaneEndpoint.',
+          commands: [
+            'cat my-ha-config.yaml',
+            'kubeadm config validate --config my-ha-config.yaml',
+          ],
+          verify: [
+            'ClusterConfiguration has controlPlaneEndpoint set to a LB address',
+            'kubeadm config validate passes without errors',
+          ],
+          expectedOutcome: 'Valid kubeadm HA ClusterConfiguration written from memory.',
+          cleanup: ['rm my-ha-config.yaml'],
+        },
+        {
+          id: 'p7-m5-e3',
+          title: 'Debug: third control plane fails to join — expired certificate key',
+          kind: 'debug' as const,
+          goal: 'A kubeadm join --control-plane command fails. Diagnose the expired certificate key and generate a new one.',
+          commands: [
+            'kubeadm join lb.example.com:6443 --control-plane --certificate-key <key>',
+            'kubeadm init phase upload-certs --upload-certs',
+          ],
+          verify: [
+            'New certificate key generated (output of upload-certs phase)',
+            'kubeadm join with new key succeeds',
+          ],
+          expectedOutcome: 'New certificate key generated and join retry succeeds.',
+          cleanup: [],
+        },
+        {
+          id: 'p7-m5-e4',
+          title: '7-day spaced review — HA control plane topology',
+          kind: 'spaced-review' as const,
+          goal: 'Recall stacked vs external etcd trade-offs, quorum formula, and kubeadm HA flags from memory.',
+          commands: ['kubectl get lease -n kube-system'],
+          verify: [
+            'Can state quorum for 3, 5, 7 member clusters',
+            'Can state two differences between stacked and external etcd',
+            'Can state the two required kubeadm flags for HA init',
+            'Can explain what happens when the --upload-certs key expires',
+          ],
+          expectedOutcome: 'HA topology and kubeadm HA setup recalled without notes.',
+          cleanup: [],
+        },
+      ],
+    },
   ],
 }
 

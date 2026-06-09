@@ -1054,7 +1054,64 @@ The \`autoscaling/v2\` API version adds support for complex scaling conditions:
 - **Multiple Metrics**: Evaluate CPU, memory, and custom metrics simultaneously (the HPA uses the largest calculated replica count).
 - **Custom Metrics**: Scale based on application metrics (e.g., HTTP requests/sec from Prometheus via the \`custom.metrics.k8s.io\` API).
 - **External Metrics**: Scale based on external queue sizes (e.g., AWS SQS queue depth, GCP Pub/Sub backlog via \`external.metrics.k8s.io\`).
-- **Scale Behavior Policies**: Explicitly tune the scale-up and scale-down rates via \`spec.behavior\`.`,
+- **Scale Behavior Policies**: Explicitly tune the scale-up and scale-down rates via \`spec.behavior\`.
+
+## Vertical Pod Autoscaler (VPA)
+
+While HPA scales the **number of replicas**, VPA scales the **resource requests** on existing Pods — it adjusts how much CPU/memory each individual Pod is allocated.
+
+### How VPA Works
+
+VPA watches actual resource usage over time and computes recommended requests. It then optionally applies them by evicting Pods so they restart with the new requests.
+
+### VPA Modes
+
+| Mode | Behavior |
+|---|---|
+| \`Off\` | Compute recommendations only — never apply them |
+| \`Initial\` | Set requests on new Pods at creation time only |
+| \`Auto\` | Evict and recreate Pods with updated requests |
+
+\`\`\`yaml
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: my-app-vpa
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-app
+  updatePolicy:
+    updateMode: "Off"    # Start with Off — inspect recommendations first
+\`\`\`
+
+### VPA vs HPA
+
+| | HPA | VPA |
+|---|---|---|
+| What scales | Replica count | CPU/Memory requests per Pod |
+| Trigger | CPU/custom metrics | Actual usage history |
+| Pod restart | No | Yes (in Auto mode) |
+| Use together | ⚠️ Caution — can conflict on CPU-based HPA | Use VPA for memory, HPA for replicas |
+
+> ⚠️ **Do not enable both HPA (CPU-based) and VPA (Auto) on the same Deployment** — they will fight each other. Use VPA Off mode for recommendations only, or use VPA for memory-only recommendations alongside CPU-based HPA.
+
+### Install VPA
+
+VPA is not built into Kubernetes. Install from the kubernetes/autoscaler repository:
+
+\`\`\`bash
+kubectl apply -f https://github.com/kubernetes/autoscaler/releases/latest/download/vertical-pod-autoscaler.yaml
+\`\`\`
+
+Verify the VPA components are running:
+\`\`\`bash
+kubectl get pods -n kube-system | grep vpa
+# vpa-admission-controller-xxx   Running
+# vpa-recommender-xxx            Running
+# vpa-updater-xxx                Running
+\`\`\``,
       labSteps: [
         {
           id: 'p4-m3-s1',
@@ -1359,6 +1416,69 @@ The \`autoscaling/v2\` API version adds support for complex scaling conditions:
             highlightedComponent: 'controller',
           },
         },
+        {
+          id: 'p4-m3-s-vpa1',
+          title: 'Create a VPA in Off mode',
+          instruction:
+            'Create a VPA targeting the php-apache deployment in Off mode to get resource recommendations without applying them.',
+          command: 'kubectl apply -f vpa-off.yaml && kubectl get vpa',
+          output: [
+            'verticalpodautoscaler.autoscaling.k8s.io/php-apache-vpa created',
+            'NAME             MODE   CPU   MEM       PROVIDED   AGE',
+            'php-apache-vpa   Off    -     -         False      5s',
+          ],
+          explanation:
+            'Mode: Off means VPA watches resource usage and computes recommendations but never evicts or modifies Pods. This is the safe starting point — inspect recommendations before enabling Auto mode.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['VPA php-apache-vpa created in Off mode'],
+          },
+          yamlContent: `apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: php-apache-vpa
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: php-apache
+  updatePolicy:
+    updateMode: "Off"`,
+        },
+        {
+          id: 'p4-m3-s-vpa2',
+          title: 'Read VPA recommendations',
+          instruction:
+            'After a few minutes of load, describe the VPA to see its CPU and memory recommendations.',
+          command: 'kubectl describe vpa php-apache-vpa',
+          output: [
+            'Name:         php-apache-vpa',
+            'Recommendation:',
+            '  Container Recommendations:',
+            '    Container Name: php-apache',
+            '    Lower Bound:',
+            '      cpu: 25m',
+            '      memory: 262144k',
+            '    Target:',
+            '      cpu: 60m',
+            '      memory: 262144k',
+            '    Upper Bound:',
+            '      cpu: 1',
+            '      memory: 500Mi',
+          ],
+          explanation:
+            'VPA provides three recommendation bands: Lower Bound (minimum safe resources), Target (optimal recommendation), Upper Bound (maximum before over-provisioning). Use Target values to set your Deployment resource requests manually, or switch to Auto mode to let VPA apply them automatically.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['VPA php-apache-vpa: recommendations available (Target: 60m CPU, 256Mi memory)'],
+          },
+        },
       ],
       quiz: [
         {
@@ -1413,6 +1533,14 @@ The \`autoscaling/v2\` API version adds support for complex scaling conditions:
           answer: 1,
           explanation:
             "metrics-server collects CPU and memory usage from each node's kubelet and exposes them via the Kubernetes Metrics API (metrics.k8s.io). HPA queries this API every 15 seconds. metrics-server is not installed by default in all distributions — run kubectl top pods to verify it is working.",
+        },
+        {
+          id: 'p4-m3-q-vpa1',
+          question: 'Which VPA mode evicts and recreates Pods to apply updated resource recommendations?',
+          options: ['Off', 'Initial', 'Auto', 'Recommend'],
+          answer: 2,
+          explanation:
+            'Auto mode actively evicts Pods so they restart with the recommended resource requests applied. Initial only sets requests at Pod creation time. Off computes recommendations but never applies them. There is no "Recommend" mode.',
         },
       ],
       coverage: {
@@ -1547,6 +1675,22 @@ The \`autoscaling/v2\` API version adds support for complex scaling conditions:
           ],
           expectedOutcome: 'HPA concepts and commands recalled without notes.',
           cleanup: [],
+        },
+        {
+          id: 'p4-m3-e-vpa1',
+          title: 'Create VPA in Off mode and read recommendations',
+          kind: 'guided' as const,
+          goal: 'Deploy a VPA in Off mode and observe recommendations after running load.',
+          commands: [
+            'kubectl apply -f vpa-off.yaml',
+            'kubectl get vpa',
+            'kubectl describe vpa php-apache-vpa',
+          ],
+          verify: [
+            'kubectl describe vpa shows Container Recommendations with Target values',
+          ],
+          expectedOutcome: 'VPA recommendations visible with CPU and memory target values.',
+          cleanup: ['kubectl delete vpa php-apache-vpa'],
         },
       ],
     },
@@ -3482,6 +3626,467 @@ kubectl describe node shows:
             'kubectl delete deployment web',
             'kubectl taint nodes minikube env=prod:NoSchedule- 2>/dev/null || true',
           ],
+        },
+      ],
+    },
+
+    // ─── Module 8: Admission Controllers ─────────────────────────────────────
+    {
+      id: 'p4-m8',
+      slug: 'admission-controllers',
+      title: 'Admission Controllers — Request Validation & Mutation',
+      description:
+        'Understand how admission controllers intercept API requests to enforce policies and inject configuration before resources are persisted.',
+      duration: '55 min',
+      difficulty: 'advanced' as const,
+      learningObjectives: [
+        'Explain the role of admission controllers in the API request lifecycle',
+        'Distinguish between mutating and validating admission phases',
+        'Apply PodSecurity admission labels to enforce security standards',
+        'Describe how MutatingAdmissionWebhook and ValidatingAdmissionWebhook work',
+      ],
+      keyConcepts: [
+        'Admission flow: AuthN → AuthZ → Mutating admission → Validating admission → etcd',
+        'Mutating admission: can modify (mutate) the request object',
+        'Validating admission: can only approve or reject — cannot modify',
+        'Built-in controllers: LimitRanger, ResourceQuota, PodSecurity, NamespaceLifecycle, DefaultStorageClass',
+        'PodSecurity standards: privileged, baseline, restricted',
+        'Webhook admission: external HTTPS service called by apiserver',
+        'failurePolicy: Fail — webhook unreachable = request rejected',
+      ],
+      practicePrompts: [
+        'Without notes: draw the request lifecycle from kubectl apply to etcd, marking where admission happens.',
+        'What is the difference between a MutatingAdmissionWebhook and a ValidatingAdmissionWebhook?',
+        'What namespace label enforces the restricted Pod Security Standard?',
+      ],
+      masteryChecks: [
+        'Can explain mutating vs validating admission order and what each can do',
+        'Can apply a PodSecurity label to a namespace and demonstrate policy enforcement',
+        'Can describe what a webhook admission controller does and when failurePolicy: Fail is dangerous',
+        'Can list 4 built-in admission controllers and their purpose',
+        'Can find which admission controller rejected a request using kubectl events',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: You apply a Pod manifest with no CPU/memory limits in a namespace with a ResourceQuota. The request is rejected. What component rejects it — and at what point in the API request lifecycle? Think before reading.
+
+## API Request Lifecycle
+
+Every \`kubectl apply\` goes through this pipeline before the object is stored in etcd:
+
+\`\`\`
+kubectl apply
+     │
+     ▼
+kube-apiserver
+     │
+     ├─ 1. Authentication (AuthN)  — who are you?
+     │
+     ├─ 2. Authorization (AuthZ / RBAC) — are you allowed?
+     │
+     ├─ 3. Mutating Admission  ◄── can MODIFY the request
+     │        (built-in + webhooks run in parallel)
+     │
+     ├─ 4. Schema validation  — is the object valid?
+     │
+     ├─ 5. Validating Admission  ◄── can only APPROVE or REJECT
+     │        (built-in + webhooks run in parallel)
+     │
+     └─ 6. Persist to etcd ✓
+\`\`\`
+
+Mutating runs before Validating so that mutations are visible to validators.
+
+## Built-in Admission Controllers
+
+| Controller | What it does |
+|---|---|
+| \`LimitRanger\` | Applies default CPU/memory requests/limits from LimitRange objects |
+| \`ResourceQuota\` | Rejects requests that would exceed namespace quotas |
+| \`PodSecurity\` | Enforces Pod Security Standards (privileged/baseline/restricted) |
+| \`NamespaceLifecycle\` | Prevents object creation in terminating namespaces |
+| \`DefaultStorageClass\` | Adds the default StorageClass to PVCs that don't specify one |
+| \`ServiceAccount\` | Auto-injects the default ServiceAccount token into Pods |
+
+## PodSecurity Admission (PSA)
+
+PSA replaced PodSecurityPolicy (deprecated in 1.21, removed in 1.25). It is enforced via **namespace labels**:
+
+\`\`\`bash
+# Enforce the restricted standard (rejects violating Pods)
+kubectl label ns production pod-security.kubernetes.io/enforce=restricted
+
+# Warn but allow (useful during migration)
+kubectl label ns staging pod-security.kubernetes.io/warn=baseline
+
+# Also audit to the API audit log
+kubectl label ns staging pod-security.kubernetes.io/audit=restricted
+\`\`\`
+
+### Pod Security Standards
+
+| Standard | What is blocked |
+|---|---|
+| \`privileged\` | Nothing — all capabilities allowed |
+| \`baseline\` | Blocks hostPID, hostIPC, hostNetwork, privileged containers, unsafe sysctls |
+| \`restricted\` | All of baseline + requires non-root, no privilege escalation, drops all capabilities |
+
+## Webhook Admission Controllers
+
+The \`MutatingAdmissionWebhook\` and \`ValidatingAdmissionWebhook\` built-in controllers enable **external** admission logic. The apiserver calls your HTTPS service with an \`AdmissionReview\` request:
+
+\`\`\`
+kubectl apply
+     │
+     ▼
+kube-apiserver ──HTTPS──► your-webhook-service
+                          (receives AdmissionReview JSON)
+                          (returns allowed: true/false + optional patches)
+\`\`\`
+
+### Webhook Configuration
+
+\`\`\`yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: my-validator
+webhooks:
+  - name: validate.example.com
+    rules:
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["deployments"]
+    clientConfig:
+      service:
+        name: my-webhook-svc
+        namespace: default
+        path: /validate
+      caBundle: <base64-encoded-CA>
+    failurePolicy: Fail    # Reject if webhook is unreachable
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+\`\`\`
+
+### failurePolicy
+
+- \`Fail\` (default): request rejected if webhook is unreachable — safer for security policies
+- \`Ignore\`: request allowed if webhook is unreachable — safer for non-critical checks
+
+> ⚠️ A webhook with \`failurePolicy: Fail\` that crashes takes down all object creation for its matched resources. Always deploy webhooks with redundancy and test failover.
+
+## Real Example: Istio Sidecar Injection
+
+Istio's automatic sidecar injection is implemented as a \`MutatingAdmissionWebhook\`:
+
+1. You label a namespace: \`kubectl label ns myapp istio-injection=enabled\`
+2. When a Pod is created in that namespace, apiserver calls the Istio webhook
+3. The webhook patches the Pod spec to add the \`istio-proxy\` sidecar container and \`istio-init\` init container
+4. The mutated Pod spec is stored in etcd — kubectl get pod shows both containers`,
+      labSteps: [
+        {
+          id: 'p4-m8-s1',
+          title: 'List enabled admission plugins',
+          instruction:
+            'Check which admission plugins are enabled on the apiserver in minikube.',
+          command:
+            'kubectl exec -n kube-system kube-apiserver-minikube -- kube-apiserver --help 2>&1 | grep -A2 "enable-admission-plugins"',
+          output: [
+            '      --enable-admission-plugins strings',
+            '                A comma-separated list of admission plugins...',
+            '                NodeRestriction,PodSecurity,...',
+          ],
+          explanation:
+            'The --enable-admission-plugins flag lists all active built-in admission plugins. In production clusters, ResourceQuota, LimitRanger, PodSecurity, and DefaultStorageClass are commonly enabled. You can also check the kube-apiserver static pod manifest at /etc/kubernetes/manifests/kube-apiserver.yaml.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['kube-system'],
+            events: ['Admission plugins inspected from kube-apiserver flags'],
+            highlightedComponent: 'apiserver',
+          },
+          tip: 'kubectl exec on the kube-apiserver-minikube pod gives you access to the apiserver binary flags. In managed clusters (EKS, GKE) you cannot exec into the apiserver.',
+        },
+        {
+          id: 'p4-m8-s2',
+          title: 'Create a test namespace',
+          instruction: 'Create a namespace for PodSecurity testing.',
+          command: 'kubectl create ns psa-test',
+          output: ['namespace/psa-test created'],
+          explanation:
+            'We will apply PodSecurity labels to this namespace and test enforcement. Creating a dedicated namespace lets us test without affecting the default namespace.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'psa-test', 'kube-system'],
+            events: ['Namespace psa-test created'],
+          },
+        },
+        {
+          id: 'p4-m8-s3',
+          title: 'Apply restricted PodSecurity label',
+          instruction:
+            'Label the namespace to enforce the restricted Pod Security Standard.',
+          command:
+            'kubectl label ns psa-test pod-security.kubernetes.io/enforce=restricted pod-security.kubernetes.io/enforce-version=latest',
+          output: ['namespace/psa-test labeled'],
+          explanation:
+            'enforce=restricted means any Pod creation that violates the restricted standard is rejected immediately. enforce-version=latest applies the checks for the current Kubernetes version. Other label actions are warn (allows but prints warning) and audit (records to audit log only).',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'psa-test', 'kube-system'],
+            events: ['Namespace psa-test labeled: enforce=restricted'],
+          },
+        },
+        {
+          id: 'p4-m8-s4',
+          title: 'Try to create a privileged pod — observe rejection',
+          instruction:
+            'Attempt to create a Pod with a privileged container. The PodSecurity admission controller should reject it.',
+          command: 'kubectl run bad-pod --image=nginx -n psa-test --overrides=\'{"spec":{"containers":[{"name":"bad-pod","image":"nginx","securityContext":{"privileged":true}}]}}\'',
+          output: [
+            'Error from server (Forbidden): pods "bad-pod" is forbidden:',
+            'violates PodSecurity "restricted:latest": privileged',
+            '(container "bad-pod" must not set securityContext.privileged=true)',
+          ],
+          explanation:
+            'The error comes from the PodSecurity admission controller (a built-in validating admission plugin). The message tells you exactly which policy was violated. This happens at step 5 (Validating Admission) in the request lifecycle — the object never reaches etcd.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'psa-test', 'kube-system'],
+            events: ['Pod bad-pod rejected by PodSecurity admission: privileged container blocked'],
+            highlightedComponent: 'apiserver',
+          },
+        },
+        {
+          id: 'p4-m8-s5',
+          title: 'Inspect existing webhook configurations',
+          instruction:
+            'List MutatingWebhookConfigurations and ValidatingWebhookConfigurations in the cluster.',
+          command:
+            'kubectl get mutatingwebhookconfigurations && kubectl get validatingwebhookconfigurations',
+          output: [
+            'NAME                              WEBHOOKS   AGE',
+            'NAME                              WEBHOOKS   AGE',
+            '(empty if no webhooks installed)',
+          ],
+          explanation:
+            'These resources define which external services the apiserver calls during admission. In a fresh minikube cluster this list may be empty. Installing Istio, cert-manager, or OPA Gatekeeper would add entries here. Each row represents one webhook configuration object, which can contain multiple webhook entries.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'kube-system'],
+            events: ['MutatingWebhookConfigurations and ValidatingWebhookConfigurations listed'],
+            highlightedComponent: 'apiserver',
+          },
+          tip: 'kubectl describe mutatingwebhookconfiguration <name> shows the full rules (which resources trigger the webhook), caBundle (TLS certificate), and failurePolicy for each webhook.',
+        },
+        {
+          id: 'p4-m8-s6',
+          title: 'Create a compliant pod in the restricted namespace',
+          instruction:
+            'Create a Pod that satisfies the restricted PodSecurity standard: non-root, no privilege escalation, drops all capabilities.',
+          command: 'kubectl apply -f compliant-pod.yaml -n psa-test && kubectl get pod -n psa-test',
+          output: [
+            'pod/compliant-pod created',
+            'NAME            READY   STATUS    RESTARTS   AGE',
+            'compliant-pod   1/1     Running   0          5s',
+          ],
+          explanation:
+            'A restricted-compliant Pod must: run as non-root (runAsNonRoot: true), disable privilege escalation (allowPrivilegeEscalation: false), and drop all Linux capabilities (drop: [ALL]). Setting seccompProfile: RuntimeDefault is also required in some versions.',
+          clusterState: {
+            pods: [{ id: 'compliant-pod', name: 'compliant-pod', namespace: 'psa-test', node: 'node-1', status: 'Running', labels: { app: 'compliant-pod' }, image: 'nginx:stable-alpine', restarts: 0 }],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'psa-test', 'kube-system'],
+            events: ['Pod compliant-pod created successfully in restricted namespace'],
+          },
+          yamlContent: `apiVersion: v1
+kind: Pod
+metadata:
+  name: compliant-pod
+  namespace: psa-test
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: app
+      image: nginx:stable-alpine
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]`,
+        },
+      ],
+      quiz: [
+        {
+          id: 'p4-m8-q1',
+          question: 'In the API request lifecycle, which admission phase runs first — mutating or validating?',
+          options: [
+            'Validating, then mutating',
+            'They run in parallel simultaneously',
+            'Mutating, then validating',
+            'The order depends on the failurePolicy setting',
+          ],
+          answer: 2,
+          explanation:
+            'Mutating admission always runs before validating admission. This ensures that validators see the final (mutated) version of the object. For example, a mutating webhook might inject default values, and the validator then checks those values.',
+        },
+        {
+          id: 'p4-m8-q2',
+          question:
+            'Which namespace label enforces the restricted Pod Security Standard, rejecting violating Pods?',
+          options: [
+            'pod-security.kubernetes.io/mode=restricted',
+            'pod-security.kubernetes.io/enforce=restricted',
+            'pod-security.kubernetes.io/policy=restricted',
+            'pod-security.kubernetes.io/level=restricted',
+          ],
+          answer: 1,
+          explanation:
+            'The label key is pod-security.kubernetes.io/enforce and the value is the standard name (privileged, baseline, or restricted). The enforce action rejects violating Pods. Other actions are warn (allows + warning) and audit (allows + audit log entry).',
+        },
+        {
+          id: 'p4-m8-q3',
+          question:
+            'A ValidatingAdmissionWebhook has failurePolicy: Fail and its backend Service crashes. What happens to new Pod creation requests?',
+          options: [
+            'Pods are created normally — webhook failure is ignored',
+            'Pods are created with a warning annotation',
+            'Pod creation requests are rejected until the webhook recovers',
+            'The apiserver automatically disables the webhook',
+          ],
+          answer: 2,
+          explanation:
+            'failurePolicy: Fail means the apiserver treats webhook unreachability as a rejection. All matched requests fail with a 500 error until the webhook recovers. This is intentional for security-critical webhooks — allowing through unknown requests would be worse than blocking them.',
+        },
+        {
+          id: 'p4-m8-q4',
+          question: 'Which built-in admission controller automatically adds the default StorageClass to PVCs?',
+          options: ['LimitRanger', 'ResourceQuota', 'DefaultStorageClass', 'PodSecurity'],
+          answer: 2,
+          explanation:
+            'DefaultStorageClass is a mutating admission controller that patches PVCs lacking a storageClassName with the cluster\'s default StorageClass (the one annotated storageclass.kubernetes.io/is-default-class: "true"). This is why PVCs without storageClassName still get bound in most clusters.',
+        },
+      ],
+      coverage: {
+        concepts: [
+          'Admission flow: AuthN → AuthZ → Mutating → Schema validation → Validating → etcd',
+          'Mutating admission can modify request; Validating can only approve/reject',
+          'Built-in: LimitRanger, ResourceQuota, PodSecurity, NamespaceLifecycle, DefaultStorageClass',
+          'PodSecurity standards: privileged / baseline / restricted',
+          'Webhook admission: external HTTPS service called by apiserver',
+          'failurePolicy: Fail vs Ignore',
+        ],
+        commands: [
+          'kubectl label ns <name> pod-security.kubernetes.io/enforce=restricted',
+          'kubectl get mutatingwebhookconfigurations',
+          'kubectl get validatingwebhookconfigurations',
+          'kubectl describe mutatingwebhookconfiguration <name>',
+          'kubectl exec -n kube-system kube-apiserver-minikube -- kube-apiserver --help',
+        ],
+        architecture: [
+          'Mutating before validating: ensures validators see final object',
+          'Webhooks called in parallel within each phase',
+          'AdmissionReview: JSON sent to webhook; allowed + patches returned',
+          'PodSecurity is a built-in validating plugin (not a webhook)',
+        ],
+        techniques: [
+          'Use warn mode before switching to enforce for migration',
+          'Test PodSecurity with a deliberately violating pod',
+          'Deploy admission webhooks with redundancy to avoid failurePolicy: Fail outages',
+          'Use kubectl describe to find which controller rejected a request',
+        ],
+        procedures: [
+          'Create namespace → label with PSA enforce → test with violating and compliant pods',
+          'Inspect webhook configs: get → describe → check rules and failurePolicy',
+        ],
+        toolsAndPlugins: ['kubectl', 'kube-apiserver'],
+        cases: [
+          'Pod rejected: Forbidden — PodSecurity standard violation (check securityContext)',
+          'Webhook failurePolicy: Fail + crashed webhook = all matched requests rejected',
+          'PVC gets StorageClass without specifying one — DefaultStorageClass admission controller',
+        ],
+        scenarios: [
+          'Enforce restricted PodSecurity on production namespace',
+          'Debug Pod creation failure due to admission controller policy',
+          'Inspect Istio sidecar injection webhook configuration',
+        ],
+      },
+      exercises: [
+        {
+          id: 'p4-m8-e1',
+          title: 'Enforce restricted PodSecurity and test with violating pod',
+          kind: 'guided' as const,
+          goal: 'Label a namespace with enforce=restricted and demonstrate rejection of a privileged Pod.',
+          commands: [
+            'kubectl create ns psa-test',
+            'kubectl label ns psa-test pod-security.kubernetes.io/enforce=restricted',
+            'kubectl run bad-pod --image=nginx -n psa-test --overrides=\'{"spec":{"containers":[{"name":"bad-pod","image":"nginx","securityContext":{"privileged":true}}]}}\'',
+          ],
+          verify: [
+            'kubectl run returns Forbidden error mentioning PodSecurity',
+            'kubectl get pods -n psa-test shows no pods',
+          ],
+          expectedOutcome: 'Privileged Pod rejected by PodSecurity admission in restricted namespace.',
+          cleanup: ['kubectl delete ns psa-test'],
+        },
+        {
+          id: 'p4-m8-e2',
+          title: 'Write a ValidatingWebhookConfiguration from memory',
+          kind: 'challenge' as const,
+          goal: 'Write a ValidatingWebhookConfiguration manifest that intercepts Deployment CREATE/UPDATE in all namespaces.',
+          commands: [
+            'kubectl apply -f my-webhook.yaml --dry-run=server',
+          ],
+          verify: [
+            'kubectl apply --dry-run=server accepts the manifest without errors',
+            'Manifest has correct rules, clientConfig, failurePolicy, and sideEffects fields',
+          ],
+          expectedOutcome: 'Valid ValidatingWebhookConfiguration manifest written from memory.',
+          cleanup: [],
+        },
+        {
+          id: 'p4-m8-e3',
+          title: 'Debug: Pod creation denied — find the admission controller',
+          kind: 'debug' as const,
+          goal: 'A Pod fails to create. Use kubectl events and describe to find which admission controller rejected it and why.',
+          commands: [
+            'kubectl apply -f broken-pod.yaml -n restricted-ns',
+            'kubectl get events -n restricted-ns --sort-by=.lastTimestamp',
+            'kubectl describe ns restricted-ns',
+          ],
+          verify: [
+            'Identified the admission controller (PodSecurity, LimitRanger, or webhook) from the error message',
+            'Fixed the Pod spec to comply with the policy',
+            'kubectl get pod shows Running after fix',
+          ],
+          expectedOutcome: 'Admission controller identified from error message; Pod fixed and running.',
+          cleanup: ['kubectl delete pod fixed-pod -n restricted-ns'],
+        },
+        {
+          id: 'p4-m8-e4',
+          title: '7-day spaced review — admission controller flow',
+          kind: 'spaced-review' as const,
+          goal: 'Recall the full admission pipeline, PodSecurity label syntax, and webhook concepts from memory.',
+          commands: ['kubectl get mutatingwebhookconfigurations', 'kubectl get validatingwebhookconfigurations'],
+          verify: [
+            'Can draw the 6-step API request lifecycle from memory',
+            'Can state the PodSecurity label key and the three standard values',
+            'Can explain failurePolicy: Fail vs Ignore trade-offs',
+            'Can list 4 built-in admission controllers and their purpose',
+          ],
+          expectedOutcome: 'Admission controller concepts recalled without notes.',
+          cleanup: [],
         },
       ],
     },

@@ -3326,6 +3326,434 @@ spec:
         },
       ],
     },
+    // ─── Module 8: Container Images ──────────────────────────────────────────
+    {
+      id: 'p1-m8',
+      slug: 'container-images',
+      title: 'Container Images — Build, Tag & Load',
+      description:
+        'Build container images with Dockerfiles, use multi-stage builds, and load images into minikube for local development.',
+      duration: '45 min',
+      difficulty: 'beginner' as const,
+      learningObjectives: [
+        'Write a Dockerfile using FROM, COPY, RUN, CMD instructions',
+        'Build a container image with docker build and inspect its layers',
+        'Use multi-stage builds to reduce final image size',
+        'Load a locally built image into minikube and run it as a Pod',
+      ],
+      keyConcepts: [
+        'Dockerfile: recipe for building an image layer by layer',
+        'Image layer: each RUN/COPY instruction adds an immutable layer',
+        'Multi-stage build: separate build-time and runtime stages',
+        'Image tag: human-readable pointer to a specific image digest',
+        'imagePullPolicy: Never — use local image, never pull from registry',
+        'minikube image load: injects a local Docker image into the minikube cluster',
+      ],
+      practicePrompts: [
+        'Without notes: list the five most common Dockerfile instructions and what each does.',
+        'Why does multi-stage build reduce image size versus a single stage?',
+        'What happens if you forget to set imagePullPolicy: Never when using a locally built image in minikube?',
+      ],
+      masteryChecks: [
+        'Can write a working Dockerfile for a static web app from memory',
+        'Can explain the difference between CMD and ENTRYPOINT',
+        'Can describe the layer caching mechanism and why instruction order matters',
+        'Can load a local image into minikube and deploy it as a Pod',
+        'Can write a two-stage Dockerfile separating build and runtime',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: Every container you have run in this course came from a container image. Where do those images come from, and what is actually inside them? Before reading, write down what you think a Dockerfile does and how layers work.
+
+## What Is a Container Image?
+
+A container image is a read-only, layered filesystem bundled with metadata (entrypoint, environment variables, labels). When the container runtime starts a container, it adds a thin writable layer on top — this is the union filesystem (overlay2 on Linux).
+
+Each image is built from a **Dockerfile** — a sequential recipe of instructions. Each instruction that modifies the filesystem produces a new immutable layer. Layers are cached and shared across images.
+
+## Core Dockerfile Instructions
+
+| Instruction | Purpose |
+|---|---|
+| \`FROM\` | Base image to start from |
+| \`RUN\` | Execute a shell command during build (adds a layer) |
+| \`COPY\` | Copy files from host into the image |
+| \`ADD\` | Like COPY but also handles URLs and tar extraction |
+| \`WORKDIR\` | Set working directory for subsequent instructions |
+| \`ENV\` | Set environment variable (persists into containers) |
+| \`EXPOSE\` | Document which port the app listens on (informational only) |
+| \`CMD\` | Default command when container starts (overridable at runtime) |
+| \`ENTRYPOINT\` | Fixed command — CMD becomes its arguments |
+
+### CMD vs ENTRYPOINT
+
+\`\`\`dockerfile
+# CMD only — overridable entirely
+CMD ["nginx", "-g", "daemon off;"]
+
+# ENTRYPOINT + CMD — ENTRYPOINT fixed, CMD provides default args
+ENTRYPOINT ["nginx"]
+CMD ["-g", "daemon off;"]
+\`\`\`
+
+If you run \`docker run myimage -c /etc/nginx/nginx.conf\`, ENTRYPOINT+CMD form passes \`-c /etc/nginx/nginx.conf\` as args to nginx. CMD-only form replaces the entire command with \`-c /etc/nginx/nginx.conf\` — often not what you want.
+
+## Layer Caching
+
+Docker caches each layer. If an instruction and its inputs haven't changed, Docker reuses the cached layer and skips re-running it. **Instruction order matters**: put frequently changing instructions (e.g., COPY your source code) late; put stable instructions (e.g., package installs) early.
+
+\`\`\`dockerfile
+# Good: apt install cached unless requirements.txt changes
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .          # only this layer invalidated on code changes
+
+# Bad: every code change busts the apt cache
+COPY . .
+RUN pip install -r requirements.txt
+\`\`\`
+
+## Multi-Stage Builds
+
+A multi-stage Dockerfile uses multiple \`FROM\` instructions. Earlier stages compile or build artifacts; the final stage copies only what's needed at runtime. Build tools (gcc, maven, node_modules) stay in the builder stage and never make it into the final image.
+
+\`\`\`dockerfile
+# Stage 1: builder
+FROM golang:1.22-alpine AS builder
+WORKDIR /app
+COPY . .
+RUN go build -o server .
+
+# Stage 2: runtime (tiny)
+FROM alpine:3.19
+COPY --from=builder /app/server /server
+CMD ["/server"]
+\`\`\`
+
+Result: a Go binary in a 10 MB Alpine image instead of a 700 MB Go SDK image.
+
+## Using Local Images in minikube
+
+minikube runs its own Docker daemon isolated from your host. To use a locally built image:
+
+\`\`\`bash
+# Option A: build inside minikube's docker daemon
+eval $(minikube docker-env)
+docker build -t myapp:v1 .
+
+# Option B: build on host, then load into minikube
+docker build -t myapp:v1 .
+minikube image load myapp:v1
+\`\`\`
+
+Then set \`imagePullPolicy: Never\` in your Pod spec — otherwise Kubernetes tries to pull from the internet and fails with ImagePullBackOff.`,
+      labSteps: [
+        {
+          id: 'p1-m8-s1',
+          title: 'Write a minimal Dockerfile',
+          instruction:
+            'Create a Dockerfile for a static nginx app. We will serve a custom HTML page.',
+          command:
+            "mkdir myapp && cd myapp && cat > Dockerfile << 'EOF'\nFROM nginx:stable-alpine\nCOPY index.html /usr/share/nginx/html/index.html\nEXPOSE 80\nCMD [\"nginx\", \"-g\", \"daemon off;\"]\nEOF",
+          output: ['(no output — file created)'],
+          explanation:
+            'FROM sets the base image. COPY brings our HTML file into the image at the nginx default html path. EXPOSE documents port 80. CMD starts nginx in the foreground (daemon off is required so the container does not exit immediately).',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['Dockerfile created in ./myapp/'],
+          },
+          yamlContent: `FROM nginx:stable-alpine
+COPY index.html /usr/share/nginx/html/index.html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]`,
+        },
+        {
+          id: 'p1-m8-s2',
+          title: 'Build the image and inspect layers',
+          instruction: 'Build the image and check its size. Then inspect the layer history.',
+          command:
+            'docker build -t myapp:v1 ./myapp && docker images myapp && docker history myapp:v1',
+          output: [
+            'REPOSITORY   TAG   IMAGE ID       SIZE',
+            'myapp        v1    abc123def456   23.5MB',
+            'IMAGE          CREATED BY                                SIZE',
+            '<missing>      /bin/sh -c #(nop)  CMD ["nginx"...]       0B',
+            'abc123def456   COPY index.html ...                       512B',
+            '<missing>      /bin/sh -c #(nop)  EXPOSE 80             0B',
+            '<missing>      nginx base layers...                      23.5MB',
+          ],
+          explanation:
+            'docker history shows each layer from top (most recent) to bottom (base). EXPOSE and CMD add zero bytes — they only update image metadata. COPY adds the file bytes. The large base layers come from nginx:stable-alpine.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['Image myapp:v1 built (23.5MB)'],
+          },
+        },
+        {
+          id: 'p1-m8-s3',
+          title: 'Multi-stage build — compare sizes',
+          instruction:
+            'Write a multi-stage Dockerfile for a Go hello-world binary. Compare final image size vs single-stage.',
+          command: 'docker build -t go-hello:v1 ./go-hello && docker images go-hello',
+          output: [
+            'REPOSITORY   TAG   IMAGE ID       SIZE',
+            'go-hello     v1    def789abc012   12.1MB',
+          ],
+          explanation:
+            'Without multi-stage, the Go SDK image would be ~700 MB. Multi-stage copies only the compiled binary into an alpine base, producing a ~12 MB image. The builder stage is discarded after COPY --from=builder.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['Image go-hello:v1 built with multi-stage (12.1MB vs ~700MB single-stage)'],
+          },
+          yamlContent: `# Stage 1: builder
+FROM golang:1.22-alpine AS builder
+WORKDIR /app
+COPY main.go .
+RUN go build -o server main.go
+
+# Stage 2: runtime
+FROM alpine:3.19
+COPY --from=builder /app/server /server
+CMD ["/server"]`,
+        },
+        {
+          id: 'p1-m8-s4',
+          title: 'Load image into minikube',
+          instruction:
+            "Load the locally built image into minikube's image store so Pods can use it.",
+          command: 'minikube image load myapp:v1 && minikube image ls | grep myapp',
+          output: ['docker.io/library/myapp:v1'],
+          explanation:
+            "minikube runs its own isolated container runtime. minikube image load transfers the image from your host Docker daemon into minikube's runtime. Without this step, the cluster cannot find the image and the Pod will fail with ImagePullBackOff.",
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['Image myapp:v1 loaded into minikube image store'],
+          },
+          tip: "Alternatively, run eval $(minikube docker-env) before building — this points your docker CLI at minikube's daemon so the image is built directly inside minikube.",
+        },
+        {
+          id: 'p1-m8-s5',
+          title: 'Run the local image as a Pod',
+          instruction:
+            'Create a Pod using the locally built image with imagePullPolicy: Never.',
+          command: 'kubectl apply -f myapp-pod.yaml && kubectl get pod myapp',
+          output: [
+            'pod/myapp created',
+            'NAME    READY   STATUS    RESTARTS   AGE',
+            'myapp   1/1     Running   0          10s',
+          ],
+          explanation:
+            'imagePullPolicy: Never tells kubelet to use only what is in the local image store — never reach out to a registry. Without this, Kubernetes defaults to Always (for :latest) or IfNotPresent, and will attempt to pull from Docker Hub, failing for a local-only image.',
+          clusterState: {
+            pods: [{ id: 'myapp', name: 'myapp', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'myapp' }, image: 'myapp:v1', restarts: 0 }],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['Pod myapp running with local image myapp:v1'],
+          },
+          yamlContent: `apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp
+spec:
+  containers:
+    - name: web
+      image: myapp:v1
+      imagePullPolicy: Never
+      ports:
+        - containerPort: 80`,
+        },
+        {
+          id: 'p1-m8-s6',
+          title: 'Verify and test the running container',
+          instruction: 'Port-forward to the Pod and verify the custom HTML is served.',
+          command:
+            'kubectl port-forward pod/myapp 8080:80 &\nsleep 2 && curl http://localhost:8080',
+          output: [
+            'Forwarding from 127.0.0.1:8080 -> 80',
+            '<html><body><h1>Hello from myapp:v1</h1></body></html>',
+          ],
+          explanation:
+            "port-forward creates a temporary tunnel from localhost:8080 to the Pod's port 80. This confirms the image was built correctly, loaded into minikube, and is serving HTTP traffic inside the container.",
+          clusterState: {
+            pods: [{ id: 'myapp', name: 'myapp', namespace: 'default', node: 'node-1', status: 'Running', labels: { app: 'myapp' }, image: 'myapp:v1', restarts: 0 }],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['Port-forward active: localhost:8080 → myapp:80'],
+          },
+        },
+      ],
+      quiz: [
+        {
+          id: 'p1-m8-q1',
+          question:
+            'Which Dockerfile instruction sets the default command that runs when a container starts?',
+          options: ['RUN', 'ENTRYPOINT', 'CMD', 'EXEC'],
+          answer: 2,
+          explanation:
+            'CMD sets the default command and arguments. It can be fully overridden at runtime (docker run myimage mycommand). ENTRYPOINT is fixed — CMD becomes its default arguments when both are specified.',
+        },
+        {
+          id: 'p1-m8-q2',
+          question: 'What is the primary purpose of multi-stage builds?',
+          options: [
+            'Run multiple processes in one container',
+            'Speed up docker build by using parallel stages',
+            'Reduce final image size by excluding build-time tools',
+            'Share layers between different base images',
+          ],
+          answer: 2,
+          explanation:
+            'Multi-stage builds let you compile or build artifacts in one stage (with all build tools) and COPY only the result into a minimal final stage. Build tools like gcc, maven, or go never appear in the runtime image.',
+        },
+        {
+          id: 'p1-m8-q3',
+          question:
+            'What happens if you use a locally built image in minikube without setting imagePullPolicy: Never?',
+          options: [
+            'The Pod runs using the local image as a fallback',
+            'Kubernetes uses imagePullPolicy: IfNotPresent by default and pulls the image',
+            'Kubernetes attempts to pull from Docker Hub and the Pod gets ImagePullBackOff',
+            'minikube automatically detects local images',
+          ],
+          answer: 2,
+          explanation:
+            "For non-latest tags, the default imagePullPolicy is IfNotPresent — it tries to pull if the image is not in the node's cache. Since minikube's cache does not have the image until you load it, and the registry does not have it either, the result is ImagePullBackOff. Setting Never prevents any pull attempt.",
+        },
+        {
+          id: 'p1-m8-q4',
+          question:
+            'In a multi-stage Dockerfile, how do you copy a file from a previous build stage?',
+          options: [
+            'COPY /path/to/file /dest',
+            'COPY --from=builder /path/to/file /dest',
+            'ADD --stage=builder /path/to/file /dest',
+            'RUN cp --from=builder /path/to/file /dest',
+          ],
+          answer: 1,
+          explanation:
+            'COPY --from=<stage-name> copies files from a named stage (defined with AS in the FROM line) into the current stage. The named stage\'s filesystem is accessible even though it is not the final image.',
+        },
+      ],
+      coverage: {
+        concepts: [
+          'Dockerfile: layered image recipe',
+          'Union filesystem (overlay2): read-only layers + writable container layer',
+          'Layer caching: unchanged layers are reused',
+          'Multi-stage build: separate builder from runtime',
+          'imagePullPolicy: Never for local images in minikube',
+          'CMD vs ENTRYPOINT distinction',
+        ],
+        commands: [
+          'docker build -t name:tag .',
+          'docker images',
+          'docker history image:tag',
+          'docker tag source:tag dest:tag',
+          'minikube image load name:tag',
+          'minikube image ls',
+          'eval $(minikube docker-env)',
+        ],
+        architecture: [
+          'overlay2 union filesystem: layers stacked, writable layer on top',
+          'Layer digest: SHA256 of layer content; enables sharing and caching',
+          'Multi-stage: builder stage discarded, only COPY --from result kept',
+          'minikube isolated runtime: separate from host Docker daemon',
+        ],
+        techniques: [
+          'Put stable RUN instructions before COPY of source code for cache hits',
+          'Use alpine base images to minimize size',
+          'Use multi-stage to exclude build tools from runtime image',
+          'Use eval $(minikube docker-env) to build directly in minikube',
+        ],
+        procedures: [
+          'Write Dockerfile → docker build → inspect layers → load into minikube → Pod with imagePullPolicy: Never',
+          'Multi-stage: FROM base AS builder → RUN build → FROM runtime → COPY --from=builder',
+        ],
+        toolsAndPlugins: ['docker', 'minikube', 'kubectl'],
+        cases: [
+          'ImagePullBackOff — forgot imagePullPolicy: Never or forgot to load image into minikube',
+          'Large image — not using multi-stage, build tools in final image',
+          'Cache busted unexpectedly — COPY . . before RUN apt install',
+        ],
+        scenarios: [
+          'Build and run a custom nginx image locally in minikube',
+          'Reduce a Go app image from 700MB to 12MB with multi-stage build',
+        ],
+      },
+      exercises: [
+        {
+          id: 'p1-m8-e1',
+          title: 'Build and run a local image in minikube',
+          kind: 'guided' as const,
+          goal: 'Write a Dockerfile, build the image, load it into minikube, and run it as a Pod.',
+          commands: [
+            'docker build -t myapp:v1 ./myapp',
+            'minikube image load myapp:v1',
+            'kubectl apply -f myapp-pod.yaml',
+            'kubectl get pod myapp',
+          ],
+          verify: [
+            'Pod myapp shows STATUS=Running',
+            'kubectl logs myapp shows nginx access log after curl',
+          ],
+          expectedOutcome: 'Locally built image running as a Kubernetes Pod in minikube.',
+          cleanup: ['kubectl delete pod myapp'],
+        },
+        {
+          id: 'p1-m8-e2',
+          title: 'Write a multi-stage Dockerfile from memory',
+          kind: 'challenge' as const,
+          goal: 'Write a two-stage Dockerfile: builder stage compiles a Go binary; runtime stage is alpine with only the binary.',
+          commands: ['docker build -t go-app:v1 .', 'docker images go-app'],
+          verify: [
+            'docker images shows go-app:v1 under 20MB',
+            'docker run --rm go-app:v1 outputs expected text',
+          ],
+          expectedOutcome: 'Multi-stage Dockerfile producing a small runtime image.',
+          cleanup: ['docker rmi go-app:v1'],
+        },
+        {
+          id: 'p1-m8-e3',
+          title: 'Debug: Pod stuck in ImagePullBackOff',
+          kind: 'debug' as const,
+          goal: 'A Pod using a locally built image is stuck in ImagePullBackOff. Diagnose and fix.',
+          commands: [
+            'kubectl describe pod broken-pod',
+            'minikube image ls',
+            'kubectl edit pod broken-pod',
+          ],
+          verify: ['kubectl get pod broken-pod shows STATUS=Running after fix'],
+          expectedOutcome:
+            'Fixed either missing imagePullPolicy: Never or missing minikube image load.',
+          cleanup: ['kubectl delete pod broken-pod'],
+        },
+        {
+          id: 'p1-m8-e4',
+          title: '3-day spaced review — Dockerfile and image workflow',
+          kind: 'spaced-review' as const,
+          goal: 'Recall Dockerfile instructions, multi-stage pattern, and minikube image loading from memory.',
+          commands: ['docker --help | grep build'],
+          verify: [
+            'Can list 6 Dockerfile instructions and their purpose without notes',
+            'Can explain why multi-stage builds produce smaller images',
+            'Can state the two ways to use a local image in minikube',
+          ],
+          expectedOutcome: 'Dockerfile and image build workflow recalled without notes.',
+          cleanup: [],
+        },
+      ],
+    },
   ],
 }
 

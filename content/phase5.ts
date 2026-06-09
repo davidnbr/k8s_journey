@@ -1295,7 +1295,63 @@ schema:
             type: string
           storage:
             type: string
-\`\`\``,
+\`\`\`
+
+## Operator Pattern
+
+A **Kubernetes Operator** is a custom controller that extends Kubernetes to manage complex, stateful applications. It packages operational knowledge (how to deploy, scale, backup, upgrade an application) into code that runs as a controller inside the cluster.
+
+### How Operators Work
+
+\`\`\`
+Custom Resource (CR)
+       │
+       │  create/update/delete
+       ▼
+Operator Controller (watches CRs)
+       │
+       │  reconcile loop
+       ▼
+Kubernetes API (creates Deployments, Services, Secrets, etc.)
+\`\`\`
+
+The operator watches for Custom Resources of a specific Kind and reconciles the cluster state to match the CR's spec — the same control loop pattern used by the built-in Deployment controller.
+
+### Operator Frameworks
+
+| Framework | Language | Description |
+|---|---|---|
+| \`kubebuilder\` | Go | Official CNCF project; generates controller scaffolding |
+| \`operator-sdk\` | Go / Helm / Ansible | Red Hat; supports non-Go operators |
+| \`kopf\` | Python | Simple framework for Python-based operators |
+
+### Installing Existing Operators
+
+You usually install operators via:
+
+1. **Helm chart** (most common):
+   \`\`\`bash
+   helm install cert-manager jetstack/cert-manager \\
+     --namespace cert-manager --create-namespace \\
+     --set installCRDs=true
+   \`\`\`
+
+2. **Operator Lifecycle Manager (OLM)** — a system for managing operator installation and upgrades from OperatorHub:
+   \`\`\`bash
+   kubectl apply -f https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.28.0/crds.yaml
+   kubectl apply -f https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.28.0/olm.yaml
+   \`\`\`
+
+3. **OperatorHub.io** — the catalog of community operators (similar to Docker Hub but for operators)
+
+### Why Operators vs Plain Helm?
+
+| | Helm | Operator |
+|---|---|---|
+| Day-1 (install) | ✅ | ✅ |
+| Day-2 (upgrade, backup, failover) | ❌ Limited | ✅ Full automation |
+| Reactive to cluster state | ❌ | ✅ Reconciliation loop |
+| Domain logic | ❌ Templates only | ✅ Arbitrary Go/Python |`,
       labSteps: [
         {
           id: 'p5-m3-s1',
@@ -1460,6 +1516,95 @@ spec:
             highlightedComponent: 'apiserver',
           },
         },
+        {
+          id: 'p5-m3-s-op1',
+          title: 'Add the jetstack Helm repo for cert-manager',
+          instruction: 'Add the cert-manager Helm repository — cert-manager is one of the most common real-world Operators.',
+          command: 'helm repo add jetstack https://charts.jetstack.io && helm repo update',
+          output: [
+            '"jetstack" has been added to your repositories',
+            'Update Complete. ⎈Happy Helming!⎈',
+          ],
+          explanation:
+            'cert-manager is an Operator that automates TLS certificate management. It watches Certificate CRs and reconciles them by communicating with ACME servers (Let\'s Encrypt) or internal CAs. Its Helm chart installs the CRDs, the Operator deployment, and necessary RBAC.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['Helm repo jetstack added'],
+          },
+        },
+        {
+          id: 'p5-m3-s-op2',
+          title: 'Install cert-manager Operator via Helm',
+          instruction: 'Install cert-manager with CRDs enabled. This deploys the Operator and its CRDs.',
+          command: 'helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set installCRDs=true',
+          output: [
+            'NAME: cert-manager',
+            'LAST DEPLOYED: ...',
+            'NAMESPACE: cert-manager',
+            'STATUS: deployed',
+          ],
+          explanation:
+            'installCRDs=true tells Helm to install the cert-manager CRDs as part of the release. The Operator deployment (cert-manager, cert-manager-webhook, cert-manager-cainjector) starts in the cert-manager namespace and begins watching for Certificate, ClusterIssuer, and Issuer resources.',
+          clusterState: {
+            pods: [
+              { id: 'cert-manager-abc12', name: 'cert-manager-abc12', status: 'Running' as const, namespace: 'cert-manager', node: 'node-1' as const, labels: { app: 'cert-manager' }, image: 'quay.io/jetstack/cert-manager-controller:v1.14.0', restarts: 0 },
+              { id: 'cert-manager-webhook-def34', name: 'cert-manager-webhook-def34', status: 'Running' as const, namespace: 'cert-manager', node: 'node-1' as const, labels: { app: 'cert-manager-webhook' }, image: 'quay.io/jetstack/cert-manager-webhook:v1.14.0', restarts: 0 },
+            ],
+            services: [],
+            deployments: [{ id: 'cert-manager', name: 'cert-manager', replicas: 1, availableReplicas: 1, namespace: 'cert-manager', image: 'quay.io/jetstack/cert-manager-controller:v1.14.0' }],
+            namespaces: ['default', 'cert-manager'],
+            events: ['cert-manager Operator installed via Helm in cert-manager namespace'],
+          },
+        },
+        {
+          id: 'p5-m3-s-op3',
+          title: 'Verify Operator CRDs and create a Certificate CR',
+          instruction: 'List the CRDs installed by cert-manager, then create a self-signed certificate using a Certificate CR.',
+          command: 'kubectl get crd | grep cert-manager.io && kubectl apply -f selfsigned-cert.yaml',
+          output: [
+            'certificates.cert-manager.io           2024-01-15T10:00:00Z',
+            'certificaterequests.cert-manager.io    2024-01-15T10:00:00Z',
+            'clusterissuers.cert-manager.io         2024-01-15T10:00:00Z',
+            'issuers.cert-manager.io                2024-01-15T10:00:00Z',
+            'certificate.cert-manager.io/my-cert created',
+          ],
+          explanation:
+            'Once you create the Certificate CR, the cert-manager Operator\'s reconciliation loop detects it, communicates with the specified Issuer, and creates a Kubernetes Secret containing the TLS certificate and private key. This demonstrates the Operator pattern: you declare desired state (I want a certificate), and the Operator makes it happen.',
+          clusterState: {
+            pods: [
+              { id: 'cert-manager-abc12', name: 'cert-manager-abc12', status: 'Running' as const, namespace: 'cert-manager', node: 'node-1' as const, labels: { app: 'cert-manager' }, image: 'quay.io/jetstack/cert-manager-controller:v1.14.0', restarts: 0 },
+            ],
+            services: [],
+            deployments: [],
+            namespaces: ['default', 'cert-manager'],
+            events: ['Certificate CR my-cert created; cert-manager Operator reconciling'],
+          },
+          yamlContent: `# ClusterIssuer (self-signed for testing)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+# Certificate CR — Operator creates a Secret with TLS cert+key
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: my-cert
+  namespace: default
+spec:
+  secretName: my-cert-tls
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+  commonName: example.com
+  dnsNames:
+    - example.com`,
+        },
       ],
       quiz: [
         {
@@ -1514,6 +1659,27 @@ spec:
           answer: 1,
           explanation:
             "cert-manager introduces a Certificate CRD — create a Certificate CR and the cert-manager controller talks to Let's Encrypt (or another CA) and creates a TLS Secret. Argo CD introduces an Application CRD — create an Application CR pointing at a Git repo and the Argo CD controller syncs the repo contents to the cluster. Both are classic Operators: CRD defines desired state, controller makes it real.",
+        },
+        {
+          id: 'p5-m3-q-op1',
+          question: 'What does a Kubernetes Operator do when you create a Custom Resource?',
+          options: [
+            'Validates the CR against the CRD schema and stores it in etcd',
+            'Watches the CR and reconciles cluster state to match its spec',
+            'Converts the CR to a Deployment automatically',
+            'Sends a webhook notification to the cluster admin',
+          ],
+          answer: 1,
+          explanation:
+            'An Operator runs a reconciliation loop that watches CRs of its type. When a CR is created, updated, or deleted, the Operator\'s reconcile function runs and makes whatever API calls are needed to bring the cluster state in line with the CR\'s spec — just like the built-in Deployment controller does for ReplicaSets.',
+        },
+        {
+          id: 'p5-m3-q-op2',
+          question: 'Which platform provides a catalog of community Kubernetes Operators, similar to Docker Hub for images?',
+          options: ['Helm Hub', 'ArtifactHub', 'OperatorHub.io', 'CNCF Sandbox'],
+          answer: 2,
+          explanation:
+            'OperatorHub.io (operatorhub.io) is the community catalog for Kubernetes Operators, maintained by Red Hat. It lists operators across categories (databases, monitoring, security) and integrates with OLM for installation. ArtifactHub hosts Helm charts and other artifacts but is not Operator-specific.',
         },
       ],
       coverage: {
@@ -1722,7 +1888,7 @@ EOF`,
           goal: 'Recall CRD and Operator pattern from memory.',
           commands: [
             'kubectl get crds',
-            "kubectl api-resources | grep -v “^NAME” | awk '{print $3}' | sort -u | head -20",
+            "kubectl api-resources | grep -v '^NAME' | awk '{print \$3}' | sort -u | head -20",
           ],
           verify: [
             'kubectl get crds shows any installed CRDs',
@@ -1730,6 +1896,48 @@ EOF`,
           ],
           expectedOutcome: 'CRD/Operator pattern recalled without notes.',
           cleanup: [],
+        },
+        {
+          id: 'p5-m3-e-op1',
+          title: 'Install cert-manager Operator and create a Certificate CR',
+          kind: 'guided' as const,
+          goal: 'Install the cert-manager Operator via Helm and create a self-signed Certificate CR. Observe the Operator reconcile it into a Secret.',
+          commands: [
+            'helm repo add jetstack https://charts.jetstack.io',
+            'helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set installCRDs=true',
+            'kubectl wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=60s',
+            'kubectl apply -f selfsigned-cert.yaml',
+            'kubectl get certificate my-cert',
+            'kubectl get secret my-cert-tls',
+          ],
+          verify: [
+            'kubectl get certificate my-cert shows READY=True',
+            'kubectl get secret my-cert-tls shows Secret exists with tls.crt and tls.key',
+          ],
+          expectedOutcome: 'cert-manager Operator reconciled Certificate CR into a TLS Secret.',
+          cleanup: [
+            'kubectl delete certificate my-cert',
+            'kubectl delete clusterissuer selfsigned-issuer',
+            'helm uninstall cert-manager -n cert-manager',
+            'kubectl delete ns cert-manager',
+          ],
+        },
+        {
+          id: 'p5-m3-e-op2',
+          title: 'Debug: Certificate CR stuck in not-ready — read Operator logs',
+          kind: 'debug' as const,
+          goal: 'A Certificate CR is not becoming Ready. Find the root cause by reading cert-manager Operator pod logs.',
+          commands: [
+            'kubectl describe certificate broken-cert',
+            'kubectl get certificaterequest -n default',
+            'kubectl logs -n cert-manager -l app=cert-manager | tail -30',
+          ],
+          verify: [
+            'Root cause identified from Operator logs (e.g., missing Issuer, wrong secretName)',
+            'kubectl get certificate broken-cert shows READY=True after fix',
+          ],
+          expectedOutcome: 'Operator logs used to diagnose and fix Certificate CR.',
+          cleanup: ['kubectl delete certificate broken-cert'],
         },
       ],
     },
@@ -4413,6 +4621,429 @@ EOF`,
             'Can describe: what mTLS identity is based on in Istio (SPIFFE/X.509)',
           ],
           expectedOutcome: 'Service mesh mental model solidified.',
+          cleanup: [],
+        },
+      ],
+    },
+
+    // ─── Module 8: API Deprecations ──────────────────────────────────────────
+    {
+      id: 'p5-m8',
+      slug: 'api-deprecations',
+      title: 'API Deprecations — Staying Current Across Upgrades',
+      description:
+        'Detect deprecated Kubernetes APIs in manifests and Helm charts, understand the deprecation policy, and migrate before upgrades break things.',
+      duration: '30 min',
+      difficulty: 'intermediate' as const,
+      learningObjectives: [
+        'State the Kubernetes API deprecation policy timelines for GA, beta, and alpha APIs',
+        'Use kubectl api-versions and kubectl explain to check current API versions',
+        'Detect deprecated APIs in manifests using kubectl warnings or the Pluto tool',
+        'Convert deprecated manifests to current API versions',
+      ],
+      keyConcepts: [
+        'GA (v1) APIs: deprecated for at least 12 months / 3 releases before removal',
+        'Beta APIs: deprecated for at least 9 months / 3 releases before removal',
+        'Alpha APIs: may be removed in any release without deprecation',
+        'kubectl deprecation warnings: printed to stderr when applying deprecated apiVersions',
+        'kubectl convert plugin: converts manifests between API versions',
+        'Pluto: open-source tool that scans manifests and Helm charts for deprecated APIs',
+      ],
+      practicePrompts: [
+        'Without notes: how long is a GA API guaranteed to work after being deprecated?',
+        'A manifest uses networking.k8s.io/v1beta1 for Ingress. Which version replaced it?',
+        'What command converts a manifest from an old API version to the current one?',
+      ],
+      masteryChecks: [
+        'Can state deprecation timelines for GA, beta, and alpha APIs',
+        'Can use kubectl api-versions to find available API groups and versions',
+        'Can install and run Pluto to scan a directory of manifests',
+        'Can convert a deprecated manifest using kubectl convert',
+      ],
+      theory: `> 🧠 **Brain Warm-Up**: You upgrade your cluster from 1.28 to 1.32. Half your kubectl apply commands start failing with "no kind is registered for the version." What happened, and how would you have caught this before the upgrade? Think before reading.
+
+## Kubernetes Deprecation Policy
+
+Kubernetes evolves quickly. Old API versions are deprecated and eventually removed. The policy guarantees a window:
+
+| API maturity | Deprecation window | Notes |
+|---|---|---|
+| **GA (v1)** | ≥ 12 months **and** ≥ 3 releases | Most stable; long window |
+| **Beta (v1beta1, v2beta1)** | ≥ 9 months **and** ≥ 3 releases | Reasonably stable |
+| **Alpha (v1alpha1)** | **No guarantee** — can be removed next release | Never use in production |
+
+A deprecated API still works during the window. After removal, requests using that apiVersion get a 404 or "no kind registered" error.
+
+### Real Deprecation Examples
+
+| Old apiVersion | Removed in | New apiVersion |
+|---|---|---|
+| \`extensions/v1beta1\` Ingress | 1.22 | \`networking.k8s.io/v1\` |
+| \`apps/v1beta1\` Deployment | 1.16 | \`apps/v1\` |
+| \`networking.k8s.io/v1beta1\` Ingress | 1.22 | \`networking.k8s.io/v1\` |
+| \`policy/v1beta1\` PodDisruptionBudget | 1.25 | \`policy/v1\` |
+| \`batch/v1beta1\` CronJob | 1.25 | \`batch/v1\` |
+
+## Detecting Deprecated APIs
+
+### 1. kubectl warnings (built-in)
+
+kubectl prints deprecation warnings to stderr automatically:
+
+\`\`\`bash
+$ kubectl apply -f old-ingress.yaml
+Warning: networking.k8s.io/v1beta1 Ingress is deprecated in v1.19+, unavailable in v1.22+;
+         use networking.k8s.io/v1 Ingress
+ingress.networking.k8s.io/my-ingress created
+\`\`\`
+
+### 2. kubectl api-versions
+
+List all API groups and versions currently available in the cluster:
+
+\`\`\`bash
+kubectl api-versions
+# apps/v1
+# batch/v1
+# networking.k8s.io/v1
+# ...
+\`\`\`
+
+If an apiVersion from your manifest is NOT in this list, it has been removed.
+
+### 3. Pluto — automated scanning
+
+[Pluto](https://pluto.docs.fairwinds.com/) scans directories of manifests or Helm chart outputs for deprecated and removed APIs:
+
+\`\`\`bash
+# Install
+brew install FairwindsOps/tap/pluto     # macOS
+# or download from github.com/FairwindsOps/pluto/releases
+
+# Scan a directory
+pluto detect-files -d ./manifests
+
+# Scan a Helm release
+helm template my-release ./my-chart | pluto detect --stdin
+\`\`\`
+
+Output:
+\`\`\`
+NAME         KIND      VERSION                         REPLACEMENT              REMOVED   DEPRECATED
+my-ingress   Ingress   networking.k8s.io/v1beta1       networking.k8s.io/v1     true      true
+\`\`\`
+
+### 4. kubectl convert (plugin)
+
+\`kubectl convert\` migrates manifests between API versions:
+
+\`\`\`bash
+# Install via krew
+kubectl krew install convert
+
+# Convert a single file
+kubectl convert -f old-ingress.yaml --output-version networking.k8s.io/v1
+
+# Convert all files in a directory
+kubectl convert -f ./manifests/ --output-version networking.k8s.io/v1 -o yaml
+\`\`\`
+
+## Pre-Upgrade Checklist
+
+Before upgrading your cluster:
+
+1. Check the release notes for the target version — look for "Removed APIs" section
+2. Run Pluto against all manifests and Helm releases
+3. Fix deprecated apiVersions in manifests
+4. Test with \`--dry-run=server\` against a cluster running the new version`,
+      labSteps: [
+        {
+          id: 'p5-m8-s1',
+          title: 'List all available API versions',
+          instruction: 'Use kubectl api-versions to see all API groups and versions registered in the cluster.',
+          command: 'kubectl api-versions | sort',
+          output: [
+            'admissionregistration.k8s.io/v1',
+            'apps/v1',
+            'autoscaling/v1',
+            'autoscaling/v2',
+            'batch/v1',
+            'networking.k8s.io/v1',
+            'policy/v1',
+            '...',
+          ],
+          explanation:
+            'This is the ground truth — if an apiVersion is not in this list, any manifest using it will fail. Compare your manifests against this list before a cluster upgrade. Notable: batch/v1beta1 is gone (CronJob moved to batch/v1 in 1.25); networking.k8s.io/v1beta1 is gone (Ingress moved in 1.22).',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['kubectl api-versions executed — full API group list retrieved'],
+          },
+          tip: 'kubectl api-resources shows not just versions but also the resource short names, namespaced status, and Kind for every resource type.',
+        },
+        {
+          id: 'p5-m8-s2',
+          title: 'Confirm current Ingress API version',
+          instruction: 'Use kubectl explain to confirm the current API version for Ingress resources.',
+          command: 'kubectl explain ingress',
+          output: [
+            'GROUP:      networking.k8s.io',
+            'KIND:       Ingress',
+            'VERSION:    v1',
+            '',
+            'DESCRIPTION:',
+            '  Ingress is a collection of rules that allow inbound connections...',
+          ],
+          explanation:
+            'kubectl explain shows the canonical (current) API group and version for any resource Kind. For Ingress, it is networking.k8s.io/v1. If your manifests still say extensions/v1beta1 or networking.k8s.io/v1beta1, they will fail on any cluster >= 1.22.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['kubectl explain ingress: GROUP=networking.k8s.io, VERSION=v1'],
+          },
+        },
+        {
+          id: 'p5-m8-s3',
+          title: 'Apply a deprecated apiVersion and observe the warning',
+          instruction:
+            'Apply a manifest using a deprecated (but still present) apiVersion to observe the kubectl deprecation warning.',
+          command: 'kubectl apply -f deprecated-ingress.yaml 2>&1',
+          output: [
+            'Warning: networking.k8s.io/v1beta1 Ingress is deprecated in v1.19+,',
+            '         unavailable in v1.22+; use networking.k8s.io/v1 Ingress',
+            'ingress.networking.k8s.io/old-ingress created',
+          ],
+          explanation:
+            'kubectl prints the deprecation warning to stderr even when the apply succeeds. This is your last chance to fix the manifest before the version is removed. If you see this warning in CI logs, treat it as a required fix before your next cluster upgrade.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['Deprecated apiVersion warning shown for networking.k8s.io/v1beta1 Ingress'],
+          },
+          tip: 'Pipe stderr through grep "Warning" in CI to catch deprecation warnings as build failures: kubectl apply -f . 2>&1 | tee /dev/stderr | grep -i warning && exit 1',
+          yamlContent: `# Example of a deprecated manifest (networking.k8s.io/v1beta1 removed in 1.22)
+# Use networking.k8s.io/v1 instead
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: old-ingress
+spec:
+  rules:
+    - host: example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80`,
+        },
+        {
+          id: 'p5-m8-s4',
+          title: 'Install kubectl krew and the convert plugin',
+          instruction: 'Install krew (kubectl plugin manager) and the convert plugin for migrating manifests.',
+          command: 'kubectl krew install convert && kubectl convert --help | head -5',
+          output: [
+            'Updated the local copy of plugin index.',
+            'Installing plugin: convert',
+            'Installed plugin: convert',
+            'USAGE:',
+            '  kubectl convert -f FILENAME [options]',
+          ],
+          explanation:
+            'kubectl krew is the kubectl plugin manager. The convert plugin was removed from kubectl core in 1.17 and must be installed separately. It uses the same API machinery as kubectl apply to understand and convert resource schemas.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['kubectl convert plugin installed via krew'],
+          },
+          tip: 'If krew is not installed, install it first: https://krew.sigs.k8s.io/docs/user-guide/setup/install/ — then kubectl krew install convert.',
+        },
+        {
+          id: 'p5-m8-s5',
+          title: 'Scan manifests with Pluto',
+          instruction: 'Use Pluto to scan a directory of manifests for deprecated or removed APIs.',
+          command: 'pluto detect-files -d ./manifests --target-versions k8s=v1.32.0',
+          output: [
+            'NAME         KIND      VERSION                         REPLACEMENT              REMOVED   DEPRECATED',
+            'my-ingress   Ingress   networking.k8s.io/v1beta1       networking.k8s.io/v1     false     true',
+            'my-cron      CronJob   batch/v1beta1                   batch/v1                 true      true',
+          ],
+          explanation:
+            'Pluto checks each manifest against the target Kubernetes version\'s API removal list. REMOVED=true means the API is already gone in the target version — kubectl apply will fail. DEPRECATED=true means it still works but is scheduled for removal. Fix both before upgrading.',
+          clusterState: {
+            pods: [],
+            services: [],
+            deployments: [],
+            namespaces: ['default'],
+            events: ['Pluto scan: 2 deprecated APIs found in ./manifests'],
+          },
+          tip: 'Add pluto detect-files to your CI pipeline with --exit-code-removal 1 to fail the build when removed APIs are found.',
+        },
+      ],
+      quiz: [
+        {
+          id: 'p5-m8-q1',
+          question: 'How long is a GA (v1) Kubernetes API guaranteed to remain available after it is deprecated?',
+          options: [
+            '3 months',
+            '6 months',
+            'At least 12 months and 3 releases',
+            'Until the next major version',
+          ],
+          answer: 2,
+          explanation:
+            'The Kubernetes deprecation policy guarantees GA (v1) APIs are available for at least 12 months AND at least 3 releases after the deprecation announcement. Beta APIs get at least 9 months / 3 releases. Alpha APIs have no guarantee.',
+        },
+        {
+          id: 'p5-m8-q2',
+          question: 'Which kubectl plugin converts manifests between API versions?',
+          options: ['kubectl migrate', 'kubectl upgrade', 'kubectl convert', 'kubectl translate'],
+          answer: 2,
+          explanation:
+            'kubectl convert (installed via krew: kubectl krew install convert) converts resource manifests from deprecated API versions to current ones. It was removed from kubectl core in 1.17 and must be installed as a plugin.',
+        },
+        {
+          id: 'p5-m8-q3',
+          question: 'Where does kubectl print API deprecation warnings when you apply a manifest?',
+          options: [
+            'As a Warning annotation on the created object',
+            'To stderr, before the normal output',
+            'To the cluster audit log only',
+            'In kubectl get events after the apply',
+          ],
+          answer: 1,
+          explanation:
+            'kubectl prints deprecation warnings to stderr as "Warning:" lines before the normal apply output. This means they may not appear if you pipe only stdout. In CI, capture stderr too (2>&1) to see these warnings.',
+        },
+        {
+          id: 'p5-m8-q4',
+          question: 'Which open-source tool scans directories of manifests and Helm charts for deprecated Kubernetes APIs?',
+          options: ['Trivy', 'Kubesec', 'Pluto', 'Checkov'],
+          answer: 2,
+          explanation:
+            'Pluto (by Fairwinds) detects deprecated and removed APIs in manifests and Helm chart outputs. Trivy focuses on vulnerability scanning, Kubesec on security misconfigurations, and Checkov on infrastructure-as-code policy. All are useful but Pluto is the specialist for API deprecations.',
+        },
+      ],
+      coverage: {
+        concepts: [
+          'GA deprecation: ≥12 months / 3 releases',
+          'Beta deprecation: ≥9 months / 3 releases',
+          'Alpha: no guarantee, can be removed any release',
+          'kubectl deprecation warnings: printed to stderr on apply',
+          'kubectl convert: migrates manifests between API versions',
+          'Pluto: scans manifests/Helm charts for deprecated APIs',
+        ],
+        commands: [
+          'kubectl api-versions',
+          'kubectl api-resources',
+          'kubectl explain <resource>',
+          'kubectl krew install convert',
+          'kubectl convert -f old.yaml --output-version <group/version>',
+          'pluto detect-files -d ./manifests --target-versions k8s=v1.32.0',
+        ],
+        architecture: [
+          'API groups: extensions (deprecated), apps, networking.k8s.io, batch, policy',
+          'apiVersion format: <group>/<version> or v1 for core group',
+          'Removal: requests with removed apiVersion get 404 / "no kind registered"',
+        ],
+        techniques: [
+          'Check kubectl api-versions before applying to confirm apiVersion exists',
+          'Treat deprecation warnings in CI as required fixes',
+          'Run Pluto with --exit-code-removal 1 in CI pipelines',
+          'Test manifests with --dry-run=server on target cluster version',
+        ],
+        procedures: [
+          'Pre-upgrade: check release notes → run Pluto → fix manifests → test with dry-run',
+          'Convert: kubectl convert -f old.yaml --output-version <target>',
+        ],
+        toolsAndPlugins: ['kubectl', 'kubectl krew', 'kubectl convert', 'Pluto'],
+        cases: [
+          '"no kind is registered for the version" — apiVersion removed in current cluster version',
+          'kubectl apply succeeds but prints Warning — deprecated but not yet removed',
+          'Helm release fails after upgrade — chart contains removed apiVersion',
+        ],
+        scenarios: [
+          'Pre-upgrade audit: scan all manifests with Pluto for a 1.28 → 1.32 upgrade',
+          'Convert a networking.k8s.io/v1beta1 Ingress to networking.k8s.io/v1',
+          'Catch deprecation warnings in CI before they become upgrade blockers',
+        ],
+      },
+      exercises: [
+        {
+          id: 'p5-m8-e1',
+          title: 'Audit current cluster API versions',
+          kind: 'guided' as const,
+          goal: 'Use kubectl api-versions and explain to identify current API versions for Ingress, CronJob, and PodDisruptionBudget.',
+          commands: [
+            'kubectl api-versions | sort',
+            'kubectl explain ingress',
+            'kubectl explain cronjob',
+            'kubectl explain poddisruptionbudget',
+          ],
+          verify: [
+            'Ingress: networking.k8s.io/v1',
+            'CronJob: batch/v1',
+            'PodDisruptionBudget: policy/v1',
+          ],
+          expectedOutcome: 'Current API versions confirmed for three commonly-migrated resources.',
+          cleanup: [],
+        },
+        {
+          id: 'p5-m8-e2',
+          title: 'Scan manifests with Pluto for target version',
+          kind: 'challenge' as const,
+          goal: 'Run Pluto against a directory of manifests targeting Kubernetes v1.32. Identify all deprecated APIs.',
+          commands: [
+            'pluto detect-files -d ./manifests --target-versions k8s=v1.32.0',
+            'pluto detect-files -d ./manifests --target-versions k8s=v1.32.0 --output wide',
+          ],
+          verify: [
+            'Pluto output lists all files with deprecated apiVersions',
+            'REMOVED column correctly shows true/false per API',
+          ],
+          expectedOutcome: 'All deprecated APIs identified with their replacements.',
+          cleanup: [],
+        },
+        {
+          id: 'p5-m8-e3',
+          title: 'Debug: upgrade blocked by removed API',
+          kind: 'debug' as const,
+          goal: 'kubectl apply fails with "no kind is registered." Find the removed apiVersion in the manifest and fix it.',
+          commands: [
+            'kubectl apply -f broken-manifest.yaml',
+            'kubectl api-versions | grep networking',
+            'kubectl convert -f broken-manifest.yaml --output-version networking.k8s.io/v1',
+          ],
+          verify: [
+            'Fixed manifest uses networking.k8s.io/v1',
+            'kubectl apply -f fixed-manifest.yaml succeeds without errors',
+          ],
+          expectedOutcome: 'Deprecated apiVersion identified and converted to current version.',
+          cleanup: ['kubectl delete -f fixed-manifest.yaml'],
+        },
+        {
+          id: 'p5-m8-e4',
+          title: '3-day spaced review — API deprecation policy',
+          kind: 'spaced-review' as const,
+          goal: 'Recall deprecation timelines, detection commands, and conversion tools from memory.',
+          commands: ['kubectl api-versions | head -10'],
+          verify: [
+            'Can state GA, beta, alpha deprecation windows without notes',
+            'Can list 3 historically removed APIs and their replacements',
+            'Can describe the Pluto workflow for pre-upgrade auditing',
+          ],
+          expectedOutcome: 'API deprecation policy and tooling recalled without notes.',
           cleanup: [],
         },
       ],

@@ -1614,6 +1614,96 @@ export const moduleReviews: Record<string, ModuleReview> = {
       ],
     }
   ),
+
+  'phase-1/container-images': review(
+    'phase-1',
+    'container-images',
+    'p1-m8',
+    [sourceRefs.pods, sourceRefs.concepts, sourceRefs.minikube],
+    'Container image build, multi-stage Dockerfiles, and loading images into minikube',
+    {
+      supplementalCommands: [
+        'docker build -t myapp:v1 .',
+        'docker images',
+        'docker history myapp:v1',
+        'minikube image load myapp:v1',
+        'minikube image ls',
+        'eval $(minikube docker-env)',
+        'kubectl run myapp --image=myapp:v1 --image-pull-policy=Never',
+      ],
+    }
+  ),
+
+  'phase-3/gateway-api': review(
+    'phase-3',
+    'gateway-api',
+    'p3-m7',
+    [sourceRefs.ingress, sourceRefs.services, sourceRefs.crds],
+    'Gateway API: GatewayClass, Gateway, HTTPRoute resources',
+    {
+      supplementalCommands: [
+        'kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml',
+        'kubectl get crd | grep gateway.networking.k8s.io',
+        'kubectl get gatewayclass',
+        'kubectl get gateway',
+        'kubectl get httproute',
+        'kubectl describe httproute',
+      ],
+    }
+  ),
+
+  'phase-4/admission-controllers': review(
+    'phase-4',
+    'admission-controllers',
+    'p4-m8',
+    [sourceRefs.podSecurity, sourceRefs.securityContext, sourceRefs.rbac],
+    'Admission controllers: PodSecurity standards, mutating and validating webhooks',
+    {
+      supplementalCommands: [
+        'kubectl label ns psa-test pod-security.kubernetes.io/enforce=restricted',
+        'kubectl get mutatingwebhookconfigurations',
+        'kubectl get validatingwebhookconfigurations',
+        'kubectl describe mutatingwebhookconfiguration',
+        'kubectl delete ns psa-test --ignore-not-found',
+      ],
+    }
+  ),
+
+  'phase-5/api-deprecations': review(
+    'phase-5',
+    'api-deprecations',
+    'p5-m8',
+    [sourceRefs.releases, sourceRefs.kubectl, sourceRefs.concepts],
+    'Kubernetes API deprecation policy, detection with Pluto, kubectl convert',
+    {
+      supplementalCommands: [
+        'kubectl api-versions | sort',
+        'kubectl api-resources',
+        'kubectl explain ingress',
+        'kubectl explain cronjob',
+        'kubectl krew install convert',
+        'kubectl convert -f old.yaml --output-version networking.k8s.io/v1',
+        'pluto detect-files -d ./manifests --target-versions k8s=v1.32.0',
+      ],
+    }
+  ),
+
+  'phase-7/ha-control-plane': review(
+    'phase-7',
+    'ha-control-plane',
+    'p7-m5',
+    [sourceRefs.kubeadm, sourceRefs.etcd, sourceRefs.components],
+    'HA control plane: stacked vs external etcd, kubeadm HA init, leader election Leases',
+    {
+      supplementalCommands: [
+        'kubectl get lease -n kube-system',
+        'kubectl describe lease kube-controller-manager -n kube-system',
+        'kubectl exec -n kube-system etcd-minikube -- etcdctl member list',
+        'kubeadm init --help | grep control-plane-endpoint',
+        'kubeadm config validate --config ha-config.yaml',
+      ],
+    }
+  ),
 }
 
 export function getModuleReview(phaseSlug: string, moduleSlug: string): ModuleReview | undefined {
